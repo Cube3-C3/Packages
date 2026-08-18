@@ -1,0 +1,239 @@
+{
+  "schema_version": "2.0",
+  "id": "MATHEMATICAL_STRUCTURES_CORE",
+  "description": "Pure topological algebraic structures with zero embedded numbers or constants.",
+  "structures": [
+    {
+      "id": "A1",
+      "name": "ratio_simple",
+      "description": "O1 = O2 / O3",
+      "ast": {
+        "op": "eq",
+        "lhs": { "operand_id": "O1" },
+        "rhs": {
+          "op": "div",
+          "args": [
+            { "operand_id": "O2" },
+            { "operand_id": "O3" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "A2",
+      "name": "product_simple",
+      "description": "O1 = O2 * O3",
+      "ast": {
+        "op": "eq",
+        "lhs": { "operand_id": "O1" },
+        "rhs": {
+          "op": "mul",
+          "args": [
+            { "operand_id": "O2" },
+            { "operand_id": "O3" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "A3",
+      "name": "triple_product",
+      "description": "O1 = O2 * O3 * O4",
+      "ast": {
+        "op": "eq",
+        "lhs": { "operand_id": "O1" },
+        "rhs": {
+          "op": "mul",
+          "args": [
+            { "operand_id": "O2" },
+            { "operand_id": "O3" },
+            { "operand_id": "O4" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "A4",
+      "name": "rate_of_change",
+      "description": "O1 = delta(O2) / O3",
+      "ast": {
+        "op": "eq",
+        "lhs": { "operand_id": "O1" },
+        "rhs": {
+          "op": "div",
+          "args": [
+            {
+              "op": "delta",
+              "arg": { "operand_id": "O2" }
+            },
+            { "operand_id": "O3" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "A5",
+      "name": "additive_sum",
+      "description": "O1 = O2 + O3",
+      "ast": {
+        "op": "eq",
+        "lhs": { "operand_id": "O1" },
+        "rhs": {
+          "op": "add",
+          "args": [
+            { "operand_id": "O2" },
+            { "operand_id": "O3" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "A6",
+      "name": "linear_accumulation",
+      "description": "O1 = O2 + O3 * O4",
+      "ast": {
+        "op": "eq",
+        "lhs": { "operand_id": "O1" },
+        "rhs": {
+          "op": "add",
+          "args": [
+            { "operand_id": "O2" },
+            {
+              "op": "mul",
+              "args": [
+                { "operand_id": "O3" },
+                { "operand_id": "O4" }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "A7",
+      "name": "scaled_product_power",
+      "description": "O1 = (O2 * O3^O4) / O5",
+      "ast": {
+        "op": "eq",
+        "lhs": { "operand_id": "O1" },
+        "rhs": {
+          "op": "div",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                { "operand_id": "O2" },
+                {
+                  "op": "pow",
+                  "args": [
+                    { "operand_id": "O3" },
+                    { "operand_id": "O4" }
+                  ]
+                }
+              ]
+            },
+            { "operand_id": "O5" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "A8",
+      "name": "quadratic_accumulation",
+      "description": "O1 = O2 * O3 + (O4 * O3^O5) / O6",
+      "ast": {
+        "op": "eq",
+        "lhs": { "operand_id": "O1" },
+        "rhs": {
+          "op": "add",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                { "operand_id": "O2" },
+                { "operand_id": "O3" }
+              ]
+            },
+            {
+              "op": "div",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    { "operand_id": "O4" },
+                    {
+                      "op": "pow",
+                      "args": [
+                        { "operand_id": "O3" },
+                        { "operand_id": "O5" }
+                      ]
+                    }
+                  ]
+                },
+                { "operand_id": "O6" }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "A9",
+      "name": "power_product_law",
+      "description": "O1 = O2 * O3 * O4 * O5^O6",
+      "ast": {
+        "op": "eq",
+        "lhs": { "operand_id": "O1" },
+        "rhs": {
+          "op": "mul",
+          "args": [
+            { "operand_id": "O2" },
+            { "operand_id": "O3" },
+            { "operand_id": "O4" },
+            {
+              "op": "pow",
+              "args": [
+                { "operand_id": "O5" },
+                { "operand_id": "O6" }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "A10",
+      "name": "generalized_harmonic_sum",
+      "description": "(O1 / O2) = (O3 / O4) + (O5 / O6)",
+      "ast": {
+        "op": "eq",
+        "lhs": {
+          "op": "div",
+          "args": [
+            { "operand_id": "O1" },
+            { "operand_id": "O2" }
+          ]
+        },
+        "rhs": {
+          "op": "add",
+          "args": [
+            {
+              "op": "div",
+              "args": [
+                { "operand_id": "O3" },
+                { "operand_id": "O4" }
+              ]
+            },
+            {
+              "op": "div",
+              "args": [
+                { "operand_id": "O5" },
+                { "operand_id": "O6" }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

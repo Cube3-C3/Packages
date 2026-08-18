@@ -1,0 +1,669 @@
+{
+  "meta": {
+    "version": "0.4",
+    "description": "Единое дерево представления. pipeline: state → buildPresentationCtx(derived) → passport.slots[] → FisPresentation.renderSlot (style_kinds + layout modes). Platform only mounts slots + CSS.",
+    "language_order": [
+      "en",
+      "ru"
+    ],
+    "structure": "tree[card_type].{list_item, passport.slots[]} + style_kinds + fields"
+  },
+  "style_kinds": {
+    "symbol": {
+      "label": [
+        "Symbol token",
+        "Символ"
+      ],
+      "css": "pres-symbol"
+    },
+    "title": {
+      "label": [
+        "Title / name",
+        "Имя"
+      ],
+      "css": "pres-title"
+    },
+    "chip": {
+      "label": [
+        "Facet chip",
+        "Плашка"
+      ],
+      "css": "pres-chip",
+      "variants": {
+        "math": {
+          "css": "chip math"
+        },
+        "dim": {
+          "css": "chip dim"
+        },
+        "cat": {
+          "css": "chip cat"
+        },
+        "inv": {
+          "css": "chip inv"
+        },
+        "status": {
+          "css": "chip status"
+        },
+        "type": {
+          "css": "chip type"
+        },
+        "default": {
+          "css": "chip"
+        }
+      }
+    },
+    "muted": {
+      "label": [
+        "Secondary text",
+        "Вторичный текст"
+      ],
+      "css": "pres-muted"
+    },
+    "algebra": {
+      "label": [
+        "Formula algebra",
+        "Алгебра"
+      ],
+      "css": "pres-algebra"
+    },
+    "block": {
+      "label": [
+        "Structured block",
+        "Блок"
+      ],
+      "css": "pres-block"
+    }
+  },
+  "fields": {
+    "symbol": {
+      "label": [
+        "Symbol",
+        "Символ"
+      ],
+      "source": {
+        "from": "usages",
+        "pick": "first",
+        "key": "symbol"
+      }
+    },
+    "name": {
+      "label": [
+        "Name",
+        "Имя"
+      ],
+      "source": {
+        "from": "usages",
+        "pick": "first",
+        "key": "name",
+        "i18n": true
+      }
+    },
+    "unit_symbol": {
+      "label": [
+        "Unit symbol",
+        "Символ единицы"
+      ],
+      "source": {
+        "from": "derived",
+        "key": "unit_symbol"
+      }
+    },
+    "unit_name": {
+      "label": [
+        "Unit name (passport line)",
+        "Имя единицы в паспорте"
+      ],
+      "source": {
+        "from": "derived",
+        "key": "unit_name"
+      }
+    },
+    "unit_catalog_symbol": {
+      "label": [
+        "Unit catalog symbol",
+        "Символ в каталоге единиц"
+      ],
+      "source": {
+        "from": "unit",
+        "key": "symbol",
+        "i18n": true
+      }
+    },
+    "unit_catalog_name": {
+      "label": [
+        "Unit catalog name",
+        "Имя в каталоге единиц"
+      ],
+      "source": {
+        "from": "unit",
+        "key": "name",
+        "i18n": true
+      }
+    },
+    "const_value": {
+      "label": [
+        "Constant value",
+        "Значение константы"
+      ],
+      "source": {
+        "from": "derived",
+        "key": "const_value"
+      }
+    },
+    "math_kind": {
+      "label": [
+        "Math kind",
+        "Род"
+      ],
+      "source": {
+        "from": "quantity",
+        "key": "math_kind"
+      }
+    },
+    "dimension": {
+      "label": [
+        "Dimension",
+        "Размерность"
+      ],
+      "source": {
+        "from": "quantity",
+        "key": "dimension"
+      }
+    },
+    "category": {
+      "label": [
+        "Category",
+        "Категория"
+      ],
+      "source": {
+        "from": "quantity",
+        "key": "category"
+      }
+    },
+    "entity_type": {
+      "label": [
+        "Entity type",
+        "Тип сущности"
+      ],
+      "source": {
+        "from": "quantity",
+        "key": "_type"
+      }
+    },
+    "entity_status": {
+      "label": [
+        "Status",
+        "Статус"
+      ],
+      "source": {
+        "from": "quantity",
+        "key": "_status"
+      }
+    },
+    "invariance": {
+      "label": [
+        "Invariance",
+        "Инвариантность"
+      ],
+      "source": {
+        "from": "quantity",
+        "key": "invariance"
+      }
+    },
+    "notes": {
+      "label": [
+        "Notes",
+        "Заметки"
+      ],
+      "source": {
+        "from": "quantity",
+        "key": "notes"
+      }
+    },
+    "usages_table": {
+      "label": [
+        "Usages table",
+        "Таблица обозначений"
+      ],
+      "source": {
+        "from": "usages",
+        "pick": "all"
+      }
+    },
+    "related_formulas": {
+      "label": [
+        "Related formulas",
+        "Связанные формулы"
+      ],
+      "source": {
+        "from": "derived",
+        "key": "related_formulas"
+      }
+    },
+    "formula_algebra": {
+      "label": [
+        "Formula",
+        "Формула"
+      ],
+      "source": {
+        "from": "derived",
+        "key": "formula_html"
+      }
+    },
+    "formula_name": {
+      "label": [
+        "Formula name",
+        "Название формулы"
+      ],
+      "source": {
+        "from": "law",
+        "key": "name"
+      }
+    },
+    "structure_ref": {
+      "label": [
+        "Structure id",
+        "Структура"
+      ],
+      "source": {
+        "from": "law",
+        "key": "structure_ref"
+      }
+    }
+  },
+  "tree": [
+    {
+      "id": "phys_quant",
+      "kind": "card_type",
+      "label": [
+        "Physical quantity",
+        "Физическая величина"
+      ],
+      "list_item": {
+        "surface": "list_item",
+        "parts": [
+          {
+            "field": "symbol",
+            "style": "symbol"
+          },
+          {
+            "field": "name",
+            "style": "title"
+          }
+        ]
+      },
+      "passport": {
+        "id": "quantity_passport",
+        "surface": "passport",
+        "label": [
+          "Quantity passport",
+          "Паспорт величины"
+        ],
+        "slots": [
+          {
+            "id": "header",
+            "mode": "inline",
+            "wrapper": "passport-header",
+            "parts": [
+              {
+                "field": "symbol",
+                "style": "symbol",
+                "class": "primary"
+              },
+              {
+                "literal": "—",
+                "style": "muted",
+                "class": "header-sep"
+              },
+              {
+                "field": "name",
+                "style": "title",
+                "class": "primary"
+              },
+              {
+                "field": "unit_symbol",
+                "style": "symbol",
+                "class": "unit",
+                "wrap": [
+                  "[",
+                  "]"
+                ]
+              }
+            ],
+            "const_mode": {
+              "parts": [
+                {
+                  "field": "symbol",
+                  "style": "symbol",
+                  "class": "primary"
+                },
+                {
+                  "literal": "=",
+                  "style": "muted",
+                  "class": "header-sep"
+                },
+                {
+                  "field": "const_value",
+                  "style": "title",
+                  "class": "primary"
+                },
+                {
+                  "field": "name",
+                  "style": "muted",
+                  "wrap": [
+                    "[",
+                    "]"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "id": "unit_line",
+            "mode": "line",
+            "wrapper": "unit-line",
+            "notes": "Подпись СИ у величины — не unit_catalog",
+            "parts": [
+              {
+                "literal": "СИ",
+                "style": "title",
+                "class": "sys"
+              },
+              {
+                "literal": ": ",
+                "style": "muted"
+              },
+              {
+                "field": "unit_name",
+                "style": "muted",
+                "class": "uname"
+              }
+            ]
+          },
+          {
+            "id": "chips",
+            "mode": "chips",
+            "wrapper": "chips",
+            "fields": [
+              {
+                "field": "math_kind",
+                "style": "chip",
+                "variant": "math"
+              },
+              {
+                "field": "dimension",
+                "style": "chip",
+                "variant": "dim"
+              },
+              {
+                "field": "category",
+                "style": "chip",
+                "variant": "cat"
+              },
+              {
+                "field": "entity_type",
+                "style": "chip",
+                "variant": "type"
+              },
+              {
+                "field": "entity_status",
+                "style": "chip",
+                "variant": "status"
+              },
+              {
+                "field": "invariance",
+                "style": "chip",
+                "variant": "inv"
+              }
+            ]
+          },
+          {
+            "id": "notes",
+            "mode": "card",
+            "title": [
+              "Notes",
+              "Заметки"
+            ],
+            "fields": [
+              {
+                "field": "notes",
+                "style": "muted"
+              }
+            ]
+          },
+          {
+            "id": "usages",
+            "mode": "usages_table",
+            "wrapper": "section",
+            "title": [
+              "Symbols & contexts",
+              "Обозначения и контексты"
+            ],
+            "source": "derived.usages_rows"
+          },
+          {
+            "id": "formulas",
+            "mode": "formulas_list",
+            "wrapper": "section",
+            "title": [
+              "Related formulas",
+              "Формулы, где встречается"
+            ],
+            "source": "derived.related_formulas"
+          }
+        ]
+      }
+    },
+    {
+      "id": "math_const",
+      "kind": "card_type",
+      "label": [
+        "Mathematical number",
+        "Математическое число"
+      ],
+      "list_item": {
+        "surface": "list_item",
+        "parts": [
+          {
+            "field": "symbol",
+            "style": "symbol"
+          },
+          {
+            "field": "name",
+            "style": "title"
+          }
+        ]
+      },
+      "passport": {
+        "id": "math_const_passport",
+        "surface": "passport",
+        "label": [
+          "Math constant passport",
+          "Паспорт математического числа"
+        ],
+        "slots": [
+          {
+            "id": "header",
+            "mode": "inline",
+            "wrapper": "passport-header",
+            "parts": [
+              {
+                "field": "symbol",
+                "style": "symbol",
+                "class": "primary"
+              },
+              {
+                "literal": "—",
+                "style": "muted",
+                "class": "header-sep"
+              },
+              {
+                "field": "name",
+                "style": "title",
+                "class": "primary"
+              }
+            ],
+            "const_mode": {
+              "parts": [
+                {
+                  "field": "symbol",
+                  "style": "symbol",
+                  "class": "primary"
+                },
+                {
+                  "literal": "=",
+                  "style": "muted",
+                  "class": "header-sep"
+                },
+                {
+                  "field": "const_value",
+                  "style": "title",
+                  "class": "primary"
+                },
+                {
+                  "field": "name",
+                  "style": "muted",
+                  "wrap": [
+                    "[",
+                    "]"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "id": "chips",
+            "mode": "chips",
+            "wrapper": "chips",
+            "fields": [
+              {
+                "field": "math_kind",
+                "style": "chip",
+                "variant": "math"
+              },
+              {
+                "field": "dimension",
+                "style": "chip",
+                "variant": "dim"
+              },
+              {
+                "field": "category",
+                "style": "chip",
+                "variant": "cat"
+              },
+              {
+                "field": "entity_status",
+                "style": "chip",
+                "variant": "status"
+              }
+            ]
+          },
+          {
+            "id": "notes",
+            "mode": "card",
+            "title": [
+              "Notes",
+              "Заметки"
+            ],
+            "fields": [
+              {
+                "field": "notes",
+                "style": "muted"
+              }
+            ]
+          },
+          {
+            "id": "usages",
+            "mode": "usages_table",
+            "wrapper": "section",
+            "title": [
+              "Symbols & contexts",
+              "Обозначения и контексты"
+            ],
+            "source": "derived.usages_rows"
+          }
+        ]
+      }
+    },
+    {
+      "id": "formulas",
+      "kind": "card_type",
+      "label": [
+        "Law / formula",
+        "Формула (закон)"
+      ],
+      "list_item": {
+        "surface": "list_item",
+        "parts": [
+          {
+            "field": "formula_name",
+            "style": "title"
+          }
+        ]
+      },
+      "passport": {
+        "id": "formula_stub",
+        "surface": "passport",
+        "label": [
+          "Formula passport",
+          "Паспорт формулы"
+        ],
+        "slots": [
+          {
+            "id": "formula_header",
+            "mode": "stack",
+            "wrapper": "passport-header formula-header",
+            "parts": [
+              {
+                "field": "formula_algebra",
+                "style": "algebra",
+                "rawHtml": true,
+                "class": "formula-display"
+              },
+              {
+                "field": "formula_name",
+                "style": "title"
+              }
+            ]
+          },
+          {
+            "id": "chips",
+            "mode": "chips",
+            "wrapper": "chips",
+            "fields": [
+              {
+                "field": "structure_ref",
+                "style": "chip",
+                "variant": "math"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unit_catalog",
+      "kind": "catalog",
+      "label": [
+        "Unit catalog",
+        "Каталог единиц"
+      ],
+      "notes": "Отдельная ветка: список единиц. Не passport.unit_line величины.",
+      "list_item": {
+        "surface": "unit_catalog",
+        "parts": [
+          {
+            "field": "unit_catalog_symbol",
+            "style": "symbol"
+          },
+          {
+            "field": "unit_catalog_name",
+            "style": "title"
+          }
+        ]
+      },
+      "passport": null
+    }
+  ]
+}

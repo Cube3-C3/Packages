@@ -1,0 +1,126 @@
+[
+  {
+    "law_id": "PHY.KIN.001",
+    "name": "Скорость при равномерном движении",
+    "structure_ref": "A1",
+    "description": "v = s / t",
+    "bindings": {
+      "O1": "Q005",
+      "O2": "Q008",
+      "O3": "Q007"
+    }
+  },
+  {
+    "law_id": "PHY.KIN.002",
+    "name": "Ускорение",
+    "structure_ref": "A4",
+    "description": "a = Δv / t",
+    "bindings": {
+      "O1": "Q006",
+      "O2": "Q005",
+      "O3": "Q007"
+    }
+  },
+  {
+    "law_id": "PHY.KIN.004",
+    "name": "Координата при равномерном движении",
+    "structure_ref": "A6",
+    "description": "x = x_0 + v * t",
+    "bindings": {
+      "O1": "Q008",
+      "O2": "Q008",
+      "O3": "Q005",
+      "O4": "Q007"
+    }
+  },
+  {
+    "law_id": "PHY.KIN.006",
+    "name": "Путь при равноускоренном движении",
+    "structure_ref": "A8",
+    "description": "s = v_0 * t + (a * t^2) / 2",
+    "bindings": {
+      "O1": "Q008",
+      "O2": "Q005",
+      "O3": "Q007",
+      "O4": "Q006",
+      "O5": { "num": 2 },
+      "O6": { "num": 2 }
+    }
+  },
+  {
+    "law_id": "PHY.DYN.001",
+    "name": "Второй закон Ньютона",
+    "structure_ref": "A2",
+    "description": "F = m * a",
+    "bindings": {
+      "O1": "Q004",
+      "O2": "Q003",
+      "O3": "Q006"
+    }
+  },
+  {
+    "law_id": "PHY.DYN.007",
+    "name": "Закон всемирного тяготения",
+    "structure_ref": "A9",
+    "description": "F = G * m1 * m2 * r^-2",
+    "bindings": {
+      "O1": "Q004",
+      "O2": "C003",
+      "O3": "Q003",
+      "O4": "Q003",
+      "O5": "Q008",
+      "O6": { "num": -2 }
+    }
+  },
+  {
+    "law_id": "PHY.ENERGY.003",
+    "name": "Кинетическая энергия",
+    "structure_ref": "A7",
+    "description": "E = (m * v^2) / 2",
+    "bindings": {
+      "O1": "Q001",
+      "O2": "Q003",
+      "O3": "Q005",
+      "O4": { "num": 2 },
+      "O5": { "num": 2 }
+    }
+  },
+  {
+    "law_id": "PHY.ENERGY.005",
+    "name": "Потенциальная энергия упругой деформации",
+    "structure_ref": "A7",
+    "description": "E = (k * x^2) / 2",
+    "bindings": {
+      "O1": "Q001",
+      "O2": "Q013",
+      "O3": "Q008",
+      "O4": { "num": 2 },
+      "O5": { "num": 2 }
+    }
+  },
+  {
+    "law_id": "PHY.ELEC.003",
+    "name": "Закон Ома для участка цепи",
+    "structure_ref": "A2",
+    "description": "U = I * R",
+    "bindings": {
+      "O1": "Q012",
+      "O2": "Q031",
+      "O3": "Q038"
+    }
+  },
+  {
+    "law_id": "PHY.OPT.002",
+    "name": "Формула тонкой линзы",
+    "structure_ref": "A10",
+    "description": "1/F = 1/d + 1/f  ->  (1/F) = (1/d) + (1/f)",
+    "bindings": {
+      "O1": { "num": 1 },
+      "O2": "Q008",
+      "O3": { "num": 1 },
+      "O4": "Q008",
+      "O5": { "num": 1 },
+      "O6": "Q008"
+    }
+  }
+]
