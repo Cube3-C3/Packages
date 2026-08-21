@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "schema_version": "0.1.0",
+    "package": "PDD",
+    "title": "Правила дорожного движения Российской Федерации",
+    "type": "normative_source",
+    "source": {
+      "document": "Постановление Правительства РФ от 23.10.1993 № 1090",
+      "name": "Правила дорожного движения Российской Федерации",
+      "revision": "2025-07-16",
+      "effective_from": "2025-09-01"
+    }
+  },
+  "definitions": [],
+  "rules": [],
+  "signs": [],
+  "markings": [],
+  "appendices": []
+}
