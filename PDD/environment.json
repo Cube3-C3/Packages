@@ -1,0 +1,13 @@
+{
+  "meta": {
+    "schema_version": "0.1.0",
+    "package": "PDD.environment",
+    "title": "Runtime environment defaults for PDD simulations",
+    "type": "domain_environment_config"
+  },
+  "traffic": {
+    "side": "right",
+    "allowed_values": ["right", "left"]
+  },
+  "principle": "Environment conventions are separated from the PDD ontology and executable rule contracts. Rules and entities may reference this configuration when a spatial interpretation depends on the traffic side."
+}
