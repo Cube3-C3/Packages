@@ -1,9 +1,9 @@
 {
   "meta": {
-    "schema_version": "0.1.0",
+    "schema_version": "0.2.0",
     "package": "PDD",
     "title": "Правила дорожного движения Российской Федерации",
-    "type": "normative_source",
+    "type": "normative_ontology",
     "source": {
       "document": "Постановление Правительства РФ от 23.10.1993 № 1090",
       "name": "Правила дорожного движения Российской Федерации",
@@ -11,9 +11,89 @@
       "effective_from": "2025-09-01"
     }
   },
-  "definitions": [],
-  "rules": [],
-  "signs": [],
-  "markings": [],
-  "appendices": []
+  "ontology": {
+    "context": {
+      "location": {
+        "settlement": "pdd.location.settlement",
+        "outside_settlement": "pdd.location.outside_settlement"
+      },
+      "road": {
+        "road": "pdd.road",
+        "road_segment": "pdd.road.segment",
+        "intersection": "pdd.road.intersection",
+        "equal_roads": "pdd.road.priority.equal",
+        "main_road": "pdd.road.priority.main",
+        "secondary_road": "pdd.road.priority.secondary",
+        "paved": "pdd.road.surface.paved",
+        "unpaved": "pdd.road.surface.unpaved"
+      }
+    },
+    "participants": {
+      "participant": "pdd.participant",
+      "driver": "pdd.participant.driver",
+      "pedestrian": "pdd.participant.pedestrian",
+      "vehicle": "pdd.participant.vehicle",
+      "road_vehicle": "pdd.participant.vehicle.road",
+      "tram": "pdd.participant.vehicle.tram",
+      "car": "pdd.participant.vehicle.car",
+      "bicycle": "pdd.participant.vehicle.bicycle"
+    },
+    "movement": {
+      "movement": "pdd.movement",
+      "straight": "pdd.movement.straight",
+      "left": "pdd.movement.left",
+      "right": "pdd.movement.right",
+      "stop": "pdd.movement.stop",
+      "yield": "pdd.movement.yield"
+    },
+    "control": {
+      "marking": "pdd.control.marking",
+      "traffic_sign": "pdd.control.sign",
+      "traffic_light": "pdd.control.traffic_light",
+      "traffic_controller": "pdd.control.traffic_controller"
+    },
+    "sign": {
+      "priority": "pdd.sign.priority",
+      "main_road": "pdd.sign.priority.main_road",
+      "give_way": "pdd.sign.priority.give_way",
+      "stop": "pdd.sign.priority.stop"
+    },
+    "marking": {
+      "road_marking": "pdd.marking.road",
+      "stop_line": "pdd.marking.stop_line"
+    },
+    "signal": {
+      "traffic_signal": "pdd.signal.traffic",
+      "permitted": "pdd.signal.traffic.permitted",
+      "prohibited": "pdd.signal.traffic.prohibited"
+    }
+  },
+  "rules": {
+    "pdd.1.2": {
+      "kind": "definition_reference",
+      "subjects": ["ontology.*"]
+    },
+    "pdd.6": {
+      "kind": "traffic_light_and_controller",
+      "subjects": ["pdd.control.traffic_light", "pdd.control.traffic_controller", "pdd.participant"]
+    },
+    "pdd.8": {
+      "kind": "movement",
+      "subjects": ["pdd.participant", "pdd.movement", "pdd.control.*"]
+    },
+    "pdd.13": {
+      "kind": "intersection",
+      "subjects": ["pdd.road.intersection", "pdd.participant", "pdd.control.*"]
+    }
+  },
+  "relations": {
+    "travels_on": "pdd.relation.travels_on",
+    "intersects": "pdd.relation.intersects",
+    "applies_to": "pdd.relation.applies_to",
+    "conflicts_with": "pdd.relation.conflicts_with",
+    "has_priority_over": "pdd.relation.has_priority_over",
+    "must_yield_to": "pdd.relation.must_yield_to",
+    "permits": "pdd.relation.permits",
+    "restricts": "pdd.relation.restricts"
+  }
 }
