@@ -1,6 +1,6 @@
 {
   "meta": {
-    "schema_version": "0.2.0",
+    "schema_version": "0.3.0",
     "package": "PDD",
     "title": "Правила дорожного движения Российской Федерации",
     "type": "normative_ontology",
@@ -56,11 +56,13 @@
       "priority": "pdd.sign.priority",
       "main_road": "pdd.sign.priority.main_road",
       "give_way": "pdd.sign.priority.give_way",
-      "stop": "pdd.sign.priority.stop"
+      "stop": "pdd.sign.priority.stop",
+      "roundabout": "pdd.sign.roundabout"
     },
     "marking": {
       "road_marking": "pdd.marking.road",
-      "stop_line": "pdd.marking.stop_line"
+      "stop_line": "pdd.marking.stop_line",
+      "yield_line": "pdd.marking.yield_line"
     },
     "signal": {
       "traffic_signal": "pdd.signal.traffic",
@@ -77,18 +79,52 @@
       "kind": "traffic_light_and_controller",
       "subjects": ["pdd.control.traffic_light", "pdd.control.traffic_controller", "pdd.participant"]
     },
-    "pdd.8": {
-      "kind": "movement",
-      "subjects": ["pdd.participant", "pdd.movement", "pdd.control.*"]
+    "pdd.8.9": {
+      "kind": "unregulated_conflict",
+      "subjects": ["pdd.participant", "pdd.movement", "pdd.relation.conflicts_with"],
+      "effect": "resolve_order_when_trajectory_intersects_and_no_order_is_otherwise_established"
     },
-    "pdd.13": {
-      "kind": "intersection",
-      "subjects": ["pdd.road.intersection", "pdd.participant", "pdd.control.*"]
+    "pdd.13.3": {
+      "kind": "intersection_control_mode",
+      "subjects": ["pdd.road.intersection", "pdd.control.traffic_light", "pdd.control.traffic_controller"],
+      "effect": "regulated_if_order_is_determined_by_traffic_light_or_controller"
+    },
+    "pdd.13.9": {
+      "kind": "unequal_roads_priority",
+      "subjects": ["pdd.road.priority.main", "pdd.road.priority.secondary", "pdd.participant"],
+      "effect": "secondary_road_participant_must_yield_to_main_road_participant"
+    },
+    "pdd.13.10": {
+      "kind": "main_road_direction_change",
+      "subjects": ["pdd.road.priority.main", "pdd.road.priority.secondary", "pdd.participant"],
+      "effect": "participants_on_main_road_use_equal_road_rules_between_themselves"
+    },
+    "pdd.13.11": {
+      "kind": "equal_roads_right_priority",
+      "subjects": ["pdd.road.priority.equal", "pdd.participant.road_vehicle"],
+      "effect": "non_rail_vehicle_must_yield_to_non_rail_vehicle_approaching_from_right"
+    },
+    "pdd.13.11_1": {
+      "kind": "roundabout_priority",
+      "subjects": ["pdd.sign.roundabout", "pdd.participant"],
+      "effect": "entering_vehicle_yields_to_vehicles_already_on_roundabout_when_condition_applies"
+    },
+    "pdd.13.12": {
+      "kind": "equal_roads_left_turn_priority",
+      "subjects": ["pdd.road.priority.equal", "pdd.participant.road_vehicle", "pdd.movement.left"],
+      "effect": "left_turning_or_u_turning_non_rail_vehicle_must_yield_to_opposing_vehicle_moving_straight_or_right"
+    },
+    "pdd.13.13": {
+      "kind": "uncertain_road_surface",
+      "subjects": ["pdd.road.surface.paved", "pdd.road.surface.unpaved", "pdd.participant"],
+      "effect": "if_surface_cannot_be_determined_and_priority_signs_are_absent_participant_considers_self_on_secondary_road"
     }
   },
   "relations": {
     "travels_on": "pdd.relation.travels_on",
     "intersects": "pdd.relation.intersects",
+    "approaches_from_right": "pdd.relation.approaches_from_right",
+    "opposes": "pdd.relation.opposes",
     "applies_to": "pdd.relation.applies_to",
     "conflicts_with": "pdd.relation.conflicts_with",
     "has_priority_over": "pdd.relation.has_priority_over",
