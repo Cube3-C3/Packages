@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "schema_version": "0.1.0",
+    "package": "PDD.meta",
+    "title": "Metadata model for PDD application",
+    "type": "domain_metadata"
+  },
+  "model": {
+    "perspective": "participant",
+    "relationarity": "binary",
+    "principle": "Situations are represented through relations between pairs of participants."
+  },
+  "participant": {
+    "id": "participant:*",
+    "properties": [
+      "role",
+      "vehicle_type",
+      "movement",
+      "position",
+      "direction",
+      "intention"
+    ]
+  },
+  "relation": {
+    "subject": "participant:*",
+    "object": "participant:*",
+    "type": "relation:*",
+    "rule": "pdd:*",
+    "status": "applicable|not_applicable|satisfied|violated"
+  },
+  "events": {
+    "input": "user_action",
+    "output": "state_transition"
+  }
+}
