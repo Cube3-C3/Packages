@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "schema_version": "0.1.0",
+    "package": "PDD.participants",
+    "type": "participant_registry"
+  },
+  "participants": [
+    {
+      "id": "vehicle.car",
+      "type": "vehicle",
+      "category": "road_vehicle",
+      "properties": {
+        "rail": false,
+        "motorized": true
+      }
+    }
+  ]
+}
