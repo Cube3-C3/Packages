@@ -1,69 +1,78 @@
 {
   "meta": {
-    "schema_version": "0.2.0",
+    "schema_version": "0.3.0",
     "package": "PDD.meta",
-    "title": "Metadata model for PDD application",
-    "type": "domain_contract"
+    "title": "Executable metadata contracts for PDD ontology",
+    "type": "executable_domain_contract"
   },
-  "principle": "A PDD rule is a contract between entities. The application computes applicable binary relations from entities, facts and control conditions.",
-  "entity_types": {
-    "participant": {
-      "description": "Actor whose movement is evaluated from its current perspective.",
-      "properties": ["role", "vehicle_type", "movement", "position", "direction", "intention"]
-    },
-    "road": {
-      "description": "Road or road segment that provides context and may impose requirements.",
-      "properties": ["surface", "priority_status", "geometry"]
-    },
-    "intersection": {
-      "description": "Spatial context in which participant movements may conflict.",
-      "properties": ["type", "control_mode"]
-    },
-    "control": {
-      "description": "Object or actor that determines the applicable movement regime.",
-      "types": ["marking", "sign", "traffic_light", "traffic_controller"]
-    }
+  "principle": "PDD entities are identified in the normative ontology. Rules reference entity IDs; executable contracts transform facts and conditions into binary relations and state transitions.",
+  "entity_reference": {
+    "source": "PDD.json#/ontology",
+    "required": true,
+    "rule_reference": "PDD.json#/rules"
   },
-  "facts": {
-    "description": "Observed or constructed relations between entities before rule evaluation.",
+  "fact_model": {
+    "subject": "entity:*",
+    "predicate": "relation:*",
+    "object": "entity:*",
     "examples": [
-      "participant_travels_on_road",
-      "road_intersects_road",
-      "control_applies_to_movement",
-      "participant_conflicts_with_participant"
+      ["participant:A", "pdd.relation.travels_on", "pdd.road.segment:A"],
+      ["pdd.road:A", "pdd.relation.intersects", "pdd.road:B"],
+      ["pdd.control.sign:A", "pdd.relation.applies_to", "pdd.movement:A"],
+      ["participant:A", "pdd.relation.conflicts_with", "participant:B"]
     ]
   },
   "rule_contract": {
-    "id": "pdd:*",
-    "inputs": ["entities", "facts", "conditions"],
-    "output": "binary_relation",
-    "relation": {
+    "id": "pdd.rule.*",
+    "reference": "PDD.json#/rules/*",
+    "inputs": ["entities", "facts", "conditions", "state"],
+    "operation": "resolve",
+    "output": {
+      "type": "binary_relation",
       "subject": "entity:*",
       "object": "entity:*",
-      "type": "relation:*",
-      "basis": "pdd:*",
+      "relation": "relation:*",
+      "basis": "pdd.rule.*",
       "status": "applicable|not_applicable|satisfied|violated"
     }
   },
   "control_resolution": {
-    "description": "Resolve the applicable movement regime by the strongest active control source.",
-    "order": [
-      "traffic_controller",
-      "traffic_light",
-      "sign",
-      "marking",
-      "road_status",
-      "default_rule"
+    "description": "Select the strongest active control source before evaluating default intersection relations.",
+    "precedence": [
+      "pdd.control.traffic_controller",
+      "pdd.control.traffic_light",
+      "pdd.control.sign",
+      "pdd.control.marking",
+      "pdd.road.priority.main",
+      "pdd.road.priority.secondary",
+      "pdd.road.surface.paved",
+      "pdd.road.surface.unpaved",
+      "default"
+    ],
+    "operation": "first_applicable"
+  },
+  "binary_relation_resolution": {
+    "description": "For a conflict between two equal-rank participants, resolve only the relation between the pair.",
+    "input": ["participant:A", "participant:B"],
+    "preconditions": [
+      "A conflicts with B",
+      "A and B are in the same applicable control regime"
+    ],
+    "outputs": [
+      "pdd.relation.has_priority_over",
+      "pdd.relation.must_yield_to",
+      "pdd.relation.permits",
+      "pdd.relation.restricts"
     ]
   },
-  "relation_examples": {
-    "priority": "participant:A -> participant:B",
-    "yield": "participant:A -> participant:B",
-    "permission": "control:A -> participant:B",
-    "restriction": "road:A -> participant:B"
-  },
-  "events": {
+  "state_transition": {
     "input": "user_action",
-    "output": "state_transition"
+    "operation": "apply",
+    "output": "next_state",
+    "violation": {
+      "rule": "pdd.rule.*",
+      "relation": "relation:*",
+      "explanation": "rule reference + evaluated relation"
+    }
   }
 }
