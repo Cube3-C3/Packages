@@ -1,32 +1,66 @@
 {
   "meta": {
-    "schema_version": "0.1.0",
+    "schema_version": "0.2.0",
     "package": "PDD.meta",
     "title": "Metadata model for PDD application",
-    "type": "domain_metadata"
+    "type": "domain_contract"
   },
-  "model": {
-    "perspective": "participant",
-    "relationarity": "binary",
-    "principle": "Situations are represented through relations between pairs of participants."
+  "principle": "A PDD rule is a contract between entities. The application computes applicable binary relations from entities, facts and control conditions.",
+  "entity_types": {
+    "participant": {
+      "description": "Actor whose movement is evaluated from its current perspective.",
+      "properties": ["role", "vehicle_type", "movement", "position", "direction", "intention"]
+    },
+    "road": {
+      "description": "Road or road segment that provides context and may impose requirements.",
+      "properties": ["surface", "priority_status", "geometry"]
+    },
+    "intersection": {
+      "description": "Spatial context in which participant movements may conflict.",
+      "properties": ["type", "control_mode"]
+    },
+    "control": {
+      "description": "Object or actor that determines the applicable movement regime.",
+      "types": ["marking", "sign", "traffic_light", "traffic_controller"]
+    }
   },
-  "participant": {
-    "id": "participant:*",
-    "properties": [
-      "role",
-      "vehicle_type",
-      "movement",
-      "position",
-      "direction",
-      "intention"
+  "facts": {
+    "description": "Observed or constructed relations between entities before rule evaluation.",
+    "examples": [
+      "participant_travels_on_road",
+      "road_intersects_road",
+      "control_applies_to_movement",
+      "participant_conflicts_with_participant"
     ]
   },
-  "relation": {
-    "subject": "participant:*",
-    "object": "participant:*",
-    "type": "relation:*",
-    "rule": "pdd:*",
-    "status": "applicable|not_applicable|satisfied|violated"
+  "rule_contract": {
+    "id": "pdd:*",
+    "inputs": ["entities", "facts", "conditions"],
+    "output": "binary_relation",
+    "relation": {
+      "subject": "entity:*",
+      "object": "entity:*",
+      "type": "relation:*",
+      "basis": "pdd:*",
+      "status": "applicable|not_applicable|satisfied|violated"
+    }
+  },
+  "control_resolution": {
+    "description": "Resolve the applicable movement regime by the strongest active control source.",
+    "order": [
+      "traffic_controller",
+      "traffic_light",
+      "sign",
+      "marking",
+      "road_status",
+      "default_rule"
+    ]
+  },
+  "relation_examples": {
+    "priority": "participant:A -> participant:B",
+    "yield": "participant:A -> participant:B",
+    "permission": "control:A -> participant:B",
+    "restriction": "road:A -> participant:B"
   },
   "events": {
     "input": "user_action",
