@@ -1,0 +1,80 @@
+{
+  "schema_version": "2.1",
+  "id": "PHYSICS_INTERACTIVE_STRUCTURES",
+  "description": "Дополнительные AST-структуры для интерактивного пакета школьной физики. Числа и физические величины не зашиты в структуру; константы и operands связываются через bindings.",
+  "base_ref": "AST.json",
+  "structures": [
+    {
+      "id": "A11",
+      "name": "product_equality",
+      "description": "O1 * O2 = O3 * O4",
+      "ast": {"op":"eq","lhs":{"op":"mul","args":[{"operand_id":"O1"},{"operand_id":"O2"}]},"rhs":{"op":"mul","args":[{"operand_id":"O3"},{"operand_id":"O4"}]}}
+    },
+    {
+      "id": "A12",
+      "name": "scaled_sqrt_ratio",
+      "description": "O1 = O2 * sqrt(O3 / O4)",
+      "ast": {"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"mul","args":[{"operand_id":"O2"},{"op":"sqrt","arg":{"op":"div","args":[{"operand_id":"O3"},{"operand_id":"O4"}]}}]}}
+    },
+    {
+      "id": "A13",
+      "name": "harmonic_sine",
+      "description": "O1 = O2 * sin(O3 * O4 + O5)",
+      "ast": {"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"mul","args":[{"operand_id":"O2"},{"op":"sin","arg":{"op":"add","args":[{"op":"mul","args":[{"operand_id":"O3"},{"operand_id":"O4"}]},{"operand_id":"O5"}]}}]}}
+    },
+    {
+      "id": "A14",
+      "name": "triple_product",
+      "description": "O1 = O2 * O3 * O4",
+      "ast": {"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"mul","args":[{"operand_id":"O2"},{"operand_id":"O3"},{"operand_id":"O4"}]}}
+    },
+    {
+      "id": "A15",
+      "name": "scaled_product",
+      "description": "O1 = O2 * O3 * O4 * O5",
+      "ast": {"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"mul","args":[{"operand_id":"O2"},{"operand_id":"O3"},{"operand_id":"O4"},{"operand_id":"O5"}]}}
+    },
+    {
+      "id": "A16",
+      "name": "product_cosine",
+      "description": "O1 = O2 * O3 * cos(O4)",
+      "ast": {"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"mul","args":[{"operand_id":"O2"},{"operand_id":"O3"},{"op":"cos","arg":{"operand_id":"O4"}}]}}
+    },
+    {
+      "id": "A17",
+      "name": "negative_rate",
+      "description": "O1 = -delta(O2) / O3",
+      "ast": {"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"div","args":[{"op":"neg","arg":{"op":"delta","arg":{"operand_id":"O2"}}},{"operand_id":"O3"}]}}
+    },
+    {
+      "id": "A18",
+      "name": "reciprocal_sum",
+      "description": "1/O1 = 1/O2 + 1/O3",
+      "ast": {"op":"eq","lhs":{"op":"div","args":[{"num":1},{"operand_id":"O1"}]},"rhs":{"op":"add","args":[{"op":"div","args":[{"num":1},{"operand_id":"O2"}]},{"op":"div","args":[{"num":1},{"operand_id":"O3"}]}]}}
+    },
+    {
+      "id": "A19",
+      "name": "difference_sum",
+      "description": "O1 = O2 - O3",
+      "ast": {"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"sub","args":[{"operand_id":"O2"},{"operand_id":"O3"}]}}
+    },
+    {
+      "id": "A20",
+      "name": "product_sine_equality",
+      "description": "O1 * sin(O2) = O3 * sin(O4)",
+      "ast": {"op":"eq","lhs":{"op":"mul","args":[{"operand_id":"O1"},{"op":"sin","arg":{"operand_id":"O2"}}]},"rhs":{"op":"mul","args":[{"operand_id":"O3"},{"op":"sin","arg":{"operand_id":"O4"}}]}}
+    },
+    {
+      "id": "A21",
+      "name": "product_cosine_equality",
+      "description": "O1 * O2 * cos(O3) = O4",
+      "ast": {"op":"eq","lhs":{"op":"mul","args":[{"operand_id":"O1"},{"operand_id":"O2"},{"op":"cos","arg":{"operand_id":"O3"}}]},"rhs":{"operand_id":"O4"}}
+    },
+    {
+      "id": "A22",
+      "name": "sum_with_constant_product",
+      "description": "O1 = O2 + O3 * O4",
+      "ast": {"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"add","args":[{"operand_id":"O2"},{"op":"mul","args":[{"operand_id":"O3"},{"operand_id":"O4"}]}]}}
+    }
+  ]
+}
