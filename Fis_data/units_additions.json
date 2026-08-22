@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "version": "0.1",
+    "description": "Дополнение к units.json для новых величин интерактивного набора формул.",
+    "language_order": ["en", "ru"],
+    "base_ref": "units.json"
+  },
+  "named": {
+    "[L^2]": [
+      {
+        "name": ["square metre", "квадратный метр"],
+        "symbol": ["m²", "м²"],
+        "factor": 1,
+        "roles": ["area"]
+      }
+    ],
+    "[1]": [
+      {
+        "name": ["radian", "радиан"],
+        "symbol": ["rad", "рад"],
+        "factor": 1,
+        "roles": ["angle", "phase"]
+      },
+      {
+        "name": ["degree", "градус"],
+        "symbol": ["°", "°"],
+        "factor": 0.017453292519943295,
+        "roles": ["angle", "phase"],
+        "notes": "1° = π/180 rad"
+      }
+    ]
+  }
+}
