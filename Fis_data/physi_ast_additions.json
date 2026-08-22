@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.2",
+  "schema_version": "2.3",
   "id": "PHYSICS_INTERACTIVE_STRUCTURES",
   "description": "Дополнительные AST-структуры для интерактивного пакета школьной физики.",
   "base_ref": "AST.json",
@@ -14,6 +14,7 @@
     {"id":"A23","name":"coefficient_product","description":"O1 = O2 * O3 * O4 / O5","ast":{"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"div","args":[{"op":"mul","args":[{"operand_id":"O2"},{"operand_id":"O3"},{"operand_id":"O4"}]},{"operand_id":"O5"}]}}},
     {"id":"A24","name":"sine_product_equals_product","description":"O1 * sin(O2) = O3 * O4","ast":{"op":"eq","lhs":{"op":"mul","args":[{"operand_id":"O1"},{"op":"sin","arg":{"operand_id":"O2"}}]},"rhs":{"op":"mul","args":[{"operand_id":"O3"},{"operand_id":"O4"}]}}},
     {"id":"A25","name":"odd_multiplier_product","description":"O1 = ((2 * O2) + 1) * O3 / 2","ast":{"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"div","args":[{"op":"mul","args":[{"op":"add","args":[{"op":"mul","args":[{"num":2},{"operand_id":"O2"}]},{"num":1}]},{"operand_id":"O3"}]},{"num":2}]}}},
-    {"id":"A26","name":"gas_equation_form","description":"O1 * O2 = (O3 / O4) * O5 * O6","ast":{"op":"eq","lhs":{"op":"mul","args":[{"operand_id":"O1"},{"operand_id":"O2"}]},"rhs":{"op":"mul","args":[{"op":"div","args":[{"operand_id":"O3"},{"operand_id":"O4"}]},{"operand_id":"O5"},{"operand_id":"O6"}]}}}
+    {"id":"A26","name":"gas_equation_form","description":"O1 * O2 = (O3 / O4) * O5 * O6","ast":{"op":"eq","lhs":{"op":"mul","args":[{"operand_id":"O1"},{"operand_id":"O2"}]},"rhs":{"op":"mul","args":[{"op":"div","args":[{"operand_id":"O3"},{"operand_id":"O4"}]},{"operand_id":"O5"},{"operand_id":"O6"}]}}},
+    {"id":"A27","name":"product_sine","description":"O1 = O2 * O3 * O4 * sin(O5)","ast":{"op":"eq","lhs":{"operand_id":"O1"},"rhs":{"op":"mul","args":[{"operand_id":"O2"},{"operand_id":"O3"},{"operand_id":"O4"},{"op":"sin","arg":{"operand_id":"O5"}}]}}}
   ]
 }
