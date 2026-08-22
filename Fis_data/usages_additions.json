@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "version": "0.1",
+    "description": "Контекстные употребления новых величин из physi_quant_additions.json.",
+    "language_order": ["en", "ru"],
+    "base_ref": "usages.json"
+  },
+  "usages": {
+    "Q042": [
+      {
+        "name_id": "S042",
+        "symbol": "S",
+        "name": ["area", "площадь"],
+        "domains": ["mechanics", "electromagnetism", "optics", "geometry"],
+        "role": "area",
+        "notes": "Площадь контура/поверхности; в магнитном потоке Φ = B S cos α."
+      }
+    ],
+    "Q043": [
+      {
+        "name_id": "S043",
+        "symbol": "α",
+        "name": ["angle", "угол"],
+        "domains": ["mechanics", "electromagnetism", "optics", "wave_physics"],
+        "role": "angle",
+        "notes": "Угол между физическими направлениями или угол падения/дифракции."
+      },
+      {
+        "name_id": "S044",
+        "symbol": "β",
+        "name": ["refracted angle", "угол преломления"],
+        "domains": ["optics"],
+        "role": "refracted_angle",
+        "notes": "Угол преломлённого луча."
+      },
+      {
+        "name_id": "S045",
+        "symbol": "φ",
+        "name": ["phase", "фаза"],
+        "domains": ["oscillations", "wave_physics", "optics"],
+        "role": "phase",
+        "notes": "Фазовый угол гармонического колебания."
+      },
+      {
+        "name_id": "S046",
+        "symbol": "φ₀",
+        "name": ["initial phase", "начальная фаза"],
+        "domains": ["oscillations", "wave_physics"],
+        "role": "initial_phase",
+        "notes": "Начальная фаза в x = A sin(ωt + φ₀)."
+      }
+    ],
+    "C008": [
+      {
+        "name_id": "S047",
+        "symbol": "e",
+        "name": ["elementary charge", "элементарный заряд"],
+        "domains": ["electromagnetism", "quantum_physics", "photoelectric_effect"],
+        "role": "elementary_charge",
+        "notes": "Модуль заряда электрона; в фотоэффекте e участвует в связи энергии и запирающего напряжения, а в силе Лоренца заряд частицы задаётся q."
+      }
+    ]
+  }
+}
