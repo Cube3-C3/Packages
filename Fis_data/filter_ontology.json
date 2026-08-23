@@ -1,0 +1,220 @@
+{
+  "meta": {
+    "version": "0.3",
+    "description": "Иерархическая онтология фильтрации. Корень — тип карточки (phys_quant | math_const | formulas); у каждой ветки свой набор criteria. Группы (collect=group) сворачивают несколько сырых значений в одну опцию списка.",
+    "language_order": [
+      "en",
+      "ru"
+    ],
+    "structure": "tree[card_type].filters[]",
+    "notes": "v0.3: category_bucket удалён; number_kind math_const упрощён до math_kind; category_in/contains больше не используются."
+  },
+  "tree": [
+    {
+      "id": "phys_quant",
+      "kind": "card_type",
+      "label": [
+        "Physical quantity",
+        "Физическая величина"
+      ],
+      "filters": [
+        {
+          "id": "domain",
+          "label": [
+            "Section",
+            "Раздел"
+          ],
+          "collect": "domains",
+          "control": "select",
+          "notes": "usages[].domains → domains.json"
+        },
+        {
+          "id": "kind",
+          "label": [
+            "Kind",
+            "Род"
+          ],
+          "collect": "group",
+          "control": "select",
+          "notes": "Абстрактные роды: скаляр / вектор (вкл. псевдовектор) / комплексное",
+          "options": [
+            {
+              "value": "scalar",
+              "label": [
+                "Scalar",
+                "Скаляр"
+              ],
+              "match": {
+                "any": [
+                  {
+                    "math_kind_in": [
+                      "scalar"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "value": "vector",
+              "label": [
+                "Vector",
+                "Вектор"
+              ],
+              "match": {
+                "any": [
+                  {
+                    "math_kind_in": [
+                      "vector",
+                      "pseudovector"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "value": "complex",
+              "label": [
+                "Complex",
+                "Комплексное"
+              ],
+              "match": {
+                "any": [
+                  {
+                    "math_kind_in": [
+                      "complex"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "invariance",
+          "label": [
+            "Invariance",
+            "Инвариантность"
+          ],
+          "collect": "invariance",
+          "control": "select",
+          "notes": "quantity.invariance"
+        },
+        {
+          "id": "unit_sys",
+          "label": [
+            "Unit system",
+            "Система измерения"
+          ],
+          "collect": "unit_sys",
+          "control": "select",
+          "static_options": [
+            {
+              "value": "SI",
+              "label": [
+                "SI (all dimensions)",
+                "SI (все размерности)"
+              ]
+            },
+            {
+              "value": "SI_named",
+              "label": [
+                "SI · named unit",
+                "SI · именованная единица"
+              ]
+            },
+            {
+              "value": "SI_comp",
+              "label": [
+                "SI · composition only",
+                "SI · только композиция"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "math_const",
+      "kind": "card_type",
+      "label": [
+        "Mathematical number",
+        "Математическое число"
+      ],
+      "filters": [
+        {
+          "id": "domain",
+          "label": [
+            "Section",
+            "Раздел"
+          ],
+          "collect": "domains",
+          "control": "select"
+        },
+        {
+          "id": "number_kind",
+          "label": [
+            "Number kind",
+            "Тип числа"
+          ],
+          "collect": "group",
+          "control": "select",
+          "notes": "Группы по math_kind (category удалён в physi_quant v0.12)",
+          "options": [
+            {
+              "value": "scalar_num",
+              "label": [
+                "Scalar",
+                "Скаляр"
+              ],
+              "match": {
+                "any": [
+                  {
+                    "math_kind_in": [
+                      "scalar"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "value": "complex_num",
+              "label": [
+                "Complex",
+                "Комплексное"
+              ],
+              "match": {
+                "any": [
+                  {
+                    "math_kind_in": [
+                      "complex"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formulas",
+      "kind": "card_type",
+      "label": [
+        "Law / formula",
+        "Формула (закон)"
+      ],
+      "filters": [
+        {
+          "id": "structure",
+          "label": [
+            "Structure",
+            "Структура"
+          ],
+          "collect": "structure_ref",
+          "control": "select",
+          "notes": "law.structure_ref → AST structures"
+        }
+      ]
+    }
+  ]
+}
