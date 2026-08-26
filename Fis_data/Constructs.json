@@ -17,7 +17,7 @@
           "role": "support",
           "position": [
             120,
-            220
+            280
           ],
           "quantities": {},
           "rotation": 270
@@ -28,7 +28,7 @@
           "role": "spring_1",
           "position": [
             120,
-            150
+            210
           ],
           "quantities": {
             "k": {
@@ -52,7 +52,7 @@
           "role": "spring_2",
           "position": [
             120,
-            85
+            145
           ],
           "quantities": {
             "k": {
