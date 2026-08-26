@@ -750,26 +750,49 @@
   }
 
   /**
-   * SVG of construction layout. No decorative env frame — the host viewport is the environment.
-   * options: { pad, showLabels, assetHrefPrefix (unused if vector shapes) }
+   * Fixed environment viewport (~¼ screen). Content is uniformly scaled to fit;
+   * the SVG never grows with the construction.
+   *
+   * options:
+   *   viewportW / viewportH — pixel size of env window (default 480×320)
+   *   pad — inner margin in viewport px
+   *   showLabels
    */
   function toSVG(layoutModel, options) {
     options = options || {};
-    const pad = options.pad != null ? options.pad : 12;
+    // ~¼ of a typical laptop content area (≈960×640 → 480×320)
+    const W = options.viewportW != null ? Number(options.viewportW) : 480;
+    const H = options.viewportH != null ? Number(options.viewportH) : 320;
+    const pad = options.pad != null ? Number(options.pad) : 16;
     const showLabels = options.showLabels !== false;
     const b = layoutModel.bounds || { x: 0, y: 0, w: 100, h: 100 };
-    const W = Math.max(b.w + pad * 2, 80);
-    const H = Math.max(b.h + pad * 2, 60);
-    // math y-up → svg y-down
+    const bw = Math.max(Number(b.w) || 1, 1);
+    const bh = Math.max(Number(b.h) || 1, 1);
+    const innerW = Math.max(W - pad * 2, 1);
+    const innerH = Math.max(H - pad * 2, 1);
+    // fit + center; never expand the viewport
+    const scale = Math.min(innerW / bw, innerH / bh);
+    const ox = pad + (innerW - bw * scale) / 2;
+    const oy = pad + (innerH - bh * scale) / 2;
+
+    // math y-up → svg y-down, scaled into fixed viewport
     function sx(x) {
-      return pad + (x - b.x);
+      return ox + (x - b.x) * scale;
     }
     function syPt(y) {
-      return pad + (b.h - (y - b.y));
+      return oy + (b.y + bh - y) * scale;
     }
     function syTop(y, h) {
-      return pad + (b.h - (y - b.y) - (h || 0));
+      return oy + (b.y + bh - y - (h || 0)) * scale;
     }
+    function sw(v) {
+      return v * scale;
+    }
+
+    const strokeMain = Math.max(1.2, 2.2 * Math.min(scale, 1.2));
+    const strokeThin = Math.max(1, 1.6 * Math.min(scale, 1.2));
+    const jointR = Math.max(2.5, 4 * Math.min(scale, 1.2));
+    const labelFs = Math.max(8, Math.min(11, 10 * Math.min(scale, 1.15)));
 
     let parts = [];
     parts.push(
@@ -777,7 +800,15 @@
         W +
         " " +
         H +
-        '" width="100%" height="100%" style="display:block;max-width:100%;background:transparent">'
+        '" width="' +
+        W +
+        '" height="' +
+        H +
+        '" style="display:block;width:' +
+        W +
+        "px;height:" +
+        H +
+        'px;max-width:100%;background:transparent">'
     );
 
     // edges
@@ -792,7 +823,9 @@
             sx(e.x2) +
             '" y2="' +
             syPt(e.y2) +
-            '" stroke="#2563eb" stroke-width="2.5"/>'
+            '" stroke="#2563eb" stroke-width="' +
+            strokeMain +
+            '"/>'
         );
         (e.legs || []).forEach(function (leg) {
           parts.push(
@@ -804,7 +837,9 @@
               sx(leg.x2) +
               '" y2="' +
               syPt(leg.y2) +
-              '" stroke="#64748b" stroke-width="2"/>'
+              '" stroke="#64748b" stroke-width="' +
+              strokeThin +
+              '"/>'
           );
         });
         if (e.joint) {
@@ -813,7 +848,9 @@
               sx(e.joint.x) +
               '" cy="' +
               syPt(e.joint.y) +
-              '" r="4" fill="#2563eb"/>'
+              '" r="' +
+              jointR +
+              '" fill="#2563eb"/>'
           );
         }
       } else {
@@ -826,18 +863,22 @@
             sx(e.x2) +
             '" y2="' +
             syPt(e.y2) +
-            '" stroke="#71717a" stroke-width="2"/>'
+            '" stroke="#71717a" stroke-width="' +
+            strokeThin +
+            '"/>'
         );
       }
     });
 
     (layoutModel.nodes || []).forEach(function (n) {
+      const nw = sw(n.w);
+      const nh = sw(n.h);
       const x = sx(n.x);
       const y = syTop(n.y, n.h);
-      const cx = x + n.w / 2;
-      const cy = y + n.h / 2;
-      // SVG rotate is CW-positive in y-down; data rotation is CCW in y-up → negate
+      const cx = x + nw / 2;
+      const cy = y + nh / 2;
       const rotSvg = -(n.rotation || 0);
+      // draw shape in local (unscaled) coords, then scale the group
       parts.push(
         '<g transform="rotate(' +
           rotSvg +
@@ -849,6 +890,8 @@
           x +
           " " +
           y +
+          ") scale(" +
+          scale +
           ')">' +
           nodeShapeMarkup(n) +
           "</g>"
@@ -858,8 +901,10 @@
           '<text x="' +
             cx +
             '" y="' +
-            (y + n.h + 11) +
-            '" text-anchor="middle" font-size="10" fill="#52525b">' +
+            (y + nh + labelFs + 2) +
+            '" text-anchor="middle" font-size="' +
+            labelFs +
+            '" fill="#52525b">' +
             String(n.id) +
             "</text>"
         );

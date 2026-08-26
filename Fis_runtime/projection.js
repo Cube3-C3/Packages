@@ -806,6 +806,8 @@
       layoutModel = window.ConstructLayout.layout(C, pack);
       if (layoutModel && typeof window.ConstructLayout.toSVG === "function") {
         svgHtml = window.ConstructLayout.toSVG(layoutModel, {
+          viewportW: 480,
+          viewportH: 320,
           pad: 16,
           showLabels: true
         });
@@ -910,7 +912,7 @@
         ? `<p class="pres-muted" style="margin:6px 0 12px;font-size:0.85rem">${escapeHtml(C.description)}</p>`
         : "") +
       `<div class="section"><h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "Среда" : "Environment"} · ${escapeHtml(C.environment || "E0")}</h3>` +
-      `<div class="construction-env" style="background:#f4f4f5;border-radius:8px;padding:8px;min-height:120px">${svgHtml || '<div class="empty">ConstructLayout missing</div>'}</div>` +
+      `<div class="construction-env" style="background:#f4f4f5;border-radius:8px;padding:8px;width:480px;max-width:100%;height:320px;overflow:hidden;box-sizing:border-box">${svgHtml || '<div class="empty">ConstructLayout missing</div>'}</div>` +
       (qtyRows ? `<div style="margin-top:10px">${qtyRows}</div>` : "") +
       `</div>` +
       `<div class="section" style="margin-top:16px"><h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "Формулы" : "Formulas"}</h3>${formulasHtml}</div>` +
