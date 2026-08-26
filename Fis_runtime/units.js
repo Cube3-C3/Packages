@@ -1185,7 +1185,7 @@
     };
   }
 
-  function formulasUsing(formulasData, qid, structuresData) {
+  function formulasUsing(formulasData, qid, structuresData, usagesData) {
     const laws = getLawsList(formulasData);
     const result = [];
     function walkRefs(node, acc) {
@@ -1199,7 +1199,8 @@
     }
     for (let i = 0; i < laws.length; i++) {
       const law = laws[i];
-      const inst = instantiateLaw(law, structuresData);
+      // usagesData → нормализованные символы (R₁, m₁, …) на листьях AST
+      const inst = instantiateLaw(law, structuresData, usagesData);
       if (!inst || !inst.ast) continue;
       const refs = Object.create(null);
       walkRefs(inst.ast, refs);

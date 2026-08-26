@@ -353,11 +353,39 @@
   }
 
 
-  function formulasUsing(formulasData, qid, structuresData) {
+  function formulasUsing(formulasData, qid, structuresData, usagesData) {
     if (window.FisUnits && window.FisUnits.formulasUsing) {
-      return window.FisUnits.formulasUsing(formulasData, qid, structuresData);
+      return window.FisUnits.formulasUsing(
+        formulasData,
+        qid,
+        structuresData,
+        usagesData
+      );
     }
     return [];
+  }
+
+  /** SI unit symbol for quantity id via units.json (FisUnits.formatUnit). */
+  function unitSymbolForQid(qid, data, lang) {
+    if (!qid || !data) return "";
+    const flat = flattenQuantities(data.physi_quant);
+    const q = flat.find(function (x) {
+      return x.id === qid;
+    });
+    if (!q || !q.dimension) return "";
+    if (window.FisUnits && typeof window.FisUnits.formatUnit === "function") {
+      try {
+        const r = window.FisUnits.formatUnit(
+          q.dimension,
+          data.units,
+          lang || "ru"
+        );
+        return (r && r.symbol) || "";
+      } catch (e) {
+        return "";
+      }
+    }
+    return "";
   }
 
 
@@ -518,7 +546,12 @@
         });
       }
       if (!derived.related_formulas && qid) {
-        let related = formulasUsing(data.formulas, qid, data.structures);
+        let related = formulasUsing(
+          data.formulas,
+          qid,
+          data.structures,
+          data.usages
+        );
         // Filter related laws by section derived from operand domains
         if (sectionId) {
           related = related.filter(function (f) {
@@ -793,7 +826,8 @@
     const related = [];
     const seenLaw = Object.create(null);
     Object.keys(qids).forEach(function (qid) {
-      const using = formulasUsing(data.formulas, qid, data.structures) || [];
+      const using =
+        formulasUsing(data.formulas, qid, data.structures, data.usages) || [];
       using.forEach(function (f) {
         const id = f.id || f.law_id;
         if (!id || seenLaw[id]) return;
@@ -802,7 +836,7 @@
       });
     });
 
-    // quantity chips from layout nodes
+    // quantity chips — unit symbol from units.json via formatUnit(dimension)
     let qtyRows = "";
     if (layoutModel && layoutModel.nodes) {
       layoutModel.nodes.forEach(function (n) {
@@ -813,7 +847,7 @@
           const q = qs[k];
           const sym = q.symbol || k;
           const v = q.value != null ? q.value : "—";
-          const u = q.unit || "";
+          const u = unitSymbolForQid(q.quantity, data, lang) || q.unit || "";
           return (
             `<code>${escapeHtml(sym)}</code>=${escapeHtml(String(v))}` +
             (u ? ` <span class="pres-muted">${escapeHtml(u)}</span>` : "") +
@@ -826,8 +860,10 @@
     }
     if (layoutModel && layoutModel.g) {
       const g = layoutModel.g;
+      const gu =
+        unitSymbolForQid(g.quantity || "Q006", data, lang) || g.unit || "";
       qtyRows =
-        `<div style="margin:4px 0;font-size:0.82rem"><strong>E0</strong> · <code>${escapeHtml(g.symbol || "g")}</code>=${escapeHtml(String(g.value))} <span class="pres-muted">${escapeHtml(g.unit || "")}</span> <span class="pres-muted">(${escapeHtml(g.quantity || "Q006")})</span></div>` +
+        `<div style="margin:4px 0;font-size:0.82rem"><strong>E0</strong> · <code>${escapeHtml(g.symbol || "g")}</code>=${escapeHtml(String(g.value))} <span class="pres-muted">${escapeHtml(gu)}</span> <span class="pres-muted">(${escapeHtml(g.quantity || "Q006")})</span></div>` +
         qtyRows;
     }
 

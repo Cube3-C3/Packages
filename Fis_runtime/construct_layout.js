@@ -341,9 +341,13 @@
   }
 
   function assetSize(assetEntry, component) {
-    if (component && component.kind === "junction") return { w: 16, h: 16 };
-    if (!assetEntry) return { w: DEFAULT_SIZE.w, h: DEFAULT_SIZE.h };
-    const src = String(assetEntry.src || "");
+    // Sizes aligned with construct_prototype (school schematic).
+    const kind = component && component.kind;
+    if (kind === "junction") return { w: 16, h: 16 };
+    if (kind === "elastic_element") return { w: 120, h: 40 };
+    if (kind === "rigid_body") return { w: 56, h: 48 };
+    if (kind === "fixed_support") return { w: 28, h: 88 };
+    const src = assetEntry ? String(assetEntry.src || "") : "";
     if (src.indexOf("spring") >= 0) return { w: 120, h: 40 };
     if (src.indexOf("block") >= 0) return { w: 56, h: 48 };
     if (src.indexOf("wall") >= 0) return { w: 28, h: 88 };
@@ -687,12 +691,23 @@
    * SVG string from layout (y flipped for SVG top-left origin).
    * assetHrefPrefix — путь к папке Assets, например "Fis_data/Assets/"
    */
-  /** Vector shapes from asset src name (no external image dependency). */
+  /**
+   * Vector shapes — prefer component.kind, then asset src name.
+   * Does not depend on external SVG files (platform may not serve Assets/).
+   */
   function nodeShapeMarkup(n) {
     const w = n.w || 40;
     const h = n.h || 40;
     const src = String(n.src || "");
-    if (src.indexOf("spring") >= 0) {
+    const kind = String(n.kind || "");
+    const isSpring =
+      kind === "elastic_element" || src.indexOf("spring") >= 0;
+    const isWall =
+      kind === "fixed_support" || src.indexOf("wall") >= 0;
+    const isBlock =
+      kind === "rigid_body" || src.indexOf("block") >= 0;
+
+    if (isSpring) {
       const mid = h / 2;
       let d = "M0 " + mid + " H" + (w * 0.08);
       for (let i = 0; i < 8; i++) {
@@ -707,7 +722,7 @@
         '" fill="none" stroke="#18181b" stroke-width="2.5"/>'
       );
     }
-    if (src.indexOf("wall") >= 0) {
+    if (isWall) {
       return (
         '<rect x="1" y="1" width="' +
         (w - 2) +
@@ -716,7 +731,7 @@
         '" fill="#d4d4d8" stroke="#18181b" stroke-width="2.5"/>'
       );
     }
-    if (src.indexOf("block") >= 0) {
+    if (isBlock) {
       return (
         '<rect x="2" y="2" width="' +
         (w - 4) +
