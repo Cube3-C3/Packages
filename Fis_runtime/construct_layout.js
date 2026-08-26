@@ -21,6 +21,10 @@
   const GAP_SERIES = 24;
   const GAP_PARALLEL = 48;
   const MARGIN = 16;
+  // px per meter — единый масштаб для перевода физических величин (natural_length и т.п.)
+  // в размер box. Раньше assetSize() всегда возвращал фиксированные 120×40 для пружины,
+  // независимо от реального L, что и приводило к наложениям/разрывам при explicit position.
+  const DEFAULT_PX_PER_M = 300;
 
   function pick(arr, lang) {
     if (!Array.isArray(arr)) return arr != null ? String(arr) : "";
@@ -340,15 +344,31 @@
     return ordered;
   }
 
-  function assetSize(assetEntry, component) {
+  /**
+   * elQuantities — resolved quantities экземпляра (см. resolveQuantities), нужен для
+   * elastic_element: длина box вдоль оси порта end_a↔end_b = L.value * pxPerMeter,
+   * а не фиксированная константа. Так реальный natural_length определяет,
+   * сколько места пружина занимает в раскладке — соседние элементы с explicit
+   * position перестают пересекаться, если геометрия координат уже это учитывает.
+   */
+  function assetSize(assetEntry, component, elQuantities, pxPerMeter) {
     // Sizes aligned with construct_prototype (school schematic).
     const kind = component && component.kind;
+    const scale = pxPerMeter != null ? Number(pxPerMeter) : DEFAULT_PX_PER_M;
     if (kind === "junction") return { w: 16, h: 16 };
-    if (kind === "elastic_element") return { w: 120, h: 40 };
+    if (kind === "elastic_element") {
+      const L = elQuantities && elQuantities.L && elQuantities.L.value;
+      const lenPx = L != null && isFinite(L) ? Math.max(L * scale, 8) : DEFAULT_SIZE.w;
+      return { w: lenPx, h: 40 };
+    }
     if (kind === "rigid_body") return { w: 56, h: 48 };
     if (kind === "fixed_support") return { w: 28, h: 88 };
     const src = assetEntry ? String(assetEntry.src || "") : "";
-    if (src.indexOf("spring") >= 0) return { w: 120, h: 40 };
+    if (src.indexOf("spring") >= 0) {
+      const L = elQuantities && elQuantities.L && elQuantities.L.value;
+      const lenPx = L != null && isFinite(L) ? Math.max(L * scale, 8) : DEFAULT_SIZE.w;
+      return { w: lenPx, h: 40 };
+    }
     if (src.indexOf("block") >= 0) return { w: 56, h: 48 };
     if (src.indexOf("wall") >= 0) return { w: 28, h: 88 };
     return { w: DEFAULT_SIZE.w, h: DEFAULT_SIZE.h };
@@ -460,6 +480,7 @@
     const gapS = options.gapSeries != null ? options.gapSeries : GAP_SERIES;
     const gapP = options.gapParallel != null ? options.gapParallel : GAP_PARALLEL;
     const margin = options.margin != null ? options.margin : MARGIN;
+    const pxPerMeter = options.pxPerMeter != null ? options.pxPerMeter : DEFAULT_PX_PER_M;
 
     const typesMap = getTypesMap(pack && pack.relation_types);
     const comps = getComponentsMap(pack && pack.components);
@@ -498,14 +519,16 @@
       const comp = comps[n.component] || {};
       const assetId = comp.asset;
       const asset = assetId ? assets[assetId] : null;
-      sizes[id] = assetSize(asset, comp);
+      const elQ = resolveQuantities(elById[id], comp);
+      sizes[id] = assetSize(asset, comp, elQ, pxPerMeter);
     });
     // include any element missing from order (orphans)
     Object.keys(graph.nodes).forEach(function (id) {
       if (sizes[id]) return;
       const n = graph.nodes[id];
       const comp = comps[n.component] || {};
-      sizes[id] = assetSize(comp.asset ? assets[comp.asset] : null, comp);
+      const elQ = resolveQuantities(elById[id], comp);
+      sizes[id] = assetSize(comp.asset ? assets[comp.asset] : null, comp, elQ, pxPerMeter);
       if (order.indexOf(id) < 0) order.push(id);
     });
 
