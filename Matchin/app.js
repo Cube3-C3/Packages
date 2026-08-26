@@ -63,3 +63,17 @@ function updateAST() {
 input.addEventListener('input', updateAST);
 if (strictCheckbox) strictCheckbox.addEventListener('change', updateAST);
 updateAST();
+input.addEventListener('blur', () => {
+  engine.setStrictMode(
+    strictCheckbox ? strictCheckbox.checked : false
+  );
+
+  const before = input.value;
+  const after = engine.finalizeText(before);
+
+  if (after !== before) {
+    input.value = after;
+  }
+
+  updateAST();
+});
