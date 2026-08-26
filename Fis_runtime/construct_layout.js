@@ -750,49 +750,42 @@
   }
 
   /**
-   * Fixed environment viewport (~¼ screen). Content is uniformly scaled to fit;
-   * the SVG never grows with the construction.
+   * Fixed environment viewport (~¼ screen). 1:1 math→px, no fit-scale.
+   * What sticks out of the window is clipped (overflow hidden).
    *
    * options:
    *   viewportW / viewportH — pixel size of env window (default 480×320)
-   *   pad — inner margin in viewport px
    *   showLabels
+   *   origin — optional [ox,oy]; default layoutModel.origin or [0,0]
    */
   function toSVG(layoutModel, options) {
     options = options || {};
     // ~¼ of a typical laptop content area (≈960×640 → 480×320)
     const W = options.viewportW != null ? Number(options.viewportW) : 480;
     const H = options.viewportH != null ? Number(options.viewportH) : 320;
-    const pad = options.pad != null ? Number(options.pad) : 16;
     const showLabels = options.showLabels !== false;
-    const b = layoutModel.bounds || { x: 0, y: 0, w: 100, h: 100 };
-    const bw = Math.max(Number(b.w) || 1, 1);
-    const bh = Math.max(Number(b.h) || 1, 1);
-    const innerW = Math.max(W - pad * 2, 1);
-    const innerH = Math.max(H - pad * 2, 1);
-    // fit + center; never expand the viewport
-    const scale = Math.min(innerW / bw, innerH / bh);
-    const ox = pad + (innerW - bw * scale) / 2;
-    const oy = pad + (innerH - bh * scale) / 2;
+    const origin =
+      options.origin ||
+      (layoutModel && layoutModel.origin) ||
+      [0, 0];
+    const oX = Number(origin[0]) || 0;
+    const oY = Number(origin[1]) || 0;
 
-    // math y-up → svg y-down, scaled into fixed viewport
+    // math y-up, origin bottom-left of viewport → svg y-down; scale = 1
     function sx(x) {
-      return ox + (x - b.x) * scale;
+      return x - oX;
     }
     function syPt(y) {
-      return oy + (b.y + bh - y) * scale;
+      return H - (y - oY);
     }
     function syTop(y, h) {
-      return oy + (b.y + bh - y - (h || 0)) * scale;
-    }
-    function sw(v) {
-      return v * scale;
+      return H - (y - oY) - (h || 0);
     }
 
-    const strokeMain = Math.max(1.2, 2.2 * Math.min(scale, 1.2));
-    const strokeThin = Math.max(1, 1.6 * Math.min(scale, 1.2));
-    const jointR = Math.max(2.5, 4 * Math.min(scale, 1.2));
-    const labelFs = Math.max(8, Math.min(11, 10 * Math.min(scale, 1.15)));
+    const strokeMain = 2.2;
+    const strokeThin = 1.6;
+    const jointR = 4;
+    const labelFs = 10;
 
     let parts = [];
     parts.push(
@@ -804,11 +797,11 @@
         W +
         '" height="' +
         H +
-        '" style="display:block;width:' +
+        '" overflow="hidden" style="display:block;width:' +
         W +
         "px;height:" +
         H +
-        'px;max-width:100%;background:transparent">'
+        'px;max-width:100%;background:transparent;overflow:hidden">'
     );
 
     // edges
@@ -871,14 +864,11 @@
     });
 
     (layoutModel.nodes || []).forEach(function (n) {
-      const nw = sw(n.w);
-      const nh = sw(n.h);
       const x = sx(n.x);
       const y = syTop(n.y, n.h);
-      const cx = x + nw / 2;
-      const cy = y + nh / 2;
+      const cx = x + n.w / 2;
+      const cy = y + n.h / 2;
       const rotSvg = -(n.rotation || 0);
-      // draw shape in local (unscaled) coords, then scale the group
       parts.push(
         '<g transform="rotate(' +
           rotSvg +
@@ -890,8 +880,6 @@
           x +
           " " +
           y +
-          ") scale(" +
-          scale +
           ')">' +
           nodeShapeMarkup(n) +
           "</g>"
@@ -901,7 +889,7 @@
           '<text x="' +
             cx +
             '" y="' +
-            (y + nh + labelFs + 2) +
+            (y + n.h + labelFs + 2) +
             '" text-anchor="middle" font-size="' +
             labelFs +
             '" fill="#52525b">' +
