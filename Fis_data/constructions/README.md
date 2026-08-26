@@ -1,32 +1,40 @@
 # Constructions
 
-Трёхслойная модель:
+Параллель с формульным слоем:
 
-1. **assets** (`Fis_data/assets/registry.json`) — только визуал. ID = **M***. SVG + геометрические параметры (anchor, scale, opacity…).
-2. **components** (`Fis_data/components.json`) — физическая природа. ID = **E***. Ссылка на M* + kind, scale, quantities, ports.
-3. **constructions** — сборки. Экземпляры компонентов (E*) + relations.
+| Формулы | Конструкции |
+|---------|-------------|
+| `AST.json` → structures (A1…) | `relation_types.json` → types (R_SERIES…) |
+| `physi_formulas` → law + structure_ref + bindings | `constructions/C*.json` → elements + relations + quantities |
+| operand O* ← quantity Q* | inst* ← component E* + quantities{} |
 
-Конструкция хранит:
+## Слои
 
-- `elements` — экземпляры компонентов (`component`: E*);
-- `relations` — бинарные связи между экземплярами.
+1. **E0** (`physi_comps`) — среда: origin, assumptions, initial_conditions.
+2. **E*** — компоненты (физика + ссылка на M*).
+3. **relation_types** — реестр логических связей (series / parallel / attach / junction…).
+4. **C*** — конкретная конструкция: экземпляры элементов + экземпляры связей + величины на каждом элементе.
 
-На первом этапе connection points не обязательны: положение и линии считает layout-слой.
-
-Минимальная форма:
+## Форма конструкции
 
 ```json
 {
-  "schema_version": "0.2.0",
+  "schema_version": "0.3.0",
   "id": "C1",
+  "environment": "E0",
   "elements": [
-    { "id": "inst1", "component": "E001" },
-    { "id": "inst2", "component": "E001" }
+    {
+      "id": "inst1",
+      "component": "E001",
+      "quantities": { "k": "Q_xxx", "x": "Q_yyy" }
+    }
   ],
   "relations": [
-    { "id": "L1", "type": "series", "from": "inst1", "to": "inst2" }
+    { "id": "L1", "type": "R_SERIES", "from": "inst1", "to": "inst2" }
   ]
 }
 ```
 
-Расчёт и физические свойства берутся из компонентов (E*), не из ассетов (M*).
+- `type` в relations — id из `relation_types.json`.
+- `quantities` на элементе — набор величин, которые его описывают/измеряют в этой сборке (пока может быть `{}`).
+- Позиции относительно `E0.origin` считает вычислительный слой (позже).
