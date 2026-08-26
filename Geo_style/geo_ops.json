@@ -1,0 +1,161 @@
+{
+  "meta": {
+    "version": "0.1",
+    "description": "Операции вычислимой геометрии. Контракты над сортами из geo_core.json. Разрешают строить фигуры из точек, векторов, длин и углов без хранения готовых примитивов.",
+    "created": "2026-08-18",
+    "language_order": ["en", "ru"],
+    "related": ["geo_core.json", "math_ops.json"],
+    "notes": "Геометрический слой опирается на math_ops (add/mul/…), но добавляет сорта Point/Vec2/Length/Angle и операции rotate, length, unit, dot, angle_between и т.д. validity через sort + dim."
+  },
+
+  "operators": {
+    "add": {
+      "id": "geo.add",
+      "arity": 2,
+      "args_mode": "list",
+      "signatures": [
+        { "args": ["Point", "Vec2"], "result": "Point", "notes": "точка + вектор → точка" },
+        { "args": ["Vec2", "Vec2"], "result": "Vec2", "notes": "сложение векторов" },
+        { "args": ["Length", "Length"], "result": "Length" },
+        { "args": ["Angle", "Angle"], "result": "Angle" },
+        { "args": ["Scalar", "Scalar"], "result": "Scalar" }
+      ],
+      "rules": [
+        { "id": "same_sort_or_point_vec", "on_fail": "SORT_MISMATCH" }
+      ],
+      "notes": "Аффинное сложение. Point + Point запрещено."
+    },
+
+    "sub": {
+      "id": "geo.sub",
+      "arity": 2,
+      "args_mode": "list",
+      "signatures": [
+        { "args": ["Point", "Point"], "result": "Vec2", "notes": "B - A → вектор" },
+        { "args": ["Point", "Vec2"], "result": "Point" },
+        { "args": ["Vec2", "Vec2"], "result": "Vec2" },
+        { "args": ["Length", "Length"], "result": "Length" },
+        { "args": ["Angle", "Angle"], "result": "Angle" },
+        { "args": ["Scalar", "Scalar"], "result": "Scalar" }
+      ],
+      "notes": "Вычитание. Point - Point даёт Vec2 — ключевая операция."
+    },
+
+    "scale": {
+      "id": "geo.scale",
+      "arity": 2,
+      "args_mode": "list",
+      "signatures": [
+        { "args": ["Vec2", "Scalar"], "result": "Vec2" },
+        { "args": ["Length", "Scalar"], "result": "Length" },
+        { "args": ["Scalar", "Scalar"], "result": "Scalar" }
+      ],
+      "notes": "Умножение на скаляр. Для вектора — изменение длины с сохранением направления (при положительном)."
+    },
+
+    "rotate": {
+      "id": "geo.rotate",
+      "arity": 2,
+      "args_mode": "list",
+      "signatures": [
+        { "args": ["Vec2", "Angle"], "result": "Vec2", "notes": "поворот вектора вокруг своего начала" },
+        { "args": ["Point", "Angle", "Point"], "result": "Point", "notes": "поворот точки вокруг центра (центр — третий аргумент или именованный)" }
+      ],
+      "notes": "Поворот. Канонический вариант — Vec2 × Angle. Для точки нужен центр."
+    },
+
+    "length": {
+      "id": "geo.length",
+      "arity": 1,
+      "args_mode": "unary",
+      "signatures": [
+        { "args": ["Vec2"], "result": "Length" },
+        { "args": ["Path2"], "result": "Length", "notes": "длина пути (сумма сегментов)" }
+      ],
+      "notes": "Евклидова норма / длина."
+    },
+
+    "unit": {
+      "id": "geo.unit",
+      "arity": 1,
+      "args_mode": "unary",
+      "signatures": [
+        { "args": ["Vec2"], "result": "Vec2", "notes": "вектор той же направления, длина = 1" }
+      ],
+      "rules": [
+        { "id": "nonzero", "check": "length(v) > 0", "on_fail": "ZERO_VECTOR" }
+      ],
+      "notes": "Нормализация."
+    },
+
+    "dot": {
+      "id": "geo.dot",
+      "arity": 2,
+      "args_mode": "list",
+      "signatures": [
+        { "args": ["Vec2", "Vec2"], "result": "Scalar" }
+      ],
+      "notes": "Скалярное произведение. |a|·|b|·cosθ."
+    },
+
+    "perp": {
+      "id": "geo.perp",
+      "arity": 1,
+      "args_mode": "unary",
+      "signatures": [
+        { "args": ["Vec2"], "result": "Vec2", "notes": "поворот на +90° (CCW): (-y, x)" }
+      ],
+      "notes": "Перпендикуляр. Удобно для нормалей и построения прямоугольников."
+    },
+
+    "angle_between": {
+      "id": "geo.angle_between",
+      "arity": 2,
+      "args_mode": "list",
+      "signatures": [
+        { "args": ["Vec2", "Vec2"], "result": "Angle" }
+      ],
+      "notes": "Ориентированный или абсолютный угол между двумя векторами (уточняется при проекции)."
+    },
+
+    "lerp": {
+      "id": "geo.lerp",
+      "arity": 3,
+      "args_mode": "list",
+      "signatures": [
+        { "args": ["Point", "Point", "Scalar"], "result": "Point", "notes": "A + t·(B-A), t ∈ [0,1]" },
+        { "args": ["Vec2", "Vec2", "Scalar"], "result": "Vec2" },
+        { "args": ["Length", "Length", "Scalar"], "result": "Length" },
+        { "args": ["Angle", "Angle", "Scalar"], "result": "Angle" }
+      ],
+      "notes": "Линейная интерполяция. Основа параметризации отрезков и анимаций."
+    },
+
+    "polar": {
+      "id": "geo.polar",
+      "arity": 2,
+      "args_mode": "list",
+      "signatures": [
+        { "args": ["Length", "Angle"], "result": "Vec2", "notes": "(r·cosθ, r·sinθ)" }
+      ],
+      "notes": "Полярные → декартовы. Ключ к правильным многоугольникам и дугам."
+    },
+
+    "distance": {
+      "id": "geo.distance",
+      "arity": 2,
+      "args_mode": "list",
+      "signatures": [
+        { "args": ["Point", "Point"], "result": "Length" }
+      ],
+      "equivalent": "length(sub(B, A))",
+      "notes": "Синтаксический сахар над length(B - A)."
+    }
+  },
+
+  "composition_notes": {
+    "rect_from_ops": "origin + scale(polar(width, φ), 1) и origin + scale(polar(height, φ+π/2), 1) → два вектора сторон",
+    "regular_polygon": "для k=0..n-1: center + polar(radius, φ0 + 2π·k/n)",
+    "segment_param": "lerp(A, B, t), t ∈ [0,1]"
+  }
+}
