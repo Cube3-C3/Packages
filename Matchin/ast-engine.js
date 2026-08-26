@@ -13,8 +13,15 @@ import {
 } from './ast-nodes.js';
 
 export class InputEngine {
-  constructor() {
+  constructor(options = {}) {
+    // strictMode = true -> Нерушимость операндов (блокировка чужеродных символов)
+    // strictMode = false -> Автопилот (поедание разделителей и расщепление блоков)
+    this.strictMode = options.strictMode !== undefined ? options.strictMode : false;
     this.reset();
+  }
+
+  setStrictMode(value) {
+    this.strictMode = Boolean(value);
   }
 
   reset() {
@@ -36,7 +43,9 @@ export class InputEngine {
       let char = text[i];
       if (/\s/.test(char)) { i++; continue; }
 
-      // 1. Операнды (Числа и их разрушение чужеродными вставками)
+      // =========================================================
+      // 1. ОПЕРАНД: ЧИСЛО И ЕГО ТРАНСФОРМАЦИЯ / ПОЕДАНИЕ РАЗДЕЛИТЕЛЕЙ
+      // =========================================================
       if (/\d/.test(char)) {
         let numStr = '';
         let hasDot = false;
@@ -44,12 +53,26 @@ export class InputEngine {
 
         while (i < text.length) {
           let c = text[i];
+
           if (/\d/.test(c)) {
             numStr += c;
           } else if ((c === '.' || c === ',') && !hasDot && !hasPeriod) {
+            // Проверка границы разделителя: если дальше идет чужеродный операнд/оператор
+            let nextChar = text[i + 1];
+            if (!this.strictMode && nextChar && /[a-zA-Z+\-*/^!]/.test(nextChar)) {
+              // АВТОПИЛОТ: Оператор/переменная съедает разделительную точку
+              i++; // Пропускаем '.' (съели разделитель)
+              break; // Завершаем текущее целое число, дальше пойдет чужеродный символ
+            }
             hasDot = true;
             numStr += '.';
           } else if (c === '(' && hasDot && !hasPeriod) {
+            let nextChar = text[i + 1];
+            if (!this.strictMode && nextChar && /[a-zA-Z+\-*/^!]/.test(nextChar)) {
+              // АВТОПИЛОТ: Съедаем скобку периода при вводе чужеродного операнда
+              i++; 
+              break; 
+            }
             hasPeriod = true;
             numStr += '(';
           } else if (c === ')' && hasPeriod) {
@@ -57,39 +80,57 @@ export class InputEngine {
             i++;
             break; 
           } else {
-            break; // Чужеродный символ прерывает число
+            // Прерывание числа чужеродным символом
+            break; 
           }
           i++;
         }
 
-        // Если число разорвано вводом переменной/оператора в разделитель:
+        // Проверка повреждения разделительных элементов
         if (numStr.endsWith('.') || numStr.endsWith('(')) {
-          throw new Error(`Внутренний блок числа разорван в позиции ${i}. Ожидались цифры.`);
+          if (this.strictMode) {
+            throw new Error(`[Защита] Внутренний разделитель числа разорван в позиции ${i}. Нерушимость операнда активирована.`);
+          } else {
+            // Автопилот срезает висящий разделитель, превращая выжившую часть в валидный NumberNode
+            numStr = numStr.slice(0, -1);
+          }
         }
 
-        tokens.push({ 
-          type: 'NUMBER', 
-          value: numStr, 
-          isPeriodic: hasPeriod && numStr.endsWith(')') 
-        });
+        if (numStr.length > 0) {
+          tokens.push({ 
+            type: 'NUMBER', 
+            value: numStr, 
+            isPeriodic: hasPeriod && numStr.endsWith(')') 
+          });
+        }
         continue;
       }
 
-      // 2. Переменные и Функции
+      // =========================================================
+      // 2. ПЕРЕМЕННЫЕ (В Т.Ч. С ИНДЕКСАМИ) И ФУНКЦИИ
+      // =========================================================
       if (/[a-zA-Z]/.test(char)) {
         let name = '';
         while (i < text.length && /[a-zA-Z]/.test(text[i])) {
           name += text[i];
           i++;
         }
+
         let index = '';
         if (i < text.length && text[i] === '_') {
-          i++;
+          i++; // Пропуск '_'
           while (i < text.length && /[\da-zA-Z]/.test(text[i])) {
             index += text[i];
             i++;
           }
+          // Если индекс обрывается неоконченным (напр. x_)
+          if (index.length === 0) {
+            if (this.strictMode) {
+              throw new Error(`[Защита] Неполный индекс переменной в позиции ${i}`);
+            }
+          }
         }
+
         if (FunctionRegistry.has(name)) {
           tokens.push({ type: 'FUNCTION', name: name });
         } else {
@@ -98,12 +139,17 @@ export class InputEngine {
         continue;
       }
 
-      // 3. Уравнения, Операторы, Скобки
+      // =========================================================
+      // 3. ЗНАКИ СРАВНЕНИЯ, УРАВНЕНИЯ И ОПЕРАТОРЫ
+      // =========================================================
       if (['=', '>', '<', '!'].includes(char)) {
         let op = char;
         if (i + 1 < text.length && text[i + 1] === '=') { op += '='; i++; }
         if (op === '=') {
-          if (this.hasEquationOp) throw new Error(`Повторный знак "=" заблокирован`);
+          if (this.hasEquationOp) {
+            if (this.strictMode) throw new Error(`[Защита] Повторный знак "=" заблокирован в позиции ${i + 1}`);
+            i++; continue; // Автопилот просто игнорирует дублирующий знак равенства
+          }
           this.hasEquationOp = true;
           tokens.push({ type: 'EQUATION_OP', value: op });
           i++;
@@ -128,18 +174,26 @@ export class InputEngine {
         i++; continue;
       }
 
-      throw new Error(`Недопустимый символ "${char}" в позиции ${i + 1}`);
+      if (this.strictMode) {
+        throw new Error(`[Защита] Недопустимый символ "${char}" в позиции ${i + 1}`);
+      }
+      i++; // Автопилот пропускает неизвестный шум
     }
+
     return tokens;
   }
 
+  /**
+   * ПОЛИЦЕЙСКИЕ ПРАВИЛА (Расширенное неявное умножение и контроль связей)
+   */
   applyPoliceRules(tokens) {
     let result = [];
+
     for (let i = 0; i < tokens.length; i++) {
       let current = tokens[i];
       let next = tokens[i + 1];
 
-      // Блокировка повторяющихся операторов (кроме префиксов)
+      // Валидация повтора операторов
       if (current.type === 'OPERATOR' && next && next.type === 'OPERATOR') {
         if (!PrefixUnaryRegistry.has(next.value)) {
           throw new Error(`Дублирование операторов "${current.value}${next.value}" недопустимо`);
@@ -149,24 +203,25 @@ export class InputEngine {
       result.push(current);
 
       if (next) {
-        // Неявное умножение: Число -> Число/Переменная/Функция/(
+        // 1. Число -> [Число, Переменная, Функция, (]
         if (current.type === 'NUMBER' && ['NUMBER', 'VARIABLE', 'FUNCTION', 'PAREN_OPEN'].includes(next.type)) {
           result.push({ type: 'OPERATOR', value: '*' });
         }
-        // Неявное умножение: Переменная -> Переменная/Функция/(/Число (x_1 5 -> x_1 * 5)
-        else if (current.type === 'VARIABLE' && ['VARIABLE', 'FUNCTION', 'PAREN_OPEN', 'NUMBER'].includes(next.type)) {
+        // 2. Переменная (в т.ч. с индексом x_1) -> [Переменная, Число, Функция, (]
+        else if (current.type === 'VARIABLE' && ['VARIABLE', 'NUMBER', 'FUNCTION', 'PAREN_OPEN'].includes(next.type)) {
           result.push({ type: 'OPERATOR', value: '*' });
         }
-        // Неявное умножение: Постфикс -> Операнд
+        // 3. Постфикс -> [Число, Переменная, (]
         else if (current.type === 'POSTFIX_OP' && ['NUMBER', 'VARIABLE', 'PAREN_OPEN'].includes(next.type)) {
           result.push({ type: 'OPERATOR', value: '*' });
         }
-        // Неявное умножение: ) -> Операнд
+        // 4. Закрывающая скобка ) -> [Число, Переменная, Функция, (]
         else if (current.type === 'PAREN_CLOSE' && ['NUMBER', 'VARIABLE', 'FUNCTION', 'PAREN_OPEN'].includes(next.type)) {
           result.push({ type: 'OPERATOR', value: '*' });
         }
       }
     }
+
     return result;
   }
 
@@ -176,7 +231,9 @@ export class InputEngine {
     if (eqIndex !== -1) {
       const leftTokens = tokens.slice(0, eqIndex);
       const rightTokens = tokens.slice(eqIndex + 1);
-      if (leftTokens.length === 0 || rightTokens.length === 0) throw new Error("Уравнение требует операндов с обеих сторон");
+      if (leftTokens.length === 0 || rightTokens.length === 0) {
+        throw new Error("Уравнение требует операндов по обе стороны от '='");
+      }
       return new EquationNode(tokens[eqIndex].value, this.parseExpression(leftTokens), this.parseExpression(rightTokens));
     }
     return this.parseExpression(tokens);
@@ -185,7 +242,6 @@ export class InputEngine {
   parseExpression(tokens) {
     let index = 0;
 
-    // Базовые операнды и функции
     const parsePrimary = () => {
       if (index >= tokens.length) throw new Error("Неожиданный конец выражения");
       let token = tokens[index];
@@ -237,7 +293,7 @@ export class InputEngine {
       if (index < tokens.length && tokens[index].type === 'OPERATOR' && PrefixUnaryRegistry.has(tokens[index].value)) {
         let op = tokens[index].value;
         index++;
-        return new UnaryNode(op, 'prefix', parsePrefix()); // Рекурсия для --x
+        return new UnaryNode(op, 'prefix', parsePrefix());
       }
       return parsePostfix();
     };
@@ -251,7 +307,7 @@ export class InputEngine {
         if (prec < minPrecedence) break;
         
         index++;
-        let nextMinPrec = (op === '^') ? prec : prec + 1; // Правоассоциативность для ^
+        let nextMinPrec = (op === '^') ? prec : prec + 1;
         left = new BinaryNode(op, left, parseExpr(nextMinPrec));
       }
       return left;
