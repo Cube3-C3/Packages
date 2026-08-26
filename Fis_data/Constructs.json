@@ -1,0 +1,37 @@
+{
+  "schema_version": "0.4.0",
+  "description": "Реестр конструкций (аналог physi_formulas). Каждая запись: elements (inst* → component E* + quantities) и relations (structure_ref → R_* + bindings S* → inst*). Адресация связей по индексу слота — как bindings O* на AST у формул.",
+  "constructions": [
+    {
+      "id": "C1",
+      "name": ["two springs in series", "две пружины последовательно"],
+      "environment": "E0",
+      "description": "Две пружины последовательно",
+      "elements": [
+        {
+          "id": "inst1",
+          "component": "E001",
+          "role": "spring_1",
+          "quantities": {}
+        },
+        {
+          "id": "inst2",
+          "component": "E001",
+          "role": "spring_2",
+          "quantities": {}
+        }
+      ],
+      "relations": [
+        {
+          "id": "L1",
+          "structure_ref": "R_SERIES",
+          "bindings": {
+            "S1": "inst1",
+            "S2": "inst2"
+          }
+        }
+      ],
+      "notes": "quantities на inst* — набор величин экземпляра в этой сборке (позже Q*). relations[].structure_ref → relation_types; bindings накладывают inst* на слоты S* структуры."
+    }
+  ]
+}
