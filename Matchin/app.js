@@ -1,11 +1,11 @@
-// app.js
 import { InputEngine } from './ast-engine.js';
 
 const input = document.getElementById('code-input');
 const output = document.getElementById('ast-output');
 const statusMsg = document.getElementById('status-message');
+const strictCheckbox = document.getElementById('strict-mode-toggle');
 
-const engine = new InputEngine();
+const engine = new InputEngine({ strictMode: false });
 
 function createTreeHTML(data, isRoot = true) {
   if (data === null) return '<span class="null">null</span>';
@@ -36,6 +36,8 @@ function createTreeHTML(data, isRoot = true) {
 
 function updateAST() {
   const code = input.value;
+  engine.setStrictMode(strictCheckbox ? strictCheckbox.checked : false);
+
   if (!code.trim()) {
     output.innerHTML = '';
     input.classList.remove('invalid');
@@ -48,10 +50,10 @@ function updateAST() {
     const ast = engine.validateAndParse(code);
     output.innerHTML = createTreeHTML(ast);
     input.classList.remove('invalid');
-    statusMsg.textContent = '✓ Ввод валиден. AST сформирован';
+    statusMsg.textContent = `✓ AST сформирован [Режим: ${engine.strictMode ? 'Защита' : 'Автопилот'}]`;
     statusMsg.className = 'status ok';
   } catch (err) {
-    output.innerHTML = `<span class="error">Ошибка Валидатора / Парсера:\n${err.message}</span>`;
+    output.innerHTML = `<span class="error">Ошибка Парсера:\n${err.message}</span>`;
     input.classList.add('invalid');
     statusMsg.textContent = `✗ Заблокировано: ${err.message}`;
     statusMsg.className = 'status err';
@@ -59,4 +61,5 @@ function updateAST() {
 }
 
 input.addEventListener('input', updateAST);
+if (strictCheckbox) strictCheckbox.addEventListener('change', updateAST);
 updateAST();
