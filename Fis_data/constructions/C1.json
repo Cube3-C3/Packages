@@ -1,11 +1,12 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "id": "C1",
+  "name": ["two springs in series", "две пружины последовательно"],
   "elements": [
-    {"id": "E1", "asset": "spring"},
-    {"id": "E2", "asset": "spring"}
+    { "id": "inst1", "component": "E001" },
+    { "id": "inst2", "component": "E001" }
   ],
   "relations": [
-    {"id": "L1", "type": "series", "from": "E1", "to": "E2"}
+    { "id": "L1", "type": "series", "from": "inst1", "to": "inst2" }
   ]
 }

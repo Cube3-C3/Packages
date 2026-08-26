@@ -1,0 +1,33 @@
+{
+  "schema_version": "0.1.0",
+  "description": "Physical components. IDs = E*. Link to visual asset (M*) + physical nature. Constructions assemble instances of these.",
+  "components": {
+    "E001": {
+      "name": ["spring", "пружина"],
+      "asset": "M001",
+      "kind": "elastic_element",
+      "scale": "part",
+      "quantities": [],
+      "ports": ["end_a", "end_b"],
+      "notes": "Test component (mechanics)"
+    },
+    "E002": {
+      "name": ["block", "брусок"],
+      "asset": "M002",
+      "kind": "rigid_body",
+      "scale": "part",
+      "quantities": [],
+      "ports": ["attach"],
+      "notes": "Test component (mechanics)"
+    },
+    "E003": {
+      "name": ["wall", "стена / опора"],
+      "asset": "M003",
+      "kind": "fixed_support",
+      "scale": "part",
+      "quantities": [],
+      "ports": ["attach"],
+      "notes": "Test component (mechanics)"
+    }
+  }
+}
