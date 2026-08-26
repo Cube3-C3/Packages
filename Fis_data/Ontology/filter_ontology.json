@@ -1,0 +1,303 @@
+{
+  "meta": {
+    "version": "0.4",
+    "description": "Онтология фильтрации v0.4. Корень — предмет (physics | mathematics). Верхняя панель модуля: subject → unit_sys → section. Боковая: abstraction (уровень абстракции: элемент / закономерность / конструкция) + side_filters. unit_sys появляется только при subject=physics. section зависит от предмета.",
+    "language_order": ["en", "ru"],
+    "structure": "subjects[id].{sections, unit_systems, abstraction_levels, side_filters}",
+    "placement": {
+      "top": ["subject", "unit_sys", "section"],
+      "side": ["abstraction", "kind", "invariance", "number_kind", "structure"]
+    },
+    "notes": [
+      "v0.4: card_type как корень снят. Тип сущности = abstraction_level.entity_kind (phys_quant | math_const | formulas | construction).",
+      "physics sections ≈ 10 верхних доменов domains.json (parent=null, кроме mathematics); match включает потомков.",
+      "mathematics sections: arithmetic, geometry, algebra, graphs — пока filter-only ids (до наполнения usages).",
+      "unit_sys: не дробление SI named/comp, а выбор системы (SI + перспектива CGS / natural / …).",
+      "construction — entity_kind=construction; данные Constructs.json + physi_comps; layout в Fis_runtime/construct_layout.js; паспорт construction_passport."
+    ]
+  },
+
+  "subjects": [
+    {
+      "id": "physics",
+      "kind": "subject",
+      "label": ["Physics", "Физика"],
+      "sections": [
+        {
+          "id": "general",
+          "label": ["General", "Общая физика"],
+          "match_domains": ["general"],
+          "notes": "Универсальные величины без узкой привязки"
+        },
+        {
+          "id": "mechanics",
+          "label": ["Mechanics", "Механика"],
+          "match_domains": [
+            "mechanics",
+            "kinematics",
+            "dynamics",
+            "statics",
+            "continuum_mechanics",
+            "fluid_mechanics",
+            "elasticity"
+          ]
+        },
+        {
+          "id": "thermodynamics",
+          "label": ["Thermodynamics", "Термодинамика"],
+          "match_domains": [
+            "thermodynamics",
+            "heat_transfer",
+            "statistical_physics"
+          ]
+        },
+        {
+          "id": "electromagnetism",
+          "label": ["Electromagnetism", "Электромагнетизм"],
+          "match_domains": [
+            "electromagnetism",
+            "electrostatics",
+            "magnetostatics",
+            "electrodynamics",
+            "circuit_theory"
+          ]
+        },
+        {
+          "id": "optics",
+          "label": ["Optics", "Оптика"],
+          "match_domains": [
+            "optics",
+            "geometrical_optics",
+            "wave_optics"
+          ]
+        },
+        {
+          "id": "oscillations_and_waves",
+          "label": ["Oscillations & waves", "Колебания и волны"],
+          "match_domains": [
+            "oscillations_and_waves",
+            "oscillations",
+            "wave_physics"
+          ]
+        },
+        {
+          "id": "relativity",
+          "label": ["Relativity", "Теория относительности"],
+          "match_domains": [
+            "relativity",
+            "special_relativity",
+            "general_relativity"
+          ]
+        },
+        {
+          "id": "quantum_physics",
+          "label": ["Quantum physics", "Квантовая физика"],
+          "match_domains": [
+            "quantum_physics",
+            "quantum_mechanics",
+            "quantum_field_theory",
+            "photoelectric_effect"
+          ]
+        },
+        {
+          "id": "particle_physics",
+          "label": ["Particle physics", "Физика частиц"],
+          "match_domains": ["particle_physics"]
+        },
+        {
+          "id": "astronomy_astrophysics",
+          "label": ["Astronomy / astrophysics", "Астрономия / астрофизика"],
+          "match_domains": ["astronomy_astrophysics"]
+        }
+      ],
+      "unit_systems": [
+        {
+          "value": "SI",
+          "label": ["SI", "СИ"],
+          "notes": "Международная система единиц"
+        },
+        {
+          "value": "CGS",
+          "label": ["CGS", "СГС"],
+          "notes": "Перспектива: сантиметр-грамм-секунда (пока без полного покрытия в units.json)"
+        },
+        {
+          "value": "natural",
+          "label": ["Natural units", "Естественные единицы"],
+          "notes": "Перспектива: ħ = c = 1 и аналоги"
+        }
+      ],
+      "abstraction_levels": [
+        {
+          "id": "element",
+          "entity_kind": "phys_quant",
+          "label": ["Element", "Элемент"],
+          "notes": "Физическая величина / наблюдаемая"
+        },
+        {
+          "id": "law",
+          "entity_kind": "formulas",
+          "label": ["Law / regularity", "Закономерность"],
+          "notes": "Формула, закон, соотношение"
+        },
+        {
+          "id": "construction",
+          "entity_kind": "construction",
+          "label": ["Construction", "Конструкция"],
+          "notes": "Схемы, сборки, геометрические/экспериментальные конструкции (данные позже)"
+        }
+      ],
+      "side_filters": [
+        {
+          "id": "kind",
+          "label": ["Kind", "Род"],
+          "collect": "group",
+          "control": "select",
+          "applies_to": ["element"],
+          "notes": "Скаляр / вектор (вкл. псевдовектор) / комплексное",
+          "options": [
+            {
+              "value": "scalar",
+              "label": ["Scalar", "Скаляр"],
+              "match": { "any": [{ "math_kind_in": ["scalar"] }] }
+            },
+            {
+              "value": "vector",
+              "label": ["Vector", "Вектор"],
+              "match": {
+                "any": [{ "math_kind_in": ["vector", "pseudovector"] }]
+              }
+            },
+            {
+              "value": "complex",
+              "label": ["Complex", "Комплексное"],
+              "match": { "any": [{ "math_kind_in": ["complex"] }] }
+            }
+          ]
+        },
+        {
+          "id": "invariance",
+          "label": ["Invariance", "Инвариантность"],
+          "collect": "invariance",
+          "control": "select",
+          "applies_to": ["element"],
+          "notes": "quantity.invariance"
+        },
+        {
+          "id": "structure",
+          "label": ["Structure", "Структура"],
+          "collect": "structure_ref",
+          "control": "select",
+          "applies_to": ["law"],
+          "notes": "law.structure_ref → AST structures"
+        }
+      ]
+    },
+    {
+      "id": "mathematics",
+      "kind": "subject",
+      "label": ["Mathematics", "Математика"],
+      "sections": [
+        {
+          "id": "arithmetic",
+          "label": ["Arithmetic", "Арифметика"],
+          "match_domains": ["arithmetic", "mathematics"],
+          "notes": "Числа, константы, базовые операции; mathematics — общий fallback до детальной разметки"
+        },
+        {
+          "id": "geometry",
+          "label": ["Geometry", "Геометрия"],
+          "match_domains": ["geometry"]
+        },
+        {
+          "id": "algebra",
+          "label": ["Algebra", "Алгебра"],
+          "match_domains": ["algebra"]
+        },
+        {
+          "id": "graphs",
+          "label": ["Graphs / plots", "Графики"],
+          "match_domains": ["graphs"],
+          "notes": "Функции, кривые, визуализация"
+        }
+      ],
+      "unit_systems": [],
+      "abstraction_levels": [
+        {
+          "id": "element",
+          "entity_kind": "math_const",
+          "label": ["Element", "Элемент"],
+          "notes": "Математическая константа / числовой объект"
+        },
+        {
+          "id": "law",
+          "entity_kind": "formulas",
+          "label": ["Identity / relation", "Тождество / соотношение"],
+          "notes": "Математические тождества и формулы (когда появятся в данных)"
+        },
+        {
+          "id": "construction",
+          "entity_kind": "construction",
+          "label": ["Construction", "Конструкция"],
+          "notes": "Геометрические построения, графики как объекты (Geo_style / позже)"
+        }
+      ],
+      "side_filters": [
+        {
+          "id": "number_kind",
+          "label": ["Number kind", "Тип числа"],
+          "collect": "group",
+          "control": "select",
+          "applies_to": ["element"],
+          "notes": "По math_kind",
+          "options": [
+            {
+              "value": "scalar_num",
+              "label": ["Scalar", "Скаляр"],
+              "match": { "any": [{ "math_kind_in": ["scalar"] }] }
+            },
+            {
+              "value": "complex_num",
+              "label": ["Complex", "Комплексное"],
+              "match": { "any": [{ "math_kind_in": ["complex"] }] }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+
+  "top_criteria": [
+    {
+      "id": "subject",
+      "label": ["Subject", "Предмет"],
+      "control": "select",
+      "source": "subjects",
+      "required": true
+    },
+    {
+      "id": "unit_sys",
+      "label": ["Unit system", "Система единиц"],
+      "control": "select",
+      "source": "subjects[].unit_systems",
+      "visible_when": { "subject": "physics" },
+      "notes": "Скрыт, если предмет ≠ physics или unit_systems пуст"
+    },
+    {
+      "id": "section",
+      "label": ["Section", "Раздел"],
+      "control": "select",
+      "source": "subjects[].sections",
+      "depends_on": "subject"
+    }
+  ],
+
+  "side_primary": {
+    "id": "abstraction",
+    "label": ["Abstraction", "Уровень"],
+    "control": "select",
+    "source": "subjects[].abstraction_levels",
+    "depends_on": "subject",
+    "notes": "Бывший «тип карточки»: элемент / закономерность / конструкция"
+  }
+}

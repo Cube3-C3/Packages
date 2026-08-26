@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fis Preview</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --surface: #171a21;
+      --surface2: #1e222b;
+      --border: #2a303c;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #7c9cff;
+      --accent2: #5ad8a6;
+      --warn: #f0b429;
+      --danger: #f07178;
+      --radius: 10px;
+      --font: "Inter", "Segoe UI", system-ui, sans-serif;
+      --mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    header .badge {
+      font-size: 0.7rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 999px;
+      color: var(--muted);
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .file-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .file-label input { display: none; }
+    .lang-toggle {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .lang-toggle button {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .lang-toggle button.active {
+      background: var(--surface2);
+      color: var(--text);
+    }
+    #workspace {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    #workspace > .empty-hint {
+      color: var(--muted);
+      text-align: center;
+      padding: 60px 20px;
+      font-size: 0.95rem;
+    }
+    /* Platform layout slots (package mounts into these).
+       Each module owns its own top-filters strip + sidebar (not site-wide). */
+    #workspace main.fis-main {
+      flex: 1;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      grid-template-columns: 280px 1fr;
+      grid-template-areas:
+        "top top"
+        "side content";
+      min-height: 0;
+    }
+    #workspace main.fis-main > .top-filters {
+      grid-area: top;
+    }
+    #workspace main.fis-main > .sidebar {
+      grid-area: side;
+    }
+    #workspace main.fis-main > .content {
+      grid-area: content;
+    }
+    @media (max-width: 800px) {
+      #workspace main.fis-main {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+        grid-template-areas:
+          "top"
+          "side"
+          "content";
+      }
+      #workspace .sidebar { max-height: 220px; border-right: none; border-bottom: 1px solid var(--border); }
+    }
+    /* Global (module-scoped) filter strip: type · SI · domain — horizontal */
+    .top-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 10px 14px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .top-filters .tf-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      min-width: 140px;
+    }
+    .top-filters .tf-item select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 5px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      text-transform: none;
+      letter-spacing: 0;
+      min-width: 160px;
+    }
+    .top-filters .tf-item select:focus { outline: none; border-color: var(--accent); }
+    .top-filters .tf-item.is-empty { display: none; }
+    .sidebar {
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .sidebar h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 8px 0 6px;
+    }
+    .card-type {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 8px;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    .card-type select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 8px;
+      border-radius: 5px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .card-type select:focus { outline: none; border-color: var(--accent); }
+    .search-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 4px 2px 6px;
+    }
+    .search-wrap:focus-within { border-color: var(--accent); }
+    .search {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      padding: 6px 4px;
+      font-size: 0.85rem;
+    }
+    .search:focus { outline: none; }
+    .search-btn {
+      flex-shrink: 0;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      width: 28px;
+      height: 28px;
+      border-radius: 5px;
+      font-size: 0.75rem;
+      font-family: var(--mono);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .search-btn:hover { color: var(--text); border-color: var(--border); background: var(--surface2); }
+    .search-btn.active {
+      color: var(--accent2);
+      border-color: #2a5a48;
+      background: #0f241c;
+    }
+    .filters {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    .filters select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 8px;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .filters select:focus { outline: none; border-color: var(--accent); }
+    .list-count {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin: 0 0 6px;
+    }
+    .q-list { list-style: none; }
+    .q-list li {
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border: 1px solid transparent;
+    }
+    .q-list li:hover { background: var(--surface2); }
+    .q-list li.active {
+      background: #1a2440;
+      border-color: var(--accent);
+    }
+    .content {
+      overflow-y: auto;
+      padding: 20px 24px 40px;
+    }
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 60px 20px;
+      font-size: 0.95rem;
+    }
+    /* Presentation hooks (style_kinds) — subject-agnostic */
+    .passport { max-width: 860px; }
+    .passport-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: baseline;
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .passport-header.formula-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .unit-line {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin: -6px 0 12px;
+    }
+    .unit-line .sys { color: var(--text); font-weight: 500; }
+    .unit-line .uname { color: var(--muted); }
+    /* СИ-символ: синий как unit у величины в заголовке */
+    .unit-line .pres-symbol.unit {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-weight: 500;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+    .chip {
+      font-size: 0.72rem;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+    .chip.math { color: #c4b5fd; border-color: #5b4a8a; background: #1a1530; }
+    .chip.dim { color: var(--accent2); border-color: #2a5a48; background: #0f241c; }
+    .chip.type { color: var(--warn); border-color: #5a4a20; background: #241c0c; }
+    .chip.cat { color: #7dd3fc; border-color: #1e4a5a; background: #0c1c24; }
+    .chip.inv { color: #f9a8d4; border-color: #5a2a4a; background: #1f1018; }
+    .chip.status { color: #fdba74; border-color: #5a3a20; background: #1f140c; }
+    .section { margin-top: 22px; }
+    .section h3 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+    .card .label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
+    .card .value { font-size: 0.95rem; word-break: break-word; }
+    .law-graph-slot .law-graph-card { padding-bottom: 10px; }
+    .law-graph-host {
+      margin-top: 6px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #12141a;
+      border: 1px solid var(--border);
+    }
+    .law-graph-canvas {
+      display: block;
+      width: 100%;
+      max-width: 360px;
+      height: 200px; /* auto иногда схлопывает canvas в 0 */
+      vertical-align: top;
+    }
+    .law-graph-msg {
+      display: block;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    table.usages { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    table.usages th {
+      text-align: left;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    table.usages td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    table.usages tr:last-child td { border-bottom: none; }
+    table.usages .sym {
+      font-family: var(--mono);
+      font-size: 1.05rem;
+      color: var(--accent2);
+      font-weight: 500;
+    }
+    table.usages .domains { display: flex; flex-wrap: wrap; gap: 4px; }
+    table.usages .dom {
+      font-size: 0.7rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--muted);
+    }
+    .formulas-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .formulas-list li {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 0.88rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .formulas-list li.clickable {
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .formulas-list li.clickable:hover,
+    .formulas-list li.clickable:focus-visible {
+      border-color: var(--accent);
+      background: var(--surface2);
+      outline: none;
+    }
+    .formula-display .fis-sym-ref.clickable {
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 0 1px;
+      margin: 0 -1px;
+      transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+    }
+    .formula-display .fis-sym-ref.clickable:hover,
+    .formula-display .fis-sym-ref.clickable:focus-visible {
+      color: var(--accent);
+      background: rgba(124, 156, 255, 0.14);
+      box-shadow: 0 0 0 1px rgba(124, 156, 255, 0.35);
+      outline: none;
+    }
+    .formulas-list .fname { color: var(--muted); font-size: 0.8rem; }
+    .formulas-list .algebra {
+      font-family: var(--mono);
+      font-size: 1.25rem;
+      color: var(--accent2);
+      letter-spacing: 0.02em;
+      line-height: 1.55;
+      padding: 6px 0 0;
+    }
+    .radical { white-space: nowrap; }
+    .radical .rad-index { font-size: 0.65em; margin-right: 1px; }
+    .radical .rad-body { border-top: 1px solid currentColor; padding: 0 2px; }
+    .log-base { font-size: 0.75em; }
+    .frac {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      vertical-align: middle;
+      margin: 0 0.12em;
+      line-height: 1.15;
+    }
+    .frac .num { padding: 0 0.28em 1px; border-bottom: 1.6px solid currentColor; font-size: 0.82em; }
+    .frac .den { padding: 1px 0.28em 0; font-size: 0.82em; }
+    .pres-symbol { font-family: var(--mono); color: var(--accent2); font-weight: 500; }
+    .pres-title { color: var(--text); font-weight: 500; }
+    .pres-muted { color: var(--muted); font-size: 0.88rem; }
+    .pres-algebra {
+      font-family: var(--mono);
+      color: var(--accent2);
+      font-size: 1.25rem;
+      line-height: 1.45;
+    }
+    .pres-block { display: block; }
+    .q-list .pres-symbol { margin-right: 0.35em; }
+    .passport-header .pres-symbol.primary { font-size: 1.55rem; font-weight: 600; }
+    .passport-header .pres-title.primary { font-size: 1.35rem; font-weight: 600; }
+    .passport-header .pres-symbol.unit { font-size: 1.15rem; color: var(--accent); margin-left: 4px; }
+    .passport-header .formula-display.pres-algebra,
+    .passport-header .pres-algebra.formula-display { font-size: 1.9rem; }
+    .status-bar {
+      font-size: 0.75rem;
+      color: var(--muted);
+      padding: 6px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Fis Preview</h1>
+    <span class="badge" id="pkgBadge">no package</span>
+    <div class="toolbar">
+      <label class="file-label btn">
+        📂 JSON
+        <input type="file" id="fileInput" multiple accept=".json,application/json" />
+      </label>
+      <div class="lang-toggle">
+        <button type="button" data-lang="ru" class="active">RU</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="workspace">
+    <div class="empty-hint" id="emptyHint">
+      Загрузка пакета с GitHub…<br />
+      <small style="opacity:.7">Cube3-C3/Packages · Fis_data · или выберите файлы вручную (📂)</small>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status">Platform ready · GitHub Fis_data…</div>
+
+  <!-- Package + geo: динамическая загрузка с cache-bust внутри скрипта (без статичных src). -->
+  <script>
+/**
+ * Platform runtime — владеет компонентами, типами сигналов и DOM.
+ * Пакет (FisPackage) только считает payload / рисует passport по запросу.
+ *
+ * SIGNAL_TYPES (закрытый реестр платформы):
+ *   card_type_change | filter_change | search_change | list_select | slot_action | lang_change
+ *
+ * COMPONENTS:
+ *   TopFilterBar (subject · unit_sys · section) | SearchBox |
+ *   SideFilterBar (abstraction + remaining) | EntityList | PassportCanvas
+ *
+ * Layout (per module, not site-wide):
+ *   top strip: subject → unit_sys → section (horizontal; unit_sys only if physics)
+ *   sidebar:   search + abstraction (element/law/construction) + side filters + list
+ *   content:   passport canvas
+ * Top filters are global for the module (list, search, passport context).
+ * Ontology: filter_ontology v0.4 subjects[] — not legacy tree[card_type].
+ */
+(function () {
+  "use strict";
+
+  const SIGNAL_TYPES = Object.freeze({
+    CARD_TYPE_CHANGE: "card_type_change",
+    FILTER_CHANGE: "filter_change",
+    SEARCH_CHANGE: "search_change",
+    LIST_SELECT: "list_select",
+    SLOT_ACTION: "slot_action",
+    LANG_CHANGE: "lang_change"
+  });
+
+  const $ = (sel) => document.querySelector(sel);
+  const status = (msg) => { const el = $("#status"); if (el) el.textContent = msg; };
+
+  let data = {};
+  let lang = "ru";
+  let symbolMode = false;
+  let handlers = null;
+  const state = {
+    subject: null,
+    card_type: null,       // entity_kind: phys_quant | math_const | formulas | construction
+    abstraction: null,     // element | law | construction
+    section: null,         // top filter section id (module-global)
+    unit_sys: null,
+    quantity_id: null,
+    law_id: null
+  };
+
+  /** Top strip order (module-scoped): subject → unit_sys → section. */
+  const TOP_FILTER_IDS = ["subject", "unit_sys", "section"];
+
+  const els = {
+    main: null,
+    topFilters: null,
+    search: null,
+    btnSymbol: null,
+    btnClear: null,
+    filters: null,       // side: abstraction + remaining
+    abstraction: null,
+    listTitle: null,
+    listCount: null,
+    qList: null,
+    content: null
+  };
+
+  function packageApi() {
+    return window.FisPackage || null;
+  }
+
+  function bindHandlers() {
+    const api = packageApi();
+    handlers = api && typeof api.handlers === "function" ? api.handlers(data) : null;
+  }
+
+  function idField(cardType) {
+    if (handlers && typeof handlers.id_field === "function") {
+      return handlers.id_field(cardType);
+    }
+    if (packageApi() && packageApi().idFieldForCardType) {
+      return packageApi().idFieldForCardType(cardType);
+    }
+    return "quantity_id";
+  }
+
+  function ensureWorkspace() {
+    const root = $("#workspace");
+    if (!root) return;
+    if (els.main && root.contains(els.main)) return;
+
+    // Module-scoped: top = subject · unit_sys · section; side = abstraction + rest + list.
+    root.innerHTML =
+      '<main class="fis-main">' +
+      '<div class="top-filters" id="fisTopFilters">' +
+      '<div class="tf-item" id="fisTopSubjectWrap" data-criterion-host="subject"></div>' +
+      '<div class="tf-item" id="fisTopUnitSysWrap" data-criterion-host="unit_sys"></div>' +
+      '<div class="tf-item" id="fisTopSectionWrap" data-criterion-host="section"></div>' +
+      "</div>" +
+      '<aside class="sidebar">' +
+      '<div class="search-wrap">' +
+      '<input type="text" class="search" id="fisSearch" autocomplete="off" />' +
+      '<button type="button" class="search-btn" id="fisBtnSymbol" title="symbol">|X|</button>' +
+      '<button type="button" class="search-btn" id="fisBtnClear" title="clear">×</button>' +
+      "</div>" +
+      '<div class="filters" id="fisFilters"></div>' +
+      '<h2 id="fisListTitle"></h2>' +
+      '<div class="list-count" id="fisListCount"></div>' +
+      '<ul class="q-list" id="fisQList"></ul>' +
+      "</aside>" +
+      '<div class="content" id="fisContent"></div>' +
+      "</main>";
+
+    els.main = root.querySelector("main.fis-main");
+    els.topFilters = $("#fisTopFilters");
+    els.search = $("#fisSearch");
+    els.btnSymbol = $("#fisBtnSymbol");
+    els.btnClear = $("#fisBtnClear");
+    els.filters = $("#fisFilters");
+    els.listTitle = $("#fisListTitle");
+    els.listCount = $("#fisListCount");
+    els.qList = $("#fisQList");
+    els.content = $("#fisContent");
+
+    els.search.addEventListener("input", function () {
+      dispatch({ type: SIGNAL_TYPES.SEARCH_CHANGE, payload: { search: els.search.value } });
+    });
+    els.btnSymbol.addEventListener("click", function () {
+      symbolMode = !symbolMode;
+      els.btnSymbol.classList.toggle("active", symbolMode);
+      dispatch({ type: SIGNAL_TYPES.SEARCH_CHANGE, payload: { search: els.search.value, symbolMode: symbolMode } });
+    });
+    els.btnClear.addEventListener("click", function () {
+      els.search.value = "";
+      dispatch({ type: SIGNAL_TYPES.SEARCH_CHANGE, payload: { search: "" } });
+    });
+    els.content.addEventListener("click", onContentPointer);
+    els.content.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") onContentPointer(e);
+    });
+  }
+
+  function onContentPointer(e) {
+    if (!handlers || typeof handlers.resolve_slot_action !== "function") return;
+    const signal = handlers.resolve_slot_action(e.target);
+    if (!signal) return;
+    if (e.type === "keydown") e.preventDefault();
+    // Пакет вернул семантический сигнал; платформа оборачивает как slot_action
+    dispatch({
+      type: SIGNAL_TYPES.SLOT_ACTION,
+      payload: signal
+    });
+  }
+
+  function activeFilters() {
+    const out = {};
+    const roots = [];
+    if (els.topFilters) roots.push(els.topFilters);
+    if (els.filters) roots.push(els.filters);
+    roots.forEach(function (root) {
+      root.querySelectorAll("select[data-criterion]").forEach(function (sel) {
+        if (sel.value) {
+          out[sel.dataset.criterion] = {
+            value: sel.value,
+            collect: sel.dataset.collect || ""
+          };
+        }
+      });
+    });
+    return out;
+  }
+
+  /** Build one criterion <label>+select into host; returns the select element. */
+  function mountCriterionSelect(host, criterion, prevValue) {
+    if (!host || !criterion) return null;
+    host.innerHTML = "";
+    host.classList.remove("is-empty");
+    const title = document.createElement("span");
+    title.textContent = criterion.label || criterion.id;
+    host.appendChild(title);
+    const sel = document.createElement("select");
+    sel.dataset.criterion = criterion.id;
+    sel.dataset.collect = criterion.collect || "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = "—";
+    sel.appendChild(opt0);
+    (criterion.options || []).forEach(function (o) {
+      const opt = document.createElement("option");
+      opt.value = o.value;
+      opt.textContent = o.label;
+      sel.appendChild(opt);
+    });
+    if (prevValue && [].some.call(sel.options, function (o) { return o.value === prevValue; })) {
+      sel.value = prevValue;
+    }
+    sel.addEventListener("change", function () {
+      dispatch({
+        type: SIGNAL_TYPES.FILTER_CHANGE,
+        payload: { filters: activeFilters() }
+      });
+    });
+    host.appendChild(sel);
+    return sel;
+  }
+
+  function clearCriterionHost(host) {
+    if (!host) return;
+    host.innerHTML = "";
+    host.classList.add("is-empty");
+  }
+
+  /** Sync state.subject / abstraction / card_type from selects + schema options. */
+  function syncStateFromFilters(schema) {
+    const af = activeFilters();
+    if (af.subject && af.subject.value) state.subject = af.subject.value;
+    if (af.abstraction && af.abstraction.value) {
+      state.abstraction = af.abstraction.value;
+      const absCrit = (schema || []).find(function (c) { return c && c.id === "abstraction"; });
+      const opt = absCrit && (absCrit.options || []).find(function (o) {
+        return String(o.value) === String(state.abstraction);
+      });
+      if (opt && opt.entity_kind) state.card_type = opt.entity_kind;
+      else if (typeof handlers.abstraction_levels === "function") {
+        const levels = handlers.abstraction_levels({
+          lang: lang,
+          subject: state.subject
+        }) || [];
+        const hit = levels.find(function (a) { return a.id === state.abstraction; });
+        if (hit) state.card_type = hit.entity_kind || hit.id;
+      }
+    }
+  }
+
+  /** Применить результат пакета / обновить компоненты платформы */
+  function refreshAll() {
+    if (!handlers) {
+      status("Пакет не дал handlers");
+      return;
+    }
+    ensureWorkspace();
+
+    if (els.search) els.search.placeholder = lang === "ru" ? "Поиск…" : "Search…";
+
+    const prevFilters = activeFilters();
+    // Default subject if none yet
+    if (!state.subject) {
+      if (typeof handlers.subjects === "function") {
+        const subs = handlers.subjects({ lang: lang }) || [];
+        state.subject = (subs[0] && subs[0].id) || "physics";
+      } else {
+        state.subject = "physics";
+      }
+    }
+    if (!state.abstraction) state.abstraction = "element";
+
+    const subjectHost = $("#fisTopSubjectWrap");
+    const unitSysHost = $("#fisTopUnitSysWrap");
+    const sectionHost = $("#fisTopSectionWrap");
+    if (els.filters) els.filters.innerHTML = "";
+
+    if (typeof handlers.filter_schema !== "function") {
+      clearCriterionHost(subjectHost);
+      clearCriterionHost(unitSysHost);
+      clearCriterionHost(sectionHost);
+      refreshList();
+      return;
+    }
+
+    const schema = handlers.filter_schema({
+      lang: lang,
+      data: data,
+      subject: state.subject,
+      abstraction: state.abstraction,
+      cardType: state.card_type
+    }) || [];
+    const byId = {};
+    schema.forEach(function (c) {
+      if (c && c.id) byId[c.id] = c;
+    });
+
+    function onTopOrSideChange() {
+      const af = activeFilters();
+      // Subject change → reset dependent filters & rebuild
+      if (af.subject && af.subject.value && af.subject.value !== state.subject) {
+        state.subject = af.subject.value;
+        state.abstraction = "element";
+        state.card_type = null;
+        // clear section / unit_sys / side by full rebuild
+        refreshAll();
+        return;
+      }
+      // Abstraction change → update card_type (entity_kind)
+      if (af.abstraction && af.abstraction.value !== state.abstraction) {
+        state.abstraction = af.abstraction.value;
+        const levels =
+          typeof handlers.abstraction_levels === "function"
+            ? handlers.abstraction_levels({ lang: lang, subject: state.subject }) || []
+            : [];
+        const hit = levels.find(function (a) { return a.id === state.abstraction; });
+        state.card_type = hit ? hit.entity_kind || hit.id : state.abstraction;
+        dispatch({
+          type: SIGNAL_TYPES.CARD_TYPE_CHANGE,
+          payload: { cardType: state.card_type, abstraction: state.abstraction, subject: state.subject }
+        });
+        refreshAll();
+        return;
+      }
+      syncStateFromFilters(schema);
+      dispatch({
+        type: SIGNAL_TYPES.FILTER_CHANGE,
+        payload: { filters: activeFilters(), subject: state.subject, abstraction: state.abstraction }
+      });
+    }
+
+    // Override mount to use shared change handler that understands subject/abstraction
+    function mountTop(host, criterion, prevValue) {
+      if (!host || !criterion) {
+        clearCriterionHost(host);
+        return;
+      }
+      host.innerHTML = "";
+      host.classList.remove("is-empty");
+      const title = document.createElement("span");
+      title.textContent = criterion.label || criterion.id;
+      host.appendChild(title);
+      const sel = document.createElement("select");
+      sel.dataset.criterion = criterion.id;
+      sel.dataset.collect = criterion.collect || "";
+      // subject is required — no empty option; others keep "—"
+      if (criterion.id !== "subject") {
+        const opt0 = document.createElement("option");
+        opt0.value = "";
+        opt0.textContent = "—";
+        sel.appendChild(opt0);
+      }
+      (criterion.options || []).forEach(function (o) {
+        const opt = document.createElement("option");
+        opt.value = o.value;
+        opt.textContent = o.label;
+        if (o.entity_kind) opt.dataset.entityKind = o.entity_kind;
+        sel.appendChild(opt);
+      });
+      const prefer =
+        criterion.id === "subject"
+          ? state.subject || prevValue
+          : prevValue;
+      if (prefer && [].some.call(sel.options, function (o) { return o.value === prefer; })) {
+        sel.value = prefer;
+      } else if (criterion.id === "subject" && sel.options.length) {
+        sel.value = sel.options[0].value;
+        state.subject = sel.value;
+      }
+      sel.addEventListener("change", onTopOrSideChange);
+      host.appendChild(sel);
+    }
+
+    // Top strip order: subject → unit_sys → section
+    mountTop(subjectHost, byId.subject, state.subject || (prevFilters.subject && prevFilters.subject.value));
+    if (byId.unit_sys) {
+      mountTop(
+        unitSysHost,
+        byId.unit_sys,
+        state.unit_sys || (prevFilters.unit_sys && prevFilters.unit_sys.value)
+      );
+    } else {
+      clearCriterionHost(unitSysHost);
+    }
+    if (byId.section) {
+      mountTop(
+        sectionHost,
+        byId.section,
+        state.section || (prevFilters.section && prevFilters.section.value)
+      );
+    } else {
+      clearCriterionHost(sectionHost);
+    }
+
+    // Side: abstraction first, then other side criteria
+    function mountSide(criterion, prevValue, required) {
+      const lab = document.createElement("label");
+      const title = document.createElement("div");
+      title.textContent = criterion.label;
+      lab.appendChild(title);
+      const sel = document.createElement("select");
+      sel.dataset.criterion = criterion.id;
+      sel.dataset.collect = criterion.collect || "";
+      if (!required) {
+        const opt0 = document.createElement("option");
+        opt0.value = "";
+        opt0.textContent = "—";
+        sel.appendChild(opt0);
+      }
+      (criterion.options || []).forEach(function (o) {
+        const opt = document.createElement("option");
+        opt.value = o.value;
+        opt.textContent = o.label;
+        if (o.entity_kind) opt.dataset.entityKind = o.entity_kind;
+        sel.appendChild(opt);
+      });
+      if (prevValue && [].some.call(sel.options, function (o) { return o.value === prevValue; })) {
+        sel.value = prevValue;
+      } else if (required && sel.options.length) {
+        sel.value = sel.options[0].value;
+      }
+      sel.addEventListener("change", onTopOrSideChange);
+      lab.appendChild(sel);
+      if (els.filters) els.filters.appendChild(lab);
+      return sel;
+    }
+
+    if (byId.abstraction) {
+      const absPrev = state.abstraction || (prevFilters.abstraction && prevFilters.abstraction.value);
+      const absSel = mountSide(byId.abstraction, absPrev, true);
+      if (absSel) {
+        state.abstraction = absSel.value || state.abstraction;
+        const opt = [].find.call(absSel.options, function (o) { return o.value === absSel.value; });
+        if (opt && opt.dataset.entityKind) state.card_type = opt.dataset.entityKind;
+        else {
+          const levels =
+            typeof handlers.abstraction_levels === "function"
+              ? handlers.abstraction_levels({ lang: lang, subject: state.subject }) || []
+              : [];
+          const hit = levels.find(function (a) { return a.id === state.abstraction; });
+          if (hit) state.card_type = hit.entity_kind || hit.id;
+        }
+      }
+    }
+
+    schema.forEach(function (c) {
+      if (!c || !c.id) return;
+      if (TOP_FILTER_IDS.indexOf(c.id) >= 0) return;
+      if (c.id === "abstraction") return;
+      const prev = prevFilters[c.id] && prevFilters[c.id].value;
+      mountSide(c, prev, false);
+    });
+
+    syncStateFromFilters(schema);
+    refreshList();
+  }
+
+  function refreshList() {
+    if (!handlers || !els.qList) return;
+
+    if (typeof handlers.list_title === "function" && els.listTitle) {
+      els.listTitle.textContent = handlers.list_title({
+        lang: lang,
+        data: data,
+        subject: state.subject,
+        abstraction: state.abstraction,
+        cardType: state.card_type
+      }) || "";
+    }
+
+    const items =
+      typeof handlers.list_items === "function"
+        ? handlers.list_items({
+            lang: lang,
+            data: data,
+            subject: state.subject,
+            abstraction: state.abstraction,
+            cardType: state.card_type,
+            filters: activeFilters(),
+            search: els.search ? els.search.value : "",
+            symbolMode: symbolMode
+          }) || []
+        : [];
+
+    if (els.listCount) els.listCount.textContent = String(items.length);
+
+    const field = idField(state.card_type);
+    const activeId = state[field];
+    els.qList.innerHTML = "";
+    items.forEach(function (item) {
+      const li = document.createElement("li");
+      li.innerHTML = item.html || "";
+      if (activeId === item.id) li.classList.add("active");
+      li.addEventListener("click", function () {
+        dispatch({
+          type: SIGNAL_TYPES.LIST_SELECT,
+          payload: { id: item.id, cardType: state.card_type }
+        });
+      });
+      els.qList.appendChild(li);
+    });
+
+    refreshPassport();
+  }
+
+  function refreshPassport() {
+    if (!handlers || !els.content) return;
+    if (typeof handlers.render_passport !== "function") {
+      els.content.innerHTML = '<div class="empty">No passport handler</div>';
+      return;
+    }
+    handlers.render_passport({
+      container: els.content,
+      lang: lang,
+      data: data,
+      cardType: state.card_type,
+      subject: state.subject,
+      abstraction: state.abstraction,
+      filters: activeFilters(),
+      state: {
+        quantity_id: state.quantity_id,
+        law_id: state.law_id,
+        card_type: state.card_type,
+        subject: state.subject,
+        abstraction: state.abstraction,
+        filters: activeFilters()
+      }
+    });
+    // кривая — GeoCompute.attachLawGraph (не code.js)
+    if (state.card_type === "formulas" && state.law_id) {
+      if (!window.GeoCompute) {
+        console.error("[law-graph] window.GeoCompute отсутствует — geo_compute.js не загрузился");
+      } else if (typeof window.GeoCompute.attachLawGraph !== "function") {
+        console.error(
+          "[law-graph] GeoCompute.attachLawGraph нет. На CDN старый geo_compute.js (~14KB). Нужен ~24KB с attachLawGraph. keys:",
+          Object.keys(window.GeoCompute)
+        );
+      } else {
+        try {
+          const payload = window.GeoCompute.attachLawGraph(els.content, {
+            structures: data && data.structures,
+            formulas: data && data.formulas,
+            lawId: state.law_id,
+            lang: lang
+          });
+          console.info("[law-graph] attach ok", payload && (payload.status || payload.error));
+        } catch (err) {
+          console.error("[law-graph] attachLawGraph threw", err);
+        }
+      }
+    }
+  }
+
+  /**
+   * Единая точка сигналов платформы.
+   * Пакет не слушает DOM — только отвечает, если handler есть.
+   */
+  function dispatch(signal) {
+    if (!signal || !signal.type) return;
+
+    switch (signal.type) {
+      case SIGNAL_TYPES.LANG_CHANGE:
+        lang = (signal.payload && signal.payload.lang) || lang;
+        refreshAll();
+        break;
+
+      case SIGNAL_TYPES.CARD_TYPE_CHANGE: {
+        const ct = signal.payload && signal.payload.cardType;
+        const abs = signal.payload && signal.payload.abstraction;
+        state.card_type = ct;
+        if (abs) state.abstraction = abs;
+        state.quantity_id = null;
+        state.law_id = null;
+        refreshAll();
+        break;
+      }
+
+      case SIGNAL_TYPES.FILTER_CHANGE: {
+        const af = (signal.payload && signal.payload.filters) || activeFilters();
+        if (af.section && af.section.value) state.section = af.section.value;
+        else if (af.section && af.section.value === "") state.section = null;
+        if (af.unit_sys && af.unit_sys.value) state.unit_sys = af.unit_sys.value;
+        if (af.subject && af.subject.value) state.subject = af.subject.value;
+        if (af.abstraction && af.abstraction.value) state.abstraction = af.abstraction.value;
+        refreshList();
+        break;
+      }
+
+      case SIGNAL_TYPES.SEARCH_CHANGE:
+        refreshList();
+        break;
+
+      case SIGNAL_TYPES.LIST_SELECT: {
+        const id = signal.payload && signal.payload.id;
+        const ct = (signal.payload && signal.payload.cardType) || state.card_type;
+        state.quantity_id = null;
+        state.law_id = null;
+        state[idField(ct)] = id;
+        refreshList();
+        break;
+      }
+
+      case SIGNAL_TYPES.SLOT_ACTION: {
+        // payload = то, что вернул пакет: { type, payload }
+        const inner = signal.payload;
+        if (!inner || !inner.type) break;
+        if (inner.type === "navigate") {
+          const p = inner.payload || {};
+          const cardType = p.cardType;
+          const id = p.id;
+          if (!cardType || !id) break;
+
+          // Level: formula ↔ quantity switches abstraction
+          if (p.abstraction) {
+            state.abstraction = p.abstraction;
+          } else if (cardType === "formulas") {
+            state.abstraction = "law";
+          } else if (cardType === "phys_quant" || cardType === "math_const") {
+            state.abstraction = "element";
+          }
+
+          if (p.subject) state.subject = p.subject;
+          // Section from operand role / formula domains (package computes)
+          if (p.section != null && p.section !== "") {
+            state.section = p.section;
+          }
+
+          state.card_type = cardType;
+          state.quantity_id = null;
+          state.law_id = null;
+          state[idField(cardType)] = id;
+          if (els.search) els.search.value = "";
+          refreshAll();
+        } else if (inner.type === "external_link") {
+          const p = inner.payload || {};
+          if (p.href) window.open(p.href, p.target || "_self");
+        } else if (inner.type === "custom") {
+          window.dispatchEvent(
+            new CustomEvent("fis-custom-action", { detail: inner.payload || {} })
+          );
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+
+  function setData(pack, label) {
+    data = pack || {};
+    bindHandlers();
+    ensureWorkspace();
+    const sum =
+      handlers && typeof handlers.summarize === "function" ? handlers.summarize() : null;
+    if (sum) {
+      status(
+        (label || "pack") +
+          " · quant " +
+          sum.nQ +
+          " · usages " +
+          sum.nU +
+          " · formulas " +
+          sum.nF +
+          " · [" +
+          sum.keys.join(", ") +
+          "]"
+      );
+      const badge = $("#pkgBadge");
+      if (badge) badge.textContent = sum.keys.length ? sum.keys.length + " slices" : "empty";
+    } else {
+      status((label || "pack") + " loaded");
+    }
+    refreshAll();
+  }
+
+  // --- top bar only ---
+  document.querySelectorAll(".lang-toggle button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".lang-toggle button").forEach(function (b) {
+        b.classList.remove("active");
+      });
+      btn.classList.add("active");
+      dispatch({
+        type: SIGNAL_TYPES.LANG_CHANGE,
+        payload: { lang: btn.getAttribute("data-lang") || "ru" }
+      });
+    });
+  });
+
+  $("#fileInput") &&
+    $("#fileInput").addEventListener("change", async function (e) {
+      const files = [...e.target.files];
+      if (!files.length) return;
+      let api;
+      try {
+        api = await waitForPackage(3000);
+      } catch (err) {
+        status("FisPackage.ingestFile отсутствует — " + (err.message || err));
+        return;
+      }
+      status("Читаю " + files.length + " файл(ов)…");
+      // fresh pack for this manual load (does not merge with previous GH pack)
+      const pack = {};
+      const errors = [];
+      for (const file of files) {
+        try {
+          const json = JSON.parse(await file.text());
+          api.ingestFile(file.name, json, pack);
+        } catch (err) {
+          errors.push(file.name + ": " + err.message);
+        }
+      }
+      if (errors.length) {
+        console.warn("Local file errors:", errors);
+        status("Ошибки: " + errors.slice(0, 2).join("; "));
+      }
+      setData(pack, "local files");
+    });
+
+  // --- Package from GitHub ---
+  // jsDelivr @main кешируется упорно (часами). Грузим по commit SHA — тогда CDN обязан отдать тот коммит.
+  const GH_REPO = "Cube3-C3/Packages";
+  const GH_SCRIPTS = ["geo_compute.js", "code.js"];
+  // fallback, если api.github.com недоступен
+  let GH_BASE = "https://cdn.jsdelivr.net/gh/Cube3-C3/Packages@6ea5c808a134/Fis_data/";
+  const GH_FILES = [
+    "physi_quant.json",
+    "usages.json",
+    "units.json",
+    "domains.json",
+    "AST.json",
+    "physi_formulas.json",
+    "filter_ontology.json",
+    "presentation_ontology.json",
+    "card_manifests.json"
+  ];
+
+  function cacheBustUrl(url) {
+    const sep = url.indexOf("?") >= 0 ? "&" : "?";
+    return url + sep + "t=" + Date.now();
+  }
+
+  function loadScriptFresh(url) {
+    return new Promise(function (resolve, reject) {
+      const s = document.createElement("script");
+      s.src = cacheBustUrl(url);
+      s.async = false;
+      s.onload = function () { resolve(url); };
+      s.onerror = function () { reject(new Error("Не загрузился скрипт: " + url)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function waitForPackage(timeoutMs) {
+    timeoutMs = timeoutMs || 8000;
+    return new Promise(function (resolve, reject) {
+      const t0 = Date.now();
+      (function poll() {
+        if (window.FisPackage && typeof window.FisPackage.ingestFile === "function") {
+          resolve(window.FisPackage);
+          return;
+        }
+        if (Date.now() - t0 > timeoutMs) {
+          reject(new Error("FisPackage не загрузился (code.js)"));
+          return;
+        }
+        setTimeout(poll, 40);
+      })();
+    });
+  }
+
+  async function resolveGhBase() {
+    try {
+      const res = await fetch(
+        "https://api.github.com/repos/" + GH_REPO + "/commits/main?per_page=1",
+        { cache: "no-store" }
+      );
+      if (!res.ok) throw new Error(res.status + " " + res.statusText);
+      const json = await res.json();
+      const sha = (json.sha || "").slice(0, 12);
+      if (!sha) throw new Error("empty sha");
+      GH_BASE = "https://cdn.jsdelivr.net/gh/" + GH_REPO + "@" + sha + "/Fis_data/";
+      console.info("[scripts] GH_BASE pinned to", sha, GH_BASE);
+    } catch (err) {
+      console.warn("[scripts] commit resolve failed, using fallback GH_BASE", err && err.message);
+    }
+  }
+
+  async function loadFreshScripts() {
+    // 1) локальные ./ рядом с projections.html (актуальная разработка)
+    // 2) иначе CDN GitHub
+    // строго: geo_compute → code
+    const localBase = new URL("./", window.location.href).href;
+    for (let i = 0; i < GH_SCRIPTS.length; i++) {
+      const name = GH_SCRIPTS[i];
+      try {
+        await loadScriptFresh(localBase + name);
+        console.info("[scripts] local", name);
+      } catch (errLocal) {
+        console.warn("[scripts] local fail", name, errLocal && errLocal.message);
+        await loadScriptFresh(GH_BASE + name);
+        console.info("[scripts] CDN", name);
+      }
+    }
+    console.info("[scripts] GeoCompute.attachLawGraph =", typeof (window.GeoCompute && window.GeoCompute.attachLawGraph));
+  }
+
+  async function loadPackageFromGitHub() {
+    status("GitHub · resolve commit + скрипты…");
+    try {
+      await resolveGhBase();
+      await loadFreshScripts();
+    } catch (err) {
+      status(String(err.message || err));
+      console.error(err);
+      return;
+    }
+
+    let api;
+    try {
+      api = await waitForPackage();
+    } catch (err) {
+      status(String(err.message || err));
+      console.error(err);
+      return;
+    }
+
+    status("GitHub · загружаю " + GH_FILES.length + " файлов Fis_data (no-store)…");
+    const pack = {};
+    const errors = [];
+    await Promise.all(
+      GH_FILES.map(async function (name) {
+        try {
+          // cache:'no-store' + ?t=… ; свои Cache-Control/Pragma → CORS preflight, jsDelivr их не разрешает
+          const res = await fetch(cacheBustUrl(GH_BASE + name), { cache: "no-store" });
+          if (!res.ok) throw new Error(res.status + " " + res.statusText);
+          const json = await res.json();
+          api.ingestFile(name, json, pack);
+        } catch (err) {
+          errors.push(name + ": " + err.message);
+        }
+      })
+    );
+    if (errors.length) {
+      console.warn("GitHub package load errors:", errors);
+      status(
+        "GitHub · частичная загрузка, ошибок " +
+          errors.length +
+          ": " +
+          errors.slice(0, 2).join("; ") +
+          (errors.length > 2 ? "…" : "")
+      );
+    }
+    setData(pack, "GitHub Fis_data @ " + new Date().toISOString().slice(11, 19));
+  }
+
+  // default load
+  loadPackageFromGitHub();
+
+  // expose for debug
+  // expose for debug
+
+  window.FisPlatform = {
+    SIGNAL_TYPES: SIGNAL_TYPES,
+    dispatch: dispatch,
+    getState: function () { return Object.assign({}, state); },
+    getData: function () { return data; }
+  };
+
+  status("Platform ready · package: GitHub Fis_data…");
+})();
+  </script>
+</body>
+</html>

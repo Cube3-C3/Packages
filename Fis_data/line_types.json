@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1.0",
+  "id": "line_types",
+  "description": "Реестр линий/перемычек для связей конструкции. relation.line_ref → type. Рендер параметрический: отступ, ориентация, точка крепления на перемычке.",
+  "types": [
+    {
+      "id": "L_SEGMENT",
+      "name": ["segment", "отрезок"],
+      "kind": "segment",
+      "default_offset": 0,
+      "default_attach": "center",
+      "notes": "Прямой центр→центр. Без отступа."
+    },
+    {
+      "id": "L_BUS",
+      "name": ["bus / crossbar", "перемычка / шина"],
+      "kind": "bar",
+      "default_offset": 48,
+      "default_attach": "center",
+      "default_orientation": "auto",
+      "notes": "Соединительная перегородка между двумя (и более) элементами. offset — сдвиг бара перпендикулярно отрезку между элементами (или вдоль angle_ref). attach=center: узел на середине бара; концы бара смотрят на элементы. Удобно для параллели и электрических шин."
+    },
+    {
+      "id": "L_WIRE",
+      "name": ["wire", "провод"],
+      "kind": "polyline",
+      "default_offset": 0,
+      "default_attach": "center",
+      "notes": "Задел под ломаную трассу (квадратный контур цепи). Пока как segment."
+    }
+  ]
+}

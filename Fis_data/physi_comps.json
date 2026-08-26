@@ -1,0 +1,107 @@
+{
+  "schema_version": "0.3.0",
+  "description": "Physical components. IDs = E*. E0 = school environment frame.",
+  "components": {
+    "E0": {
+      "name": ["site / environment", "среда / площадка"],
+      "asset": null,
+      "kind": "environment",
+      "scale": "setup",
+      "role": "frame",
+      "origin": [0, 0],
+      "origin_corner": "bottom_left",
+      "axes": { "x": "right", "y": "up" },
+      "angle_ref": [1, 0],
+      "angle_convention": "ccw_from_ref",
+      "g": {
+        "quantity": "Q006",
+        "role": "free_fall_acceleration",
+        "value": 9.8,
+        "unit": "m/s^2",
+        "direction": "down"
+      },
+      "quantities": {
+        "g": {
+          "quantity": "Q006",
+          "role": "free_fall_acceleration",
+          "default_value": 9.8,
+          "unit": "m/s^2"
+        }
+      },
+      "assumptions": ["homogeneous g", "no air drag", "rigid supports"],
+      "initial_conditions": {},
+      "notes": "Школьная среда: origin + angle_ref = горизонталь вправо [1,0]. g → Q006, default 9.8 м/с² вниз."
+    },
+    "E001": {
+      "name": ["spring", "пружина"],
+      "asset": "M001",
+      "kind": "elastic_element",
+      "scale": "part",
+      "quantities": {
+        "k": {
+          "quantity": "Q013",
+          "role": "spring_constant",
+          "default_value": 100,
+          "unit": "N/m"
+        },
+        "L": {
+          "quantity": "Q008",
+          "role": "natural_length",
+          "default_value": 0.2,
+          "unit": "m"
+        }
+      },
+      "ports": {
+        "end_a": { "nx": -1, "ny": 0, "name": ["end A", "конец A"] },
+        "end_b": { "nx": 1, "ny": 0 }
+      },
+      "notes": "Пружина: k (Q013), L₀ (Q008, role natural_length → индекс 0)."
+    },
+    "E002": {
+      "name": ["block", "брусок / груз"],
+      "asset": "M002",
+      "kind": "rigid_body",
+      "scale": "part",
+      "quantities": {
+        "m": {
+          "quantity": "Q003",
+          "role": "mass",
+          "default_value": 0.5,
+          "unit": "kg"
+        },
+        "V": {
+          "quantity": "Q028",
+          "role": "volume",
+          "default_value": 5e-4,
+          "unit": "m^3"
+        }
+      },
+      "ports": {
+        "attach": { "nx": -1, "ny": 0 }
+      },
+      "notes": "Груз: m (Q003), V (Q028)."
+    },
+    "E003": {
+      "name": ["wall", "стена / опора"],
+      "asset": "M003",
+      "kind": "fixed_support",
+      "scale": "part",
+      "quantities": {},
+      "ports": {
+        "attach": { "nx": 1, "ny": 0 }
+      },
+      "notes": "Крепление / опора — без собственных динамических величин."
+    },
+    "E004": {
+      "name": ["junction / node", "узел / точка крепления"],
+      "asset": null,
+      "kind": "junction",
+      "scale": "part",
+      "quantities": {},
+      "ports": {
+        "center": { "nx": 0, "ny": 0 }
+      },
+      "notes": "Точка A/B: к ней сходятся параллельные ветви."
+    }
+  }
+}

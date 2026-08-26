@@ -1,0 +1,229 @@
+{
+  "schema_version": "0.7.0",
+  "description": "Элементы с position в координатах среды E0. Каркас C = массив этих позиций. Линии не хранятся — считаются port→port. quantities на экземпляре: quantity=ID из physi_quant, value — число для текущего просмотра/симуляции (дефолт из physi_comps).",
+  "constructions": [
+    {
+      "id": "C1",
+      "name": [
+        "series wall–springs–mass",
+        "последовательно: стена — пружины — груз"
+      ],
+      "environment": "E0",
+      "description": "Вертикальная цепочка в env: y вверх, стена выше груза. position = центр элемента в E0.",
+      "elements": [
+        {
+          "id": "wall1",
+          "component": "E003",
+          "role": "support",
+          "position": [120, 280],
+          "quantities": {},
+          "rotation": 270
+        },
+        {
+          "id": "inst1",
+          "component": "E001",
+          "role": "spring_1",
+          "position": [120, 190],
+          "quantities": {
+            "k": {
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 100,
+              "unit": "N/m"
+            },
+            "L": {
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.2,
+              "unit": "m"
+            }
+          },
+          "rotation": 270
+        },
+        {
+          "id": "inst2",
+          "component": "E001",
+          "role": "spring_2",
+          "position": [120, 100],
+          "quantities": {
+            "k": {
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 80,
+              "unit": "N/m"
+            },
+            "L": {
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.18,
+              "unit": "m"
+            }
+          },
+          "rotation": 270
+        },
+        {
+          "id": "mass1",
+          "component": "E002",
+          "role": "load",
+          "position": [120, 20],
+          "quantities": {
+            "m": {
+              "quantity": "Q003",
+              "role": "mass",
+              "value": 0.5,
+              "unit": "kg"
+            },
+            "V": {
+              "quantity": "Q028",
+              "role": "volume",
+              "value": 5e-4,
+              "unit": "m^3"
+            }
+          },
+          "rotation": 270
+        }
+      ],
+      "relations": [
+        {
+          "id": "L0",
+          "structure_ref": "R_ATTACH",
+          "line_ref": "L_SEGMENT",
+          "bindings": {
+            "S1": { "element": "wall1", "port": "attach" },
+            "S2": { "element": "inst1", "port": "end_a" }
+          }
+        },
+        {
+          "id": "L1",
+          "structure_ref": "R_SERIES",
+          "line_ref": "L_SEGMENT",
+          "bindings": {
+            "S1": { "element": "inst1", "port": "end_b" },
+            "S2": { "element": "inst2", "port": "end_a" }
+          }
+        },
+        {
+          "id": "L2",
+          "structure_ref": "R_ATTACH",
+          "line_ref": "L_SEGMENT",
+          "bindings": {
+            "S1": { "element": "inst2", "port": "end_b" },
+            "S2": { "element": "mass1", "port": "attach" }
+          }
+        }
+      ]
+    },
+    {
+      "id": "C2",
+      "name": [
+        "parallel springs",
+        "параллель: шина = attach стены/груза"
+      ],
+      "environment": "E0",
+      "description": "position в E0. Шины L_BUS: joint = wall.attach / mass.attach.",
+      "elements": [
+        {
+          "id": "wall1",
+          "component": "E003",
+          "role": "support",
+          "position": [120, 260],
+          "quantities": {},
+          "rotation": 270
+        },
+        {
+          "id": "spr1",
+          "component": "E001",
+          "role": "spring_upper",
+          "position": [70, 150],
+          "quantities": {
+            "k": {
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 120,
+              "unit": "N/m"
+            },
+            "L": {
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.2,
+              "unit": "m"
+            }
+          },
+          "rotation": 270
+        },
+        {
+          "id": "spr2",
+          "component": "E001",
+          "role": "spring_lower",
+          "position": [170, 150],
+          "quantities": {
+            "k": {
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 120,
+              "unit": "N/m"
+            },
+            "L": {
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.2,
+              "unit": "m"
+            }
+          },
+          "rotation": 270
+        },
+        {
+          "id": "mass1",
+          "component": "E002",
+          "role": "load",
+          "position": [120, 40],
+          "quantities": {
+            "m": {
+              "quantity": "Q003",
+              "role": "mass",
+              "value": 0.8,
+              "unit": "kg"
+            },
+            "V": {
+              "quantity": "Q028",
+              "role": "volume",
+              "value": 8e-4,
+              "unit": "m^3"
+            }
+          },
+          "rotation": 270
+        }
+      ],
+      "relations": [
+        {
+          "id": "L_barA",
+          "structure_ref": "R_PARALLEL",
+          "line_ref": "L_BUS",
+          "bindings": {
+            "S1": { "element": "spr1", "port": "end_a" },
+            "S2": { "element": "spr2", "port": "end_a" }
+          },
+          "params": {
+            "toward": "wall1",
+            "toward_port": "attach",
+            "attach": "center"
+          }
+        },
+        {
+          "id": "L_barB",
+          "structure_ref": "R_PARALLEL",
+          "line_ref": "L_BUS",
+          "bindings": {
+            "S1": { "element": "spr1", "port": "end_b" },
+            "S2": { "element": "spr2", "port": "end_b" }
+          },
+          "params": {
+            "toward": "mass1",
+            "toward_port": "attach",
+            "attach": "center"
+          }
+        }
+      ]
+    }
+  ]
+}

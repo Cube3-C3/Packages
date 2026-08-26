@@ -1,0 +1,24 @@
+{
+  "schema_version": "0.2.0",
+  "description": "Visual assets only. IDs = M*. Geometry/render params. No physical meaning.",
+  "assets": {
+    "M001": {
+      "src": "spring.svg",
+      "anchor": [0, 0],
+      "default_scale": 1,
+      "opacity": 1
+    },
+    "M002": {
+      "src": "block.svg",
+      "anchor": [0, 0],
+      "default_scale": 1,
+      "opacity": 1
+    },
+    "M003": {
+      "src": "wall.svg",
+      "anchor": [0, 0],
+      "default_scale": 1,
+      "opacity": 1
+    }
+  }
+}

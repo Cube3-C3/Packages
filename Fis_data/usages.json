@@ -1,0 +1,1619 @@
+{
+  "meta": {
+    "version": "0.3",
+    "description": "Контекстные употребления обозначений. Группировка по quantity_id (как в старом symbols.json). name_id — стабильный ключ употребления. Имена и символы живут здесь; domains[] + role дают контекст.",
+    "created": "2026-08-13",
+    "language_order": [
+      "en",
+      "ru"
+    ],
+    "notes": "Перестроен на группировку по id величины. symbols.json удалён."
+  },
+  "usages": {
+    "Q001": [
+      {
+        "name_id": "S001",
+        "symbol": "E",
+        "name": [
+          "energy",
+          "энергия"
+        ],
+        "domains": [
+          "general",
+          "mechanics",
+          "special_relativity"
+        ],
+        "role": "energy",
+        "notes": "Основное обозначение энергии"
+      },
+      {
+        "name_id": "S002",
+        "symbol": "ℰ",
+        "name": [
+          "energy (script)",
+          "энергия (скрипт)"
+        ],
+        "domains": [
+          "electromagnetism",
+          "continuum_mechanics"
+        ],
+        "role": "energy_script",
+        "notes": "Альтернативное"
+      },
+      {
+        "name_id": "S012",
+        "symbol": "U",
+        "name": [
+          "internal energy",
+          "внутренняя энергия"
+        ],
+        "domains": [
+          "thermodynamics"
+        ],
+        "role": "internal_energy",
+        "notes": "Внутренняя энергия"
+      },
+      {
+        "name_id": "S013",
+        "symbol": "e",
+        "name": [
+          "particle energy",
+          "энергия частицы"
+        ],
+        "domains": [
+          "particle_physics"
+        ],
+        "role": "particle_energy",
+        "notes": "Энергия частицы"
+      }
+    ],
+    "Q002": [
+      {
+        "name_id": "S003",
+        "symbol": "p",
+        "name": [
+          "momentum",
+          "импульс"
+        ],
+        "domains": [
+          "general",
+          "mechanics",
+          "quantum_mechanics"
+        ],
+        "role": "momentum",
+        "notes": "Импульс"
+      },
+      {
+        "name_id": "S004",
+        "symbol": "P",
+        "name": [
+          "system momentum",
+          "импульс системы"
+        ],
+        "domains": [
+          "continuum_mechanics",
+          "fluid_mechanics"
+        ],
+        "role": "system_momentum",
+        "notes": "Импульс системы"
+      }
+    ],
+    "Q003": [
+      {
+        "name_id": "S005",
+        "symbol": "m",
+        "name": [
+          "mass",
+          "масса"
+        ],
+        "domains": [
+          "general",
+          "mechanics"
+        ],
+        "role": "mass",
+        "notes": "Масса"
+      },
+      {
+        "name_id": "S006",
+        "symbol": "M",
+        "name": [
+          "system / celestial mass",
+          "масса системы / небесного тела"
+        ],
+        "domains": [
+          "astronomy_astrophysics"
+        ],
+        "role": "celestial_mass",
+        "notes": "Масса системы"
+      }
+    ],
+    "Q004": [
+      {
+        "name_id": "S014",
+        "symbol": "F",
+        "name": [
+          "force",
+          "сила"
+        ],
+        "domains": [
+          "mechanics",
+          "dynamics"
+        ],
+        "role": "force",
+        "notes": "Основное обозначение силы"
+      }
+    ],
+    "Q005": [
+      {
+        "name_id": "S010",
+        "symbol": "v",
+        "name": [
+          "velocity",
+          "скорость"
+        ],
+        "domains": [
+          "general",
+          "kinematics"
+        ],
+        "role": "velocity",
+        "notes": "Скорость"
+      },
+      {
+        "name_id": "S011",
+        "symbol": "u",
+        "name": [
+          "flow / initial velocity",
+          "скорость потока / начальная"
+        ],
+        "domains": [
+          "fluid_mechanics",
+          "kinematics"
+        ],
+        "role": "flow_velocity",
+        "notes": "Начальная или скорость потока"
+      },
+      {
+        "name_id": "S034",
+        "symbol": "v₀",
+        "name": [
+          "initial velocity",
+          "начальная скорость"
+        ],
+        "domains": [
+          "kinematics"
+        ],
+        "role": "initial_velocity",
+        "notes": "Начальная скорость"
+      }
+    ],
+    "Q006": [
+      {
+        "name_id": "S035",
+        "symbol": "a",
+        "name": [
+          "acceleration",
+          "ускорение"
+        ],
+        "domains": [
+          "general",
+          "kinematics"
+        ],
+        "role": "acceleration",
+        "notes": "Ускорение"
+      },
+      {
+        "name_id": "S049",
+        "symbol": "g",
+        "name": [
+          "free-fall acceleration",
+          "ускорение свободного падения"
+        ],
+        "domains": [
+          "mechanics",
+          "dynamics",
+          "kinematics",
+          "fluid_mechanics",
+          "oscillations"
+        ],
+        "role": "free_fall_acceleration",
+        "notes": "Ускорение свободного падения (модуль g ≈ 9.8 м/с² у поверхности Земли); в формулах маятника, Архимеда, потенциальной энергии."
+      }
+    ],
+    "Q007": [
+      {
+        "name_id": "S018",
+        "symbol": "t",
+        "name": [
+          "time",
+          "время"
+        ],
+        "domains": [
+          "general"
+        ],
+        "role": "time",
+        "notes": "Время"
+      },
+      {
+        "name_id": "S019",
+        "symbol": "T",
+        "name": [
+          "period",
+          "период"
+        ],
+        "domains": [
+          "oscillations_and_waves"
+        ],
+        "role": "period",
+        "notes": "Период"
+      }
+    ],
+    "Q008": [
+      {
+        "name_id": "S007",
+        "symbol": "l",
+        "name": [
+          "length",
+          "длина"
+        ],
+        "domains": [
+          "general"
+        ],
+        "role": "length",
+        "notes": "Длина"
+      },
+      {
+        "name_id": "S008",
+        "symbol": "x",
+        "name": [
+          "coordinate",
+          "координата"
+        ],
+        "domains": [
+          "general",
+          "kinematics"
+        ],
+        "role": "coordinate",
+        "notes": "Координата"
+      },
+      {
+        "name_id": "S009",
+        "symbol": "s",
+        "name": [
+          "path length",
+          "путь"
+        ],
+        "domains": [
+          "kinematics",
+          "general"
+        ],
+        "role": "path_length",
+        "notes": "Путь"
+      },
+      {
+        "name_id": "S020",
+        "symbol": "r",
+        "name": [
+          "radius vector / inter-center distance",
+          "радиус-вектор"
+        ],
+        "domains": [
+          "general",
+          "mechanics"
+        ],
+        "role": "radius_vector",
+        "notes": "Радиус-вектор"
+      },
+      {
+        "name_id": "S021",
+        "symbol": "R",
+        "name": [
+          "radius",
+          "радиус"
+        ],
+        "domains": [
+          "general"
+        ],
+        "role": "radius",
+        "notes": "Радиус"
+      },
+      {
+        "name_id": "S022",
+        "symbol": "h",
+        "name": [
+          "height",
+          "высота"
+        ],
+        "domains": [
+          "general",
+          "mechanics"
+        ],
+        "role": "height",
+        "notes": "Высота"
+      },
+      {
+        "name_id": "S023",
+        "symbol": "d",
+        "name": [
+          "distance / object distance",
+          "расстояние / расстояние до предмета"
+        ],
+        "domains": [
+          "general",
+          "optics",
+          "geometrical_optics"
+        ],
+        "role": "distance",
+        "notes": "Расстояние"
+      },
+      {
+        "name_id": "S024",
+        "symbol": "S",
+        "name": [
+          "distance (alt)",
+          "расстояние (альт.)"
+        ],
+        "domains": [
+          "general"
+        ],
+        "role": "distance_alt",
+        "notes": "Расстояние"
+      },
+      {
+        "name_id": "S025",
+        "symbol": "A",
+        "name": [
+          "amplitude",
+          "амплитуда"
+        ],
+        "domains": [
+          "oscillations_and_waves"
+        ],
+        "role": "amplitude",
+        "notes": "Амплитуда"
+      },
+      {
+        "name_id": "S026",
+        "symbol": "λ",
+        "name": [
+          "wavelength",
+          "длина волны"
+        ],
+        "domains": [
+          "oscillations_and_waves",
+          "wave_optics"
+        ],
+        "role": "wavelength",
+        "notes": "Длина волны"
+      },
+      {
+        "name_id": "S027",
+        "symbol": "F",
+        "name": [
+          "focal length",
+          "фокусное расстояние"
+        ],
+        "domains": [
+          "optics",
+          "geometrical_optics"
+        ],
+        "role": "focal_length",
+        "notes": "Фокусное расстояние"
+      },
+      {
+        "name_id": "S028",
+        "symbol": "f",
+        "name": [
+          "image distance",
+          "расстояние до изображения"
+        ],
+        "domains": [
+          "optics",
+          "geometrical_optics"
+        ],
+        "role": "image_distance",
+        "notes": "Расстояние до изображения"
+      }
+    ],
+    "Q009": [
+      {
+        "name_id": "S015",
+        "symbol": "A",
+        "name": [
+          "work",
+          "работа"
+        ],
+        "domains": [
+          "mechanics",
+          "dynamics"
+        ],
+        "role": "work",
+        "notes": "Работа"
+      },
+      {
+        "name_id": "S016",
+        "symbol": "W",
+        "name": [
+          "electrical work",
+          "работа тока"
+        ],
+        "domains": [
+          "electromagnetism",
+          "circuit_theory"
+        ],
+        "role": "electrical_work",
+        "notes": "Работа тока"
+      }
+    ],
+    "Q010": [
+      {
+        "name_id": "S017",
+        "symbol": "Q",
+        "name": [
+          "heat",
+          "количество теплоты"
+        ],
+        "domains": [
+          "thermodynamics"
+        ],
+        "role": "heat",
+        "notes": "Количество теплоты"
+      }
+    ],
+    "Q011": [
+      {
+        "name_id": "S029",
+        "symbol": "P",
+        "name": [
+          "power",
+          "мощность"
+        ],
+        "domains": [
+          "general",
+          "mechanics",
+          "circuit_theory"
+        ],
+        "role": "power",
+        "notes": "Мощность"
+      },
+      {
+        "name_id": "S030",
+        "symbol": "N",
+        "name": [
+          "mechanical power",
+          "механическая мощность"
+        ],
+        "domains": [
+          "mechanics",
+          "dynamics"
+        ],
+        "role": "mechanical_power",
+        "notes": "Механическая мощность"
+      }
+    ],
+    "Q012": [
+      {
+        "name_id": "S031",
+        "symbol": "U",
+        "name": [
+          "electric potential / EMF",
+          "электрический потенциал / ЭДС"
+        ],
+        "domains": [
+          "electrostatics",
+          "circuit_theory"
+        ],
+        "role": "potential_emf",
+        "notes": "Потенциал и ЭДС"
+      },
+      {
+        "name_id": "S032",
+        "symbol": "ε",
+        "name": [
+          "electromotive force",
+          "ЭДС"
+        ],
+        "domains": [
+          "circuit_theory",
+          "electromagnetism"
+        ],
+        "role": "emf",
+        "notes": "ЭДС"
+      },
+      {
+        "name_id": "S033",
+        "symbol": "φ",
+        "name": [
+          "electric potential (φ)",
+          "электрический потенциал (φ)"
+        ],
+        "domains": [
+          "electrostatics"
+        ],
+        "role": "potential_phi",
+        "notes": "Потенциал"
+      }
+    ],
+    "Q013": [
+      {
+        "name_id": "S036",
+        "symbol": "k",
+        "name": [
+          "spring constant / stiffness",
+          "жёсткость пружины"
+        ],
+        "domains": [
+          "elasticity",
+          "mechanics"
+        ],
+        "role": "spring_constant",
+        "notes": "Жёсткость пружины"
+      }
+    ],
+    "Q014": [
+      {
+        "name_id": "S037",
+        "symbol": "μ",
+        "name": [
+          "friction coefficient",
+          "коэффициент трения"
+        ],
+        "domains": [
+          "mechanics",
+          "dynamics"
+        ],
+        "role": "friction_coefficient",
+        "notes": "Коэффициент трения"
+      }
+    ],
+    "Q015": [
+      {
+        "name_id": "S038",
+        "symbol": "n",
+        "name": [
+          "refractive index",
+          "показатель преломления"
+        ],
+        "domains": [
+          "optics",
+          "geometrical_optics"
+        ],
+        "role": "refractive_index",
+        "notes": "Показатель преломления"
+      }
+    ],
+    "Q016": [
+      {
+        "name_id": "S039",
+        "symbol": "c",
+        "name": [
+          "specific heat capacity",
+          "удельная теплоёмкость"
+        ],
+        "domains": [
+          "thermodynamics"
+        ],
+        "role": "specific_heat",
+        "notes": "Удельная теплоёмкость"
+      }
+    ],
+    "Q017": [
+      {
+        "name_id": "S040",
+        "symbol": "λ",
+        "name": [
+          "specific latent heat of fusion",
+          "удельная теплота плавления"
+        ],
+        "domains": [
+          "thermodynamics"
+        ],
+        "role": "latent_heat_fusion",
+        "notes": "Удельная теплота плавления"
+      }
+    ],
+    "Q018": [
+      {
+        "name_id": "S041",
+        "symbol": "L",
+        "name": [
+          "specific latent heat of vaporization",
+          "удельная теплота парообразования"
+        ],
+        "domains": [
+          "thermodynamics"
+        ],
+        "role": "latent_heat_vaporization",
+        "notes": "Удельная теплота парообразования"
+      }
+    ],
+    "Q019": [
+      {
+        "name_id": "S042",
+        "symbol": "ε",
+        "name": [
+          "permittivity",
+          "диэлектрическая проницаемость"
+        ],
+        "domains": [
+          "electrostatics",
+          "electromagnetism"
+        ],
+        "role": "permittivity",
+        "notes": "Диэлектрическая проницаемость"
+      },
+      {
+        "name_id": "S043",
+        "symbol": "ε_r",
+        "name": [
+          "relative permittivity",
+          "относительная диэлектрическая проницаемость"
+        ],
+        "domains": [
+          "electrostatics"
+        ],
+        "role": "relative_permittivity",
+        "notes": "Относительная"
+      }
+    ],
+    "Q020": [
+      {
+        "name_id": "S044",
+        "symbol": "μ",
+        "name": [
+          "permeability",
+          "магнитная проницаемость"
+        ],
+        "domains": [
+          "magnetostatics",
+          "electromagnetism"
+        ],
+        "role": "permeability",
+        "notes": "Магнитная проницаемость"
+      },
+      {
+        "name_id": "S045",
+        "symbol": "μ_r",
+        "name": [
+          "relative permeability",
+          "относительная магнитная проницаемость"
+        ],
+        "domains": [
+          "magnetostatics"
+        ],
+        "role": "relative_permeability",
+        "notes": "Относительная"
+      }
+    ],
+    "Q021": [
+      {
+        "name_id": "S046",
+        "symbol": "μ",
+        "name": [
+          "molar mass",
+          "молярная масса"
+        ],
+        "domains": [
+          "thermodynamics",
+          "statistical_physics"
+        ],
+        "role": "molar_mass",
+        "notes": "Молярная масса"
+      },
+      {
+        "name_id": "S047",
+        "symbol": "M",
+        "name": [
+          "molar mass (M)",
+          "молярная масса (M)"
+        ],
+        "domains": [
+          "thermodynamics"
+        ],
+        "role": "molar_mass_alt",
+        "notes": "Часто M"
+      }
+    ],
+    "Q022": [
+      {
+        "name_id": "S048",
+        "symbol": "N",
+        "name": [
+          "number of particles",
+          "число частиц"
+        ],
+        "domains": [
+          "statistical_physics",
+          "general"
+        ],
+        "role": "particle_number",
+        "notes": "Число частиц / молекул"
+      }
+    ],
+    "Q023": [
+      {
+        "name_id": "S049",
+        "symbol": "n",
+        "name": [
+          "number density",
+          "концентрация частиц"
+        ],
+        "domains": [
+          "statistical_physics",
+          "continuum_mechanics"
+        ],
+        "role": "number_density",
+        "notes": "Концентрация частиц"
+      }
+    ],
+    "Q024": [
+      {
+        "name_id": "S050",
+        "symbol": "ν",
+        "name": [
+          "amount of substance",
+          "количество вещества"
+        ],
+        "domains": [
+          "thermodynamics",
+          "general"
+        ],
+        "role": "amount_of_substance",
+        "notes": "Количество вещества (моль)"
+      },
+      {
+        "name_id": "S051",
+        "symbol": "n",
+        "name": [
+          "amount of substance (n)",
+          "количество вещества (n)"
+        ],
+        "domains": [
+          "thermodynamics"
+        ],
+        "role": "amount_of_substance_alt",
+        "notes": "Иногда n"
+      }
+    ],
+    "Q025": [
+      {
+        "name_id": "S052",
+        "symbol": "ρ",
+        "name": [
+          "density",
+          "плотность"
+        ],
+        "domains": [
+          "continuum_mechanics",
+          "general"
+        ],
+        "role": "density",
+        "notes": "Плотность"
+      }
+    ],
+    "Q026": [
+      {
+        "name_id": "S053",
+        "symbol": "M",
+        "name": [
+          "torque",
+          "момент силы"
+        ],
+        "domains": [
+          "statics",
+          "mechanics"
+        ],
+        "role": "torque",
+        "notes": "Момент силы"
+      },
+      {
+        "name_id": "S054",
+        "symbol": "τ",
+        "name": [
+          "torque (τ)",
+          "момент силы (τ)"
+        ],
+        "domains": [
+          "statics",
+          "mechanics"
+        ],
+        "role": "torque_tau",
+        "notes": "Часто τ"
+      }
+    ],
+    "Q027": [
+      {
+        "name_id": "S055",
+        "symbol": "p",
+        "name": [
+          "pressure",
+          "давление"
+        ],
+        "domains": [
+          "continuum_mechanics",
+          "fluid_mechanics",
+          "thermodynamics"
+        ],
+        "role": "pressure",
+        "notes": "Давление"
+      },
+      {
+        "name_id": "S056",
+        "symbol": "P",
+        "name": [
+          "pressure (P)",
+          "давление (P)"
+        ],
+        "domains": [
+          "continuum_mechanics"
+        ],
+        "role": "pressure_alt",
+        "notes": "Иногда P"
+      }
+    ],
+    "Q028": [
+      {
+        "name_id": "S057",
+        "symbol": "V",
+        "name": [
+          "volume",
+          "объём"
+        ],
+        "domains": [
+          "general",
+          "continuum_mechanics",
+          "thermodynamics"
+        ],
+        "role": "volume",
+        "notes": "Объём"
+      }
+    ],
+    "Q029": [
+      {
+        "name_id": "S058",
+        "symbol": "T",
+        "name": [
+          "thermodynamic temperature",
+          "термодинамическая температура"
+        ],
+        "domains": [
+          "thermodynamics"
+        ],
+        "role": "temperature",
+        "notes": "Абсолютная температура"
+      }
+    ],
+    "Q030": [
+      {
+        "name_id": "S059",
+        "symbol": "q",
+        "name": [
+          "electric charge",
+          "электрический заряд"
+        ],
+        "domains": [
+          "electrostatics",
+          "electromagnetism"
+        ],
+        "role": "electric_charge",
+        "notes": "Заряд"
+      },
+      {
+        "name_id": "S060",
+        "symbol": "Q",
+        "name": [
+          "electric charge (Q)",
+          "электрический заряд (Q)"
+        ],
+        "domains": [
+          "electrostatics"
+        ],
+        "role": "electric_charge_alt",
+        "notes": "Иногда Q"
+      }
+    ],
+    "Q031": [
+      {
+        "name_id": "S061",
+        "symbol": "I",
+        "name": [
+          "electric current",
+          "сила тока"
+        ],
+        "domains": [
+          "electrodynamics",
+          "circuit_theory"
+        ],
+        "role": "electric_current",
+        "notes": "Сила тока"
+      }
+    ],
+    "Q032": [
+      {
+        "name_id": "S062",
+        "symbol": "B",
+        "name": [
+          "magnetic induction",
+          "магнитная индукция"
+        ],
+        "domains": [
+          "magnetostatics",
+          "electromagnetism"
+        ],
+        "role": "magnetic_induction",
+        "notes": "Магнитная индукция"
+      }
+    ],
+    "Q033": [
+      {
+        "name_id": "S063",
+        "symbol": "Φ",
+        "name": [
+          "magnetic flux",
+          "магнитный поток"
+        ],
+        "domains": [
+          "magnetostatics",
+          "electromagnetism"
+        ],
+        "role": "magnetic_flux",
+        "notes": "Магнитный поток"
+      }
+    ],
+    "Q034": [
+      {
+        "name_id": "S064",
+        "symbol": "C",
+        "name": [
+          "capacitance",
+          "электрическая ёмкость"
+        ],
+        "domains": [
+          "electrostatics",
+          "circuit_theory"
+        ],
+        "role": "capacitance",
+        "notes": "Электрическая ёмкость"
+      }
+    ],
+    "Q035": [
+      {
+        "name_id": "S065",
+        "symbol": "L",
+        "name": [
+          "inductance",
+          "индуктивность"
+        ],
+        "domains": [
+          "magnetostatics",
+          "circuit_theory"
+        ],
+        "role": "inductance",
+        "notes": "Индуктивность"
+      }
+    ],
+    "Q036": [
+      {
+        "name_id": "S075",
+        "symbol": "D",
+        "name": [
+          "optical power",
+          "оптическая сила"
+        ],
+        "domains": [
+          "optics",
+          "geometrical_optics"
+        ],
+        "role": "optical_power",
+        "notes": "Оптическая сила линзы"
+      }
+    ],
+    "Q037": [
+      {
+        "name_id": "S076",
+        "symbol": "ν",
+        "name": [
+          "frequency",
+          "частота"
+        ],
+        "domains": [
+          "oscillations_and_waves",
+          "general"
+        ],
+        "role": "frequency",
+        "notes": "Частота"
+      },
+      {
+        "name_id": "S077",
+        "symbol": "f",
+        "name": [
+          "frequency (f)",
+          "частота (f)"
+        ],
+        "domains": [
+          "oscillations_and_waves"
+        ],
+        "role": "frequency_f",
+        "notes": "Часто используют f"
+      }
+    ],
+    "Q038": [
+      {
+        "name_id": "S078",
+        "symbol": "R",
+        "name": [
+          "resistance",
+          "электрическое сопротивление"
+        ],
+        "domains": [
+          "electrodynamics",
+          "circuit_theory"
+        ],
+        "role": "resistance",
+        "notes": "Электрическое сопротивление"
+      }
+    ],
+    "Q039": [
+      {
+        "name_id": "S079",
+        "symbol": "G",
+        "name": [
+          "conductance",
+          "электрическая проводимость"
+        ],
+        "domains": [
+          "electrodynamics",
+          "circuit_theory"
+        ],
+        "role": "conductance",
+        "notes": "Электрическая проводимость"
+      }
+    ],
+    "Q040": [
+      {
+        "name_id": "S080",
+        "symbol": "ρ",
+        "name": [
+          "resistivity",
+          "удельное сопротивление"
+        ],
+        "domains": [
+          "electrodynamics"
+        ],
+        "role": "resistivity",
+        "notes": "Удельное электрическое сопротивление (не путать с плотностью)"
+      }
+    ],
+    "Q041": [
+      {
+        "name_id": "S081",
+        "symbol": "σ",
+        "name": [
+          "conductivity",
+          "удельная электропроводность"
+        ],
+        "domains": [
+          "electrodynamics"
+        ],
+        "role": "conductivity",
+        "notes": "Удельная электропроводность"
+      }
+    ],
+    "C001": [
+      {
+        "name_id": "S066",
+        "symbol": "c",
+        "name": [
+          "speed of light in vacuum",
+          "скорость света в вакууме"
+        ],
+        "domains": [
+          "special_relativity",
+          "electromagnetism",
+          "general"
+        ],
+        "role": "speed_of_light",
+        "notes": "Скорость света"
+      }
+    ],
+    "C002": [
+      {
+        "name_id": "S067",
+        "symbol": "h",
+        "name": [
+          "Planck constant",
+          "постоянная Планка"
+        ],
+        "domains": [
+          "quantum_mechanics"
+        ],
+        "role": "planck_constant",
+        "notes": "Постоянная Планка"
+      },
+      {
+        "name_id": "S068",
+        "symbol": "ℏ",
+        "name": [
+          "reduced Planck constant",
+          "редуцированная постоянная Планка"
+        ],
+        "domains": [
+          "quantum_mechanics"
+        ],
+        "role": "reduced_planck",
+        "notes": "h-bar"
+      }
+    ],
+    "C003": [
+      {
+        "name_id": "S069",
+        "symbol": "G",
+        "name": [
+          "gravitational constant",
+          "гравитационная постоянная"
+        ],
+        "domains": [
+          "general_relativity",
+          "mechanics"
+        ],
+        "role": "gravitational_constant",
+        "notes": "Гравитационная постоянная"
+      }
+    ],
+    "C004": [
+      {
+        "name_id": "S070",
+        "symbol": "R",
+        "name": [
+          "molar gas constant",
+          "универсальная газовая постоянная"
+        ],
+        "domains": [
+          "thermodynamics",
+          "statistical_physics"
+        ],
+        "role": "gas_constant",
+        "notes": "Универсальная газовая постоянная"
+      }
+    ],
+    "C005": [
+      {
+        "name_id": "S071",
+        "symbol": "k",
+        "name": [
+          "Boltzmann constant",
+          "постоянная Больцмана"
+        ],
+        "domains": [
+          "statistical_physics",
+          "thermodynamics"
+        ],
+        "role": "boltzmann_constant",
+        "notes": "Постоянная Больцмана"
+      },
+      {
+        "name_id": "S072",
+        "symbol": "k_B",
+        "name": [
+          "Boltzmann constant (k_B)",
+          "постоянная Больцмана (k_B)"
+        ],
+        "domains": [
+          "statistical_physics"
+        ],
+        "role": "boltzmann_constant_alt",
+        "notes": "Часто k_B"
+      }
+    ],
+    "C006": [
+      {
+        "name_id": "S073",
+        "symbol": "ε₀",
+        "name": [
+          "electric constant",
+          "электрическая постоянная"
+        ],
+        "domains": [
+          "electrostatics",
+          "electromagnetism"
+        ],
+        "role": "electric_constant",
+        "notes": "Электрическая постоянная"
+      }
+    ],
+    "C007": [
+      {
+        "name_id": "S074",
+        "symbol": "μ₀",
+        "name": [
+          "magnetic constant",
+          "магнитная постоянная"
+        ],
+        "domains": [
+          "magnetostatics",
+          "electromagnetism"
+        ],
+        "role": "magnetic_constant",
+        "notes": "Магнитная постоянная"
+      }
+    ],
+    "M001": [
+      {
+        "name_id": "S082",
+        "symbol": "π",
+        "name": [
+          "pi",
+          "пи"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "pi",
+        "notes": "Пи"
+      },
+      {
+        "name_id": "S083",
+        "symbol": "pi",
+        "name": [
+          "pi (text)",
+          "пи (текст)"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "pi_text",
+        "notes": "Текстовое написание"
+      }
+    ],
+    "M002": [
+      {
+        "name_id": "S084",
+        "symbol": "e",
+        "name": [
+          "Euler's number",
+          "число Эйлера"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "eulers_number",
+        "notes": "Число Эйлера"
+      },
+      {
+        "name_id": "S085",
+        "symbol": "exp(1)",
+        "name": [
+          "exp(1)",
+          "exp(1)"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "exp1",
+        "notes": ""
+      }
+    ],
+    "M003": [
+      {
+        "name_id": "S086",
+        "symbol": "φ",
+        "name": [
+          "golden ratio",
+          "золотое сечение"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "golden_ratio",
+        "notes": "Золотое сечение"
+      },
+      {
+        "name_id": "S087",
+        "symbol": "ϕ",
+        "name": [
+          "golden ratio (ϕ)",
+          "золотое сечение (ϕ)"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "golden_ratio_alt",
+        "notes": "Вариант написания"
+      },
+      {
+        "name_id": "S088",
+        "symbol": "τ",
+        "name": [
+          "golden ratio (rare τ)",
+          "золотое сечение (редко τ)"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "golden_ratio_tau",
+        "notes": "Редко; чаще τ = 2π"
+      }
+    ],
+    "M004": [
+      {
+        "name_id": "S089",
+        "symbol": "γ",
+        "name": [
+          "Euler-Mascheroni constant",
+          "постоянная Эйлера-Маскерони"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "euler_mascheroni",
+        "notes": "Постоянная Эйлера-Маскерони"
+      },
+      {
+        "name_id": "S090",
+        "symbol": "γ_E",
+        "name": [
+          "Euler-Mascheroni (γ_E)",
+          "постоянная Эйлера-Маскерони (γ_E)"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "euler_mascheroni_alt",
+        "notes": ""
+      }
+    ],
+    "M005": [
+      {
+        "name_id": "S091",
+        "symbol": "√2",
+        "name": [
+          "square root of 2",
+          "корень из двух"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "sqrt2",
+        "notes": "Корень из 2"
+      },
+      {
+        "name_id": "S092",
+        "symbol": "sqrt(2)",
+        "name": [
+          "sqrt(2)",
+          "sqrt(2)"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "sqrt2_text",
+        "notes": ""
+      }
+    ],
+    "M006": [
+      {
+        "name_id": "S093",
+        "symbol": "√3",
+        "name": [
+          "square root of 3",
+          "корень из трёх"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "sqrt3",
+        "notes": "Корень из 3"
+      }
+    ],
+    "M007": [
+      {
+        "name_id": "S094",
+        "symbol": "ln 2",
+        "name": [
+          "ln 2",
+          "натуральный логарифм 2"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "ln2",
+        "notes": "Натуральный логарифм 2"
+      },
+      {
+        "name_id": "S095",
+        "symbol": "log(2)",
+        "name": [
+          "log(2)",
+          "log(2)"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "log2",
+        "notes": ""
+      }
+    ],
+    "M008": [
+      {
+        "name_id": "S096",
+        "symbol": "ln 10",
+        "name": [
+          "ln 10",
+          "натуральный логарифм 10"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "ln10",
+        "notes": "Натуральный логарифм 10"
+      }
+    ],
+    "M009": [
+      {
+        "name_id": "S097",
+        "symbol": "2π",
+        "name": [
+          "2π",
+          "два пи"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "two_pi",
+        "notes": "Два пи"
+      },
+      {
+        "name_id": "S098",
+        "symbol": "τ",
+        "name": [
+          "tau (=2π)",
+          "тау (=2π)"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "tau",
+        "notes": "Тау = 2π"
+      }
+    ],
+    "M010": [
+      {
+        "name_id": "S099",
+        "symbol": "i",
+        "name": [
+          "imaginary unit",
+          "мнимая единица"
+        ],
+        "domains": [
+          "mathematics"
+        ],
+        "role": "imaginary_unit",
+        "notes": "Мнимая единица"
+      },
+      {
+        "name_id": "S100",
+        "symbol": "j",
+        "name": [
+          "imaginary unit (j)",
+          "мнимая единица (j)"
+        ],
+        "domains": [
+          "mathematics",
+          "circuit_theory"
+        ],
+        "role": "imaginary_unit_j",
+        "notes": "Часто j вместо i"
+      }
+    ],
+    "Q042": [
+      {
+        "name_id": "S042",
+        "symbol": "S",
+        "name": [
+          "area",
+          "площадь"
+        ],
+        "domains": [
+          "mechanics",
+          "electromagnetism",
+          "optics",
+          "geometry"
+        ],
+        "role": "area",
+        "notes": "Площадь контура/поверхности; в магнитном потоке Φ = B S cos α."
+      }
+    ],
+    "Q043": [
+      {
+        "name_id": "S043",
+        "symbol": "α",
+        "name": [
+          "angle",
+          "угол"
+        ],
+        "domains": [
+          "mechanics",
+          "electromagnetism",
+          "optics",
+          "wave_physics"
+        ],
+        "role": "angle",
+        "notes": "Угол между физическими направлениями или угол падения/дифракции."
+      },
+      {
+        "name_id": "S044",
+        "symbol": "β",
+        "name": [
+          "refracted angle",
+          "угол преломления"
+        ],
+        "domains": [
+          "optics"
+        ],
+        "role": "refracted_angle",
+        "notes": "Угол преломлённого луча."
+      },
+      {
+        "name_id": "S045",
+        "symbol": "φ",
+        "name": [
+          "phase",
+          "фаза"
+        ],
+        "domains": [
+          "oscillations",
+          "wave_physics",
+          "optics"
+        ],
+        "role": "phase",
+        "notes": "Фазовый угол гармонического колебания."
+      },
+      {
+        "name_id": "S046",
+        "symbol": "φ₀",
+        "name": [
+          "initial phase",
+          "начальная фаза"
+        ],
+        "domains": [
+          "oscillations",
+          "wave_physics"
+        ],
+        "role": "initial_phase",
+        "notes": "Начальная фаза в x = A sin(ωt + φ₀)."
+      }
+    ],
+    "C008": [
+      {
+        "name_id": "S047",
+        "symbol": "e",
+        "name": [
+          "elementary charge",
+          "элементарный заряд"
+        ],
+        "domains": [
+          "electromagnetism",
+          "quantum_physics",
+          "photoelectric_effect"
+        ],
+        "role": "elementary_charge",
+        "notes": "Модуль заряда электрона; в фотоэффекте e участвует в связи энергии и запирающего напряжения, а в силе Лоренца заряд частицы задаётся q."
+      }
+    ],
+    "Q044": [
+      {
+        "name_id": "S048",
+        "symbol": "k",
+        "name": [
+          "order",
+          "порядок"
+        ],
+        "domains": [
+          "optics",
+          "wave_physics"
+        ],
+        "role": "order",
+        "notes": "Порядок интерференционного максимума / дифракции; обычно целое k."
+      }
+    ]
+  }
+}
