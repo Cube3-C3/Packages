@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1.0",
+  "id": "C1",
+  "elements": [
+    {"id": "E1", "asset": "spring"},
+    {"id": "E2", "asset": "spring"}
+  ],
+  "relations": [
+    {"id": "L1", "type": "series", "from": "E1", "to": "E2"}
+  ]
+}
