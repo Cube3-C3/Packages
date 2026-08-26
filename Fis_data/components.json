@@ -1,7 +1,25 @@
 {
-  "schema_version": "0.1.0",
-  "description": "Physical components. IDs = E*. Link to visual asset (M*) + physical nature. Constructions assemble instances of these.",
+  "schema_version": "0.2.0",
+  "description": "Physical components. IDs = E*. Link to visual asset (M*) + physical nature. Constructions assemble instances of these. E0 = environment frame (origin, assumptions, initial conditions).",
   "components": {
+    "E0": {
+      "name": ["site / environment", "среда / площадка"],
+      "asset": null,
+      "kind": "environment",
+      "scale": "setup",
+      "role": "frame",
+      "origin": [0, 0],
+      "origin_corner": "bottom_left",
+      "axes": {
+        "x": "right",
+        "y": "up"
+      },
+      "quantities": [],
+      "ports": [],
+      "assumptions": [],
+      "initial_conditions": {},
+      "notes": "Базовый контейнер конструкции. Задаёт систему координат (0,0 — левый нижний угол), начальные условия и объяснительный слой (пренебрежения, идеализации: без трения, однородное поле и т.п.). Не требует визуального ассета. В будущем — непрерывность по времени / «промодка»."
+    },
     "E001": {
       "name": ["spring", "пружина"],
       "asset": "M001",
