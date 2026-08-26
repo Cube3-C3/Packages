@@ -1,3 +1,5 @@
+import { InputEngine } from './ast-engine.js';
+import { InputFilter } from './input-filter.js';
 import { 
   FunctionRegistry, 
   PrefixUnaryRegistry, 
@@ -26,7 +28,72 @@ export class InputEngine {
   reset() {
     this.hasEquationOp = false;
   }
+  const filter = new InputFilter({
+  defaultBlock: input.dataset.matchinBlock || 'expression'
+  });
+  function getBlockType() {
+  return filter.resolveBlock(input);
+}
 
+function applyInputFilter() {
+  const blockType = getBlockType();
+  const oldValue = input.value;
+
+  const cursor = input.selectionStart ?? oldValue.length;
+
+  const sanitized = filter.sanitize(oldValue, blockType);
+
+  if (sanitized !== oldValue) {
+    const delta = sanitized.length - oldValue.length;
+
+    input.value = sanitized;
+
+    const nextCursor = Math.max(
+      0,
+      Math.min(sanitized.length, cursor + delta)
+    );
+
+    input.setSelectionRange(nextCursor, nextCursor);
+  }
+}
+  input.addEventListener('input', () => {
+  applyInputFilter();
+  updateAST();
+});
+input.addEventListener('beforeinput', event => {
+  if (
+    !event.data ||
+    !['insertText', 'insertFromPaste', 'insertFromDrop']
+      .includes(event.inputType)
+  ) {
+    return;
+  }
+
+  const blockType = getBlockType();
+
+  const start = input.selectionStart ?? 0;
+  const end = input.selectionEnd ?? start;
+
+  const candidate =
+    input.value.slice(0, start) +
+    event.data +
+    input.value.slice(end);
+
+  const sanitized = filter.sanitize(candidate, blockType);
+
+  if (sanitized === candidate) return;
+
+  event.preventDefault();
+
+  input.setRangeText(
+    sanitized.slice(start, sanitized.length - (input.value.length - end)),
+    start,
+    end,
+    'end'
+  );
+
+  updateAST();
+});
   // Добавлен флаг isFinal (потеря фокуса)
   validateAndParse(text, isFinal = false) {
     this.reset();
@@ -295,5 +362,29 @@ export class InputEngine {
       .replace(/\( /g, '(') // Красивые скобки
       .replace(/ \)/g, ')')
       .replace(/\* \*/g, '**'); // Фикс пробелов
+  };
+  finalizeText(text) {
+  // Без автопилота:
+  // никакого ремонта структуры.
+  // Только проверка и минимальный откат.
+  if (this.strictMode) {
+    try {
+      this.validateAndParse(text, true);
+      return text;
+    } catch {
+      return '1';
+    }
   }
+
+  // Автопилот:
+  // разрешаем локальные конфликты только при завершении.
+  try {
+    this.validateAndParse(text, true);
+    return this.reconstructText();
+  } catch {
+    // Автопилот не обязан уметь восстановить всё.
+    // Абсолютный fallback — минимальный операнд.
+    return '1';
+  }
+}
 }
