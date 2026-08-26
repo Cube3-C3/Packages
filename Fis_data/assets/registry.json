@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1.0",
+  "assets": {
+    "spring": {
+      "src": "spring.svg",
+      "anchor": [0, 0]
+    },
+    "block": {
+      "src": "block.svg",
+      "anchor": [0, 0]
+    },
+    "wall": {
+      "src": "wall.svg",
+      "anchor": [0, 0]
+    }
+  }
+}
