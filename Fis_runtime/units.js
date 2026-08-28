@@ -551,15 +551,12 @@
     if (!hit) return null;
     const law = hit.law;
     const targetOid = hit.operandId;
-    const structures = getStructuresList(ctx.structuresData);
-    const struct = structures.find(function (s) {
-      return s && s.id === law.structure_ref;
-    });
-    if (!struct || !struct.ast || struct.ast.op !== "eq") return null;
+    const resolved = resolveLawStructure(law, ctx.structuresData);
+    if (!resolved || !resolved.ast || resolved.ast.op !== "eq") return null;
 
     const factors = [];
-    collectMulDivFactors(struct.ast.lhs, +1, factors);
-    collectMulDivFactors(struct.ast.rhs, -1, factors);
+    collectMulDivFactors(resolved.ast.lhs, +1, factors);
+    collectMulDivFactors(resolved.ast.rhs, -1, factors);
 
     const byOid = Object.create(null);
     for (let i = 0; i < factors.length; i++) {
@@ -606,7 +603,9 @@
       kind: "from_formula",
       parts: merged,
       law_id: law.law_id,
-      structure_ref: law.structure_ref
+      structure_ref: law.structure_ref || resolved.id,
+      scheme: resolved.scheme,
+      arity: resolved.arity
     };
   }
 
@@ -1432,41 +1431,201 @@
     return [];
   }
 
+  function getSchemesMap(structuresData) {
+    if (!structuresData || typeof structuresData !== "object") return {};
+    return structuresData.schemes || {};
+  }
+
+  function getAliasesMap(structuresData) {
+    if (!structuresData || typeof structuresData !== "object") return {};
+    return structuresData.aliases || {};
+  }
+
   function getLawsList(formulasData) {
     if (!formulasData) return [];
     if (Array.isArray(formulasData)) return formulasData;
     if (Array.isArray(formulasData.formulas)) return formulasData.formulas;
     if (Array.isArray(formulasData.laws)) return formulasData.laws;
+    if (typeof formulasData === "object") {
+      const vals = Object.keys(formulasData)
+        .filter(function (k) {
+          return k !== "meta";
+        })
+        .map(function (k) {
+          return formulasData[k];
+        })
+        .filter(function (x) {
+          return x && (x.law_id || x.bindings);
+        });
+      if (vals.length) return vals;
+    }
     return [];
+  }
+
+  function leafOperand(n) {
+    return { operand_id: "O" + n };
+  }
+
+  /**
+   * AST из схемы + arity.
+   * product/sum/reciprocal_sum: arity = число факторов/слагаемых справа; слоты O1…O_{arity+1}.
+   * ratio: O1 = O2/O3 (arity не нужен).
+   */
+  function buildSchemeAst(schemeId, arity) {
+    const n = arity != null ? Number(arity) : 2;
+    if (!schemeId) return null;
+
+    if (schemeId === "ratio") {
+      return {
+        op: "eq",
+        lhs: leafOperand(1),
+        rhs: { op: "div", args: [leafOperand(2), leafOperand(3)] }
+      };
+    }
+
+    if (schemeId === "product" || schemeId === "sum") {
+      if (!(n >= 2)) return null;
+      const args = [];
+      for (let i = 2; i <= n + 1; i++) args.push(leafOperand(i));
+      return {
+        op: "eq",
+        lhs: leafOperand(1),
+        rhs: { op: schemeId === "product" ? "mul" : "add", args: args }
+      };
+    }
+
+    if (schemeId === "reciprocal_sum") {
+      if (!(n >= 2)) return null;
+      function inv(k) {
+        return { op: "div", args: [{ num: 1 }, leafOperand(k)] };
+      }
+      const args = [];
+      for (let i = 2; i <= n + 1; i++) args.push(inv(i));
+      return {
+        op: "eq",
+        lhs: inv(1),
+        rhs: { op: "add", args: args }
+      };
+    }
+
+    return null;
+  }
+
+  /** arity из O1..Ok в bindings (для product/sum: k−1). */
+  function arityFromBindings(bindings, schemeId) {
+    if (!bindings || typeof bindings !== "object") return null;
+    let max = 0;
+    for (const k of Object.keys(bindings)) {
+      const m = /^O(\d+)$/.exec(k);
+      if (m) max = Math.max(max, Number(m[1]));
+    }
+    if (max < 2) return null;
+    if (schemeId === "ratio") return 2;
+    return max - 1;
+  }
+
+  /**
+   * Резолв закона → { id, scheme, arity, ast, source, structure_name }.
+   * law.ast → law.scheme → structure_ref alias → structures[].
+   */
+  function resolveLawStructure(law, structuresData) {
+    if (!law) return null;
+
+    if (law.ast && typeof law.ast === "object") {
+      return {
+        id: law.structure_ref || null,
+        scheme: law.scheme || null,
+        arity: law.arity != null ? law.arity : null,
+        ast: law.ast,
+        source: "law.ast",
+        structure_name: null
+      };
+    }
+
+    const schemes = getSchemesMap(structuresData);
+    const aliases = getAliasesMap(structuresData);
+
+    function fromScheme(schemeId, arityHint, id, source) {
+      if (!schemeId || !schemes[schemeId]) return null;
+      let arity = arityHint != null ? Number(arityHint) : null;
+      if (arity == null) arity = arityFromBindings(law.bindings, schemeId);
+      if (arity == null && schemes[schemeId].fixed_arity != null) {
+        arity = schemes[schemeId].fixed_arity;
+      }
+      if (arity == null) arity = 2;
+      const ast = buildSchemeAst(schemeId, arity);
+      if (!ast) return null;
+      const meta = schemes[schemeId];
+      const sname = Array.isArray(meta.name) ? meta.name[0] : meta.name || schemeId;
+      return {
+        id: id || schemeId,
+        scheme: schemeId,
+        arity: arity,
+        ast: ast,
+        source: source,
+        structure_name: sname
+      };
+    }
+
+    if (law.scheme) {
+      const hit = fromScheme(law.scheme, law.arity, law.structure_ref || law.scheme, "scheme");
+      if (hit) return hit;
+    }
+
+    const ref = law.structure_ref;
+    if (ref && aliases[ref]) {
+      const a = aliases[ref];
+      const hit = fromScheme(a.scheme, a.arity != null ? a.arity : law.arity, ref, "alias");
+      if (hit) return hit;
+    }
+
+    const structures = getStructuresList(structuresData);
+    const struct = structures.find(function (s) {
+      return s && s.id === ref;
+    });
+    if (struct && struct.ast) {
+      return {
+        id: ref,
+        scheme: null,
+        arity: null,
+        ast: struct.ast,
+        source: "structure",
+        structure_name: struct.name || null
+      };
+    }
+
+    return null;
   }
 
   /**
    * law + structures → готовый пакет формулы (ast уже с ref/num).
    * UI только рисует пакет, не резолвит bindings.
+   * structure_ref A1/A2/A3/A5/A18 → scheme+arity; либо law.scheme.
    */
   function instantiateLaw(law, structuresData, usagesData) {
     if (!law) return null;
-    if (law.ast && !law.structure_ref) {
+    if (law.ast && !law.structure_ref && !law.scheme) {
       return {
         id: law.id || law.law_id,
         name: law.name,
         description: law.description || law.notes,
         ast: law.ast,
         structure_ref: null,
+        scheme: null,
+        arity: null,
         bindings: null
       };
     }
-    const structures = getStructuresList(structuresData);
-    const struct = structures.find(function (s) {
-      return s.id === law.structure_ref;
-    });
-    if (!struct || !struct.ast) {
+    const resolved = resolveLawStructure(law, structuresData);
+    if (!resolved || !resolved.ast) {
       return {
         id: law.law_id || law.id,
         name: law.name,
         description: law.description,
         ast: null,
         structure_ref: law.structure_ref,
+        scheme: law.scheme || null,
+        arity: law.arity != null ? law.arity : null,
         bindings: law.bindings || null,
         error: "structure_not_found"
       };
@@ -1477,11 +1636,13 @@
       id: law.law_id || law.id,
       name: law.name,
       description: law.description,
-      structure_ref: law.structure_ref,
-      structure_name: struct.name,
+      structure_ref: law.structure_ref || resolved.id,
+      scheme: resolved.scheme,
+      arity: resolved.arity,
+      structure_name: resolved.structure_name,
       bindings: bindings,
       symbols: symbolMap,
-      ast: resolveAst(struct.ast, bindings, symbolMap)
+      ast: resolveAst(resolved.ast, bindings, symbolMap)
     };
   }
 
@@ -1507,6 +1668,142 @@
       if (refs[qid]) result.push(inst);
     }
     return result;
+  }
+
+  /**
+   * Свод needs конструкции: formula_needs или вывод из elements[].quantities.
+   * count ≥ 2 — явные общие узлы (k₁, k₂…).
+   */
+  function collectConstructionNeeds(construction) {
+    const byQid = Object.create(null);
+    function add(qid, role, count) {
+      if (!qid) return;
+      const n = count != null && count >= 1 ? Number(count) : 1;
+      if (!byQid[qid]) byQid[qid] = { count: 0, roles: [] };
+      byQid[qid].count = Math.max(byQid[qid].count, n);
+      if (role && byQid[qid].roles.indexOf(role) < 0) byQid[qid].roles.push(role);
+    }
+
+    const declared = construction && construction.formula_needs;
+    if (Array.isArray(declared) && declared.length) {
+      for (let i = 0; i < declared.length; i++) {
+        const d = declared[i];
+        if (!d) continue;
+        const cnt = d.count != null ? d.count : 1;
+        if (Array.isArray(d.roles)) {
+          if (!d.roles.length) add(d.quantity, null, cnt);
+          for (let r = 0; r < d.roles.length; r++) add(d.quantity, d.roles[r], cnt);
+        } else {
+          add(d.quantity, d.role, cnt);
+        }
+      }
+    } else if (construction && Array.isArray(construction.elements)) {
+      const tallies = Object.create(null);
+      for (let i = 0; i < construction.elements.length; i++) {
+        const qs = (construction.elements[i] && construction.elements[i].quantities) || {};
+        for (const k of Object.keys(qs)) {
+          const q = qs[k];
+          if (!q || !q.quantity) continue;
+          if (!tallies[q.quantity]) tallies[q.quantity] = { count: 0, roles: [] };
+          tallies[q.quantity].count += 1;
+          if (q.role && tallies[q.quantity].roles.indexOf(q.role) < 0) {
+            tallies[q.quantity].roles.push(q.role);
+          }
+        }
+      }
+      for (const qid of Object.keys(tallies)) {
+        add(qid, null, tallies[qid].count);
+        for (let r = 0; r < tallies[qid].roles.length; r++) {
+          add(qid, tallies[qid].roles[r], tallies[qid].count);
+        }
+      }
+    }
+
+    const list = Object.keys(byQid).map(function (qid) {
+      return {
+        quantity: qid,
+        count: byQid[qid].count,
+        roles: byQid[qid].roles.slice()
+      };
+    });
+    return { byQid: byQid, list: list };
+  }
+
+  /**
+   * Формулы для конструкции по formula_needs (quantity + role + count).
+   * Закон: все quantity-binding ⊆ needs; score по совпадению role;
+   * count≥2 — бонус за мульти-слоты / scheme sum|reciprocal_sum.
+   */
+  function formulasForConstruction(construction, formulasData, structuresData, usagesData) {
+    const needs = collectConstructionNeeds(construction);
+    const needQ = needs.byQid;
+    if (!Object.keys(needQ).length) return [];
+
+    const laws = getLawsList(formulasData);
+    const scored = [];
+
+    for (let i = 0; i < laws.length; i++) {
+      const law = laws[i];
+      const bindings = law.bindings || {};
+      const used = [];
+      let ok = true;
+      for (const oid of Object.keys(bindings)) {
+        const b = bindings[oid];
+        if (!b || !b.quantity) continue;
+        const qid = b.quantity;
+        // M* / C* — константы, в needs конструкции не требуются
+        if (/^[MC]\d+/.test(qid)) continue;
+        if (!needQ[qid]) {
+          ok = false;
+          break;
+        }
+        used.push({ quantity: qid, role: b.role || "" });
+      }
+      if (!ok || !used.length) continue;
+
+      let roleHits = 0;
+      let roleMiss = 0;
+      const qCountInLaw = Object.create(null);
+      for (let u = 0; u < used.length; u++) {
+        const qid = used[u].quantity;
+        qCountInLaw[qid] = (qCountInLaw[qid] || 0) + 1;
+        const roles = needQ[qid].roles || [];
+        if (!used[u].role || !roles.length) continue;
+        if (roles.indexOf(used[u].role) >= 0) roleHits++;
+        else roleMiss++;
+      }
+      // чужая role при объявленных needs.roles → отсев (radius_vector vs natural_length)
+      if (roleMiss > 0) continue;
+
+      let multiBonus = 0;
+      for (const qid of Object.keys(qCountInLaw)) {
+        const needC = needQ[qid].count || 1;
+        if (needC >= 2 && qCountInLaw[qid] >= 2) multiBonus += 2;
+      }
+
+      const resolved = resolveLawStructure(law, structuresData);
+      if (
+        resolved &&
+        (resolved.scheme === "sum" || resolved.scheme === "reciprocal_sum")
+      ) {
+        const anyMulti = Object.keys(needQ).some(function (qid) {
+          return needQ[qid].count >= 2;
+        });
+        if (anyMulti) multiBonus += 1;
+      }
+
+      const score = used.length * 10 + roleHits * 5 - roleMiss * 3 + multiBonus;
+      const inst = instantiateLaw(law, structuresData, usagesData);
+      if (!inst || !inst.ast) continue;
+      scored.push({ inst: inst, score: score });
+    }
+
+    scored.sort(function (a, b) {
+      return b.score - a.score;
+    });
+    return scored.map(function (s) {
+      return s.inst;
+    });
   }
 
 
@@ -1839,9 +2136,17 @@
     bindingToLeaf: bindingToLeaf,
     resolveAst: resolveAst,
     getStructuresList: getStructuresList,
+    getSchemesMap: getSchemesMap,
+    getAliasesMap: getAliasesMap,
+    buildSchemeAst: buildSchemeAst,
+    resolveLawStructure: resolveLawStructure,
     getLawsList: getLawsList,
     instantiateLaw: instantiateLaw,
     formulasUsing: formulasUsing,
+    collectConstructionNeeds: collectConstructionNeeds,
+    formulasForConstruction: formulasForConstruction,
+    collectConstructionNeeds: collectConstructionNeeds,
+    formulasForConstruction: formulasForConstruction,
     toSubscript: toSubscript,
     isZeroIndexRole: isZeroIndexRole,
     normalizeQuantitySymbols: normalizeQuantitySymbols,

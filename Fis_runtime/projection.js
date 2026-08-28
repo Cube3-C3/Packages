@@ -863,29 +863,42 @@
       }
     }
 
-    // formulas that mention any quantity used on elements / env
-    const qids = Object.create(null);
-    if (layoutModel && layoutModel.g && layoutModel.g.quantity) {
-      qids[layoutModel.g.quantity] = true;
+    // формулы: formula_needs (quantity+role+count) → иначе union по величинам элементов
+    let related = [];
+    if (
+      window.FisUnits &&
+      typeof window.FisUnits.formulasForConstruction === "function"
+    ) {
+      related =
+        window.FisUnits.formulasForConstruction(
+          C,
+          data.formulas || data.physi_formulas,
+          data.structures || data.AST,
+          data.usages
+        ) || [];
+    } else {
+      const qids = Object.create(null);
+      if (layoutModel && layoutModel.g && layoutModel.g.quantity) {
+        qids[layoutModel.g.quantity] = true;
+      }
+      (C.elements || []).forEach(function (el) {
+        const qs = el.quantities || {};
+        Object.keys(qs).forEach(function (k) {
+          if (qs[k] && qs[k].quantity) qids[qs[k].quantity] = true;
+        });
+      });
+      const seenLaw = Object.create(null);
+      Object.keys(qids).forEach(function (qid) {
+        const using =
+          formulasUsing(data.formulas, qid, data.structures, data.usages) || [];
+        using.forEach(function (f) {
+          const id = f.id || f.law_id;
+          if (!id || seenLaw[id]) return;
+          seenLaw[id] = true;
+          related.push(f);
+        });
+      });
     }
-    (C.elements || []).forEach(function (el) {
-      const qs = el.quantities || {};
-      Object.keys(qs).forEach(function (k) {
-        if (qs[k] && qs[k].quantity) qids[qs[k].quantity] = true;
-      });
-    });
-    const related = [];
-    const seenLaw = Object.create(null);
-    Object.keys(qids).forEach(function (qid) {
-      const using =
-        formulasUsing(data.formulas, qid, data.structures, data.usages) || [];
-      using.forEach(function (f) {
-        const id = f.id || f.law_id;
-        if (!id || seenLaw[id]) return;
-        seenLaw[id] = true;
-        related.push(f);
-      });
-    });
 
     // quantity chips — unit symbol from units.json via formatUnit(dimension)
     let qtyRows = "";
