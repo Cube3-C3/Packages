@@ -1,77 +1,67 @@
 {
-  "schema_version": "2.3",
+  "schema_version": "3.0",
   "id": "MATHEMATICAL_STRUCTURES_CORE",
-  "description": "Pure topological algebraic structures with zero embedded numbers or constants.",
-  "structures": [
-    {
-      "id": "A1",
-      "name": "ratio_simple",
+  "description": "Схемы product/sum/reciprocal_sum/ratio масштабируются по arity; A* — aliases или особые формы. Числа/константы в AST не вшиты (кроме num в reciprocal_sum).",
+  "schemes": {
+    "ratio": {
+      "name": [
+        "ratio",
+        "отношение"
+      ],
       "description": "O1 = O2 / O3",
-      "ast": {
-        "op": "eq",
-        "lhs": {
-          "operand_id": "O1"
-        },
-        "rhs": {
-          "op": "div",
-          "args": [
-            {
-              "operand_id": "O2"
-            },
-            {
-              "operand_id": "O3"
-            }
-          ]
-        }
-      }
+      "fixed_arity": 2,
+      "operand_count": 3
     },
-    {
-      "id": "A2",
-      "name": "product_simple",
-      "description": "O1 = O2 * O3",
-      "ast": {
-        "op": "eq",
-        "lhs": {
-          "operand_id": "O1"
-        },
-        "rhs": {
-          "op": "mul",
-          "args": [
-            {
-              "operand_id": "O2"
-            },
-            {
-              "operand_id": "O3"
-            }
-          ]
-        }
-      }
+    "product": {
+      "name": [
+        "product",
+        "произведение"
+      ],
+      "description": "O1 = O2 · … · O_{n+1}; arity = n факторов справа",
+      "min_arity": 2,
+      "operand_count_from_arity": "arity+1"
     },
-    {
-      "id": "A3",
-      "name": "triple_product",
-      "description": "O1 = O2 * O3 * O4",
-      "ast": {
-        "op": "eq",
-        "lhs": {
-          "operand_id": "O1"
-        },
-        "rhs": {
-          "op": "mul",
-          "args": [
-            {
-              "operand_id": "O2"
-            },
-            {
-              "operand_id": "O3"
-            },
-            {
-              "operand_id": "O4"
-            }
-          ]
-        }
-      }
+    "sum": {
+      "name": [
+        "sum",
+        "сумма"
+      ],
+      "description": "O1 = O2 + … + O_{n+1}; arity = n слагаемых справа",
+      "min_arity": 2,
+      "operand_count_from_arity": "arity+1"
     },
+    "reciprocal_sum": {
+      "name": [
+        "reciprocal_sum",
+        "сумма обратных"
+      ],
+      "description": "1/O1 = 1/O2 + … + 1/O_{n+1}; arity = n обратных справа",
+      "min_arity": 2,
+      "operand_count_from_arity": "arity+1"
+    }
+  },
+  "aliases": {
+    "A1": {
+      "scheme": "ratio"
+    },
+    "A2": {
+      "scheme": "product",
+      "arity": 2
+    },
+    "A3": {
+      "scheme": "product",
+      "arity": 3
+    },
+    "A5": {
+      "scheme": "sum",
+      "arity": 2
+    },
+    "A18": {
+      "scheme": "reciprocal_sum",
+      "arity": 2
+    }
+  },
+  "structures": [
     {
       "id": "A4",
       "name": "rate_of_change",
@@ -89,28 +79,6 @@
               "arg": {
                 "operand_id": "O2"
               }
-            },
-            {
-              "operand_id": "O3"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "A5",
-      "name": "additive_sum",
-      "description": "O1 = O2 + O3",
-      "ast": {
-        "op": "eq",
-        "lhs": {
-          "operand_id": "O1"
-        },
-        "rhs": {
-          "op": "add",
-          "args": [
-            {
-              "operand_id": "O2"
             },
             {
               "operand_id": "O3"
@@ -478,52 +446,6 @@
             },
             {
               "operand_id": "O3"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "A18",
-      "name": "reciprocal_sum",
-      "description": "1/O1 = 1/O2 + 1/O3",
-      "ast": {
-        "op": "eq",
-        "lhs": {
-          "op": "div",
-          "args": [
-            {
-              "num": 1
-            },
-            {
-              "operand_id": "O1"
-            }
-          ]
-        },
-        "rhs": {
-          "op": "add",
-          "args": [
-            {
-              "op": "div",
-              "args": [
-                {
-                  "num": 1
-                },
-                {
-                  "operand_id": "O2"
-                }
-              ]
-            },
-            {
-              "op": "div",
-              "args": [
-                {
-                  "num": 1
-                },
-                {
-                  "operand_id": "O3"
-                }
-              ]
             }
           ]
         }
