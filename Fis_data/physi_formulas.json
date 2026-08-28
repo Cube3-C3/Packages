@@ -325,7 +325,8 @@
       },
       "O2": {
         "quantity": "Q013",
-        "role": "spring_constant"
+        "role": "spring_constant",
+        "defines_unit": true
       },
       "O3": {
         "quantity": "Q008",
@@ -421,7 +422,8 @@
       },
       "O2": {
         "quantity": "Q016",
-        "role": "specific_heat"
+        "role": "specific_heat",
+        "defines_unit": true
       },
       "O3": {
         "quantity": "Q003",
@@ -445,7 +447,8 @@
       },
       "O2": {
         "quantity": "Q017",
-        "role": "latent_heat_fusion"
+        "role": "latent_heat_fusion",
+        "defines_unit": true
       },
       "O3": {
         "quantity": "Q003",
@@ -465,7 +468,8 @@
       },
       "O2": {
         "quantity": "Q018",
-        "role": "latent_heat_vaporization"
+        "role": "latent_heat_vaporization",
+        "defines_unit": true
       },
       "O3": {
         "quantity": "Q003",
