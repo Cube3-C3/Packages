@@ -70,19 +70,47 @@
     return n;
   }
 
+  /**
+   * named: единый массив [{ dimension, name, symbol, … }].
+   * Обратная совместимость: если пришёл старый объект { "[dim]": [units…] } — разворачиваем.
+   */
+  function namedAsArray(unitsData) {
+    const raw = unitsData?.named;
+    if (Array.isArray(raw)) return raw;
+    if (!raw || typeof raw !== "object") return [];
+    const out = [];
+    for (const [dim, units] of Object.entries(raw)) {
+      if (!Array.isArray(units)) continue;
+      for (const u of units) {
+        if (!u || typeof u !== "object") continue;
+        out.push(Object.assign({ dimension: dim }, u));
+      }
+    }
+    return out;
+  }
+
+  /** Все варианты с точным dimension (K / °C / rad…). */
+  function namedForDimension(unitsData, dim) {
+    return namedAsArray(unitsData).filter(function (u) {
+      return u && u.dimension === dim;
+    });
+  }
+
   /** named catalog → list of { key, vec, unit, complexity } sorted large→small */
   function buildNamedCatalog(unitsData) {
-    const named = unitsData?.named || {};
     const list = [];
-    for (const [key, units] of Object.entries(named)) {
-      if (key === "[1]") continue;
+    const seen = Object.create(null);
+    for (const unit of namedAsArray(unitsData)) {
+      const key = unit.dimension;
+      if (!key || key === "[1]") continue;
+      // один представитель на dimension (первый в массиве)
+      if (seen[key]) continue;
       const vec = parseDimension(key);
       if (vecIsEmpty(vec)) continue;
-      const unit = Array.isArray(units) && units.length ? units[0] : null;
-      if (!unit) continue;
       // Pure single-base (m², m⁻¹, …) → always base remainder so L^3 stays м³, not м²·м
       const keys = Object.keys(vec).filter(function (k) { return vec[k]; });
       if (keys.length === 1) continue;
+      seen[key] = true;
       list.push({
         key,
         vec,
@@ -122,32 +150,49 @@
   }
 
   /**
-   * Попытка вычесть named-вектор из текущего (только если все знаки согласованы
-   * и |остаток| уменьшается). k — целое (сколько раз «входит»).
+   * Попытка вычесть named-вектор из текущего.
+   * k > 0 — named в числителе (знаки совпадают);
+   * k < 0 — named в знаменателе: знаменатели вида N^{-2} временно как N^{2},
+   *         находим крупный блок, сохраняем k и откатываем (power отрицательный).
+   * Смешанные знаки по базам named → отказ (нечистый фактор).
    */
   function trySubtract(remaining, namedVec) {
-    // find max positive integer k such that remaining - k*named still same-sign per component
-    // where named has non-zero
-    let kMax = Infinity;
+    let kMaxPos = Infinity;
+    let kMaxNeg = Infinity;
+    let sawPos = false;
+    let sawNeg = false;
     for (const b of Object.keys(namedVec)) {
       const nv = namedVec[b];
       if (!nv) continue;
       const rv = remaining[b] || 0;
-      // same sign required for clean factoring
-      if (rv === 0 || Math.sign(rv) !== Math.sign(nv)) return null;
-      kMax = Math.min(kMax, Math.floor(Math.abs(rv) / Math.abs(nv)));
+      if (rv === 0) return null;
+      if (Math.sign(rv) === Math.sign(nv)) {
+        sawPos = true;
+        kMaxPos = Math.min(kMaxPos, Math.floor(Math.abs(rv) / Math.abs(nv)));
+      } else {
+        sawNeg = true;
+        kMaxNeg = Math.min(kMaxNeg, Math.floor(Math.abs(rv) / Math.abs(nv)));
+      }
     }
-    if (!Number.isFinite(kMax) || kMax < 1) return null;
+    // только чисто same-sign или чисто opposite-sign
+    if (sawPos && sawNeg) return null;
+    let k = 0;
+    if (sawPos && Number.isFinite(kMaxPos) && kMaxPos >= 1) k = kMaxPos;
+    else if (sawNeg && Number.isFinite(kMaxNeg) && kMaxNeg >= 1) k = -kMaxNeg;
+    else return null;
     const next = vecClone(remaining);
     for (const b of Object.keys(namedVec)) {
-      next[b] = (next[b] || 0) - kMax * namedVec[b];
+      next[b] = (next[b] || 0) - k * namedVec[b];
       if (next[b] === 0) delete next[b];
     }
-    return { k: kMax, next };
+    return { k: k, next: next };
   }
 
   /**
    * Жадное покрытие: крупные named, затем base.
+   * На каждом шаге выбираем кандидата с максимальным снижением complexity;
+   * при равенстве — полный обнуление remaining, затем больший |k| * complexity.
+   * Opposite-sign (знаменатель) допускается через trySubtract.
    * parts: [{ kind, symbol, name, power }]
    */
   function factorDimension(dim, unitsData) {
@@ -157,24 +202,33 @@
     const catalog = buildNamedCatalog(unitsData);
     const parts = [];
 
-    // greedy named
     let progress = true;
     while (progress && !vecIsEmpty(remaining)) {
       progress = false;
+      const remC = vecComplexity(remaining);
+      let best = null;
       for (const entry of catalog) {
         const sub = trySubtract(remaining, entry.vec);
         if (!sub) continue;
-        parts.push({
-          kind: "named",
-          key: entry.key,
-          symbol: entry.unit.symbol,
-          name: entry.unit.name,
-          power: sub.k
-        });
-        remaining = sub.next;
-        progress = true;
-        break; // restart from largest
+        const nextC = vecComplexity(sub.next);
+        const reduction = remC - nextC;
+        if (reduction <= 0) continue;
+        const empties = vecIsEmpty(sub.next) ? 1 : 0;
+        const score = reduction * 1000 + empties * 100 + Math.abs(sub.k) * entry.complexity;
+        if (!best || score > best.score) {
+          best = { entry: entry, sub: sub, score: score };
+        }
       }
+      if (!best) break;
+      parts.push({
+        kind: "named",
+        key: best.entry.key,
+        symbol: best.entry.unit.symbol,
+        name: best.entry.unit.name,
+        power: best.sub.k
+      });
+      remaining = best.sub.next;
+      progress = true;
     }
 
     // remainder → base atoms
@@ -257,18 +311,19 @@
     lang = lang === "en" ? "en" : "ru";
 
     if (!dim || dim === "[1]") {
-      const u = unitsData?.named?.["[1]"]?.[0];
+      const exact1 = namedForDimension(unitsData, "[1]");
+      const u = exact1[0];
       return {
         symbol: u ? pick(u.symbol, lang) : "1",
         name: u ? pick(u.name, lang) : lang === "ru" ? "единица" : "one",
         kind: "dimensionless",
-        units: unitsData?.named?.["[1]"] || []
+        units: exact1
       };
     }
 
-    // 1) exact named match
-    const exactList = unitsData?.named?.[dim];
-    if (Array.isArray(exactList) && exactList.length) {
+    // 1) exact named match (единый массив named → filter by dimension)
+    const exactList = namedForDimension(unitsData, dim);
+    if (exactList.length) {
       let chosen = exactList[0];
       if (opts.preferRole) {
         const hit = exactList.find(
@@ -286,7 +341,7 @@
       };
     }
 
-    // exact base single
+    // exact base single (из base_components; чистые SI-базы в named больше не дублируются)
     const vec = parseDimension(dim);
     const vKeys = Object.keys(vec).filter((k) => vec[k]);
     if (vKeys.length === 1 && Math.abs(vec[vKeys[0]]) === 1) {
@@ -298,8 +353,8 @@
           symbol: pick(baseInfo.si_symbol, lang),
           name: pick(baseInfo.name, lang),
           kind: "named",
-          units: unitsData?.named?.["[" + b + "]"] || [
-            { name: baseInfo.name, symbol: baseInfo.si_symbol, factor: 1 }
+          units: [
+            { dimension: "[" + b + "]", name: baseInfo.name, symbol: baseInfo.si_symbol, factor: 1 }
           ]
         };
       }
@@ -319,15 +374,260 @@
    * Все именованные варианты для точного dim (K, °C, °F…)
    */
   function listNamedUnits(dim, unitsData, lang) {
-    const list = unitsData?.named?.[dim] || [];
+    const list = namedForDimension(unitsData, dim);
     return list.map((u) => ({
       symbol: pick(u.symbol, lang),
       name: pick(u.name, lang),
       factor: u.factor,
       offset: u.offset,
       roles: u.roles,
-      notes: u.notes
+      notes: u.notes,
+      dimension: u.dimension
     }));
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Unit from defining formula (defines_unit on binding)
+  // ─────────────────────────────────────────────────────────────
+
+  /** Плоский id→quantity из physi_quant.json */
+  function indexQuantities(quantData) {
+    const map = Object.create(null);
+    function walk(o) {
+      if (!o || typeof o !== "object") return;
+      if (typeof o.id === "string" && o.dimension != null) map[o.id] = o;
+      for (const k of Object.keys(o)) {
+        if (k === "meta") continue;
+        const v = o[k];
+        if (Array.isArray(v)) v.forEach(walk);
+        else if (v && typeof v === "object") walk(v);
+      }
+    }
+    walk(quantData);
+    return map;
+  }
+
+  /**
+   * Закон, где у binding с quantity=qid стоит defines_unit: true.
+   * @returns {{ law, operandId } | null}
+   */
+  function findDefiningUnitLaw(qid, formulasData) {
+    if (!qid) return null;
+    const laws = getLawsList(formulasData);
+    for (let i = 0; i < laws.length; i++) {
+      const law = laws[i];
+      const bindings = law && law.bindings;
+      if (!bindings) continue;
+      for (const oid of Object.keys(bindings)) {
+        const b = bindings[oid];
+        if (b && b.defines_unit === true && b.quantity === qid) {
+          return { law: law, operandId: oid };
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Собрать mul/div факторы: { operand_id, power } (числа пропускаем). */
+  function collectMulDivFactors(node, sign, out) {
+    if (!node || typeof node !== "object") return;
+    if (node.operand_id) {
+      out.push({ operand_id: node.operand_id, power: sign });
+      return;
+    }
+    if (node.op === "mul") {
+      const args = node.args || [];
+      for (let i = 0; i < args.length; i++) collectMulDivFactors(args[i], sign, out);
+      return;
+    }
+    if (node.op === "div") {
+      const args = node.args || [];
+      if (args[0]) collectMulDivFactors(args[0], sign, out);
+      for (let i = 1; i < args.length; i++) collectMulDivFactors(args[i], -sign, out);
+      return;
+    }
+    // pow / sqrt / sin … — не поддерживаем в unit-recovery v1
+  }
+
+  /**
+   * Части единицы для dim через обычный formatUnit (без formula-контура).
+   * Всегда возвращает массив { kind, symbol[], name[], power }.
+   */
+  function unitPartsForDim(dim, unitsData, lang) {
+    const r = formatUnit(dim, unitsData, lang);
+    if (r && Array.isArray(r.parts) && r.parts.length) {
+      return r.parts.map(function (p) {
+        return {
+          kind: p.kind,
+          key: p.key,
+          symbol: p.symbol,
+          name: p.name,
+          power: p.power
+        };
+      });
+    }
+    if (r && (r.kind === "named" || r.kind === "dimensionless")) {
+      const exact = namedForDimension(unitsData, dim);
+      if (exact[0] && exact[0].symbol) {
+        return [
+          {
+            kind: "named",
+            key: dim,
+            symbol: exact[0].symbol,
+            name: exact[0].name,
+            power: 1
+          }
+        ];
+      }
+      const vec = parseDimension(dim);
+      const keys = Object.keys(vec).filter(function (k) {
+        return vec[k];
+      });
+      if (keys.length === 1 && Math.abs(vec[keys[0]]) === 1 && vec[keys[0]] > 0) {
+        const b = keys[0];
+        const baseInfo = unitsData && unitsData.base_components && unitsData.base_components[b];
+        if (baseInfo) {
+          return [
+            {
+              kind: "base",
+              key: b,
+              symbol: baseInfo.si_symbol,
+              name: baseInfo.name,
+              power: 1
+            }
+          ];
+        }
+      }
+      // fallback: уже локализованные строки как «символ»
+      return [
+        {
+          kind: "named",
+          key: dim,
+          symbol: [r.symbol, r.symbol],
+          name: [r.name, r.name],
+          power: 1
+        }
+      ];
+    }
+    return [];
+  }
+
+  function mergeUnitParts(parts) {
+    const map = Object.create(null);
+    const order = [];
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (!p || !p.power) continue;
+      const sk = (p.kind || "") + "|" + (p.key || "") + "|" + pick(p.symbol, "en");
+      if (!map[sk]) {
+        map[sk] = {
+          kind: p.kind,
+          key: p.key,
+          symbol: p.symbol,
+          name: p.name,
+          power: 0
+        };
+        order.push(sk);
+      }
+      map[sk].power += p.power;
+    }
+    return order
+      .map(function (sk) {
+        return map[sk];
+      })
+      .filter(function (p) {
+        return p.power;
+      });
+  }
+
+  /**
+   * Выразить единицу qid из закона с defines_unit.
+   * Уравнение → все факторы в одну сторону; изолируем operand с ±1.
+   * Единицы остальных операндов — через formatUnit(dim) (без рекурсии formula).
+   */
+  function unitFromDefiningLaw(qid, ctx) {
+    ctx = ctx || {};
+    const hit = findDefiningUnitLaw(qid, ctx.formulasData);
+    if (!hit) return null;
+    const law = hit.law;
+    const targetOid = hit.operandId;
+    const structures = getStructuresList(ctx.structuresData);
+    const struct = structures.find(function (s) {
+      return s && s.id === law.structure_ref;
+    });
+    if (!struct || !struct.ast || struct.ast.op !== "eq") return null;
+
+    const factors = [];
+    collectMulDivFactors(struct.ast.lhs, +1, factors);
+    collectMulDivFactors(struct.ast.rhs, -1, factors);
+
+    const byOid = Object.create(null);
+    for (let i = 0; i < factors.length; i++) {
+      const f = factors[i];
+      if (!f.operand_id) continue;
+      byOid[f.operand_id] = (byOid[f.operand_id] || 0) + f.power;
+    }
+    const tp = byOid[targetOid];
+    if (!tp || Math.abs(tp) !== 1) return null;
+
+    const quantById = indexQuantities(ctx.quantData);
+    const lang = ctx.lang === "en" ? "en" : "ru";
+    const unitsData = ctx.unitsData;
+    const bindings = law.bindings || {};
+    const scaled = [];
+
+    for (const oid of Object.keys(byOid)) {
+      if (oid === targetOid) continue;
+      const pow = byOid[oid];
+      if (!pow) continue;
+      const b = bindings[oid];
+      if (!b || !b.quantity) continue;
+      const q = quantById[b.quantity];
+      if (!q || !q.dimension) continue;
+      const scale = -pow / tp;
+      const parts = unitPartsForDim(q.dimension, unitsData, lang);
+      for (let j = 0; j < parts.length; j++) {
+        const p = parts[j];
+        scaled.push({
+          kind: p.kind,
+          key: p.key,
+          symbol: p.symbol,
+          name: p.name,
+          power: p.power * scale
+        });
+      }
+    }
+
+    const merged = mergeUnitParts(scaled);
+    if (!merged.length) return null;
+    return {
+      symbol: formatPartsSymbol(merged, lang),
+      name: formatPartsName(merged, lang),
+      kind: "from_formula",
+      parts: merged,
+      law_id: law.law_id,
+      structure_ref: law.structure_ref
+    };
+  }
+
+  /**
+   * Единица величины: defines_unit-формула → иначе сухой dim (formatUnit).
+   * ctx: { unitsData, formulasData, structuresData, quantData, lang, preferRole }
+   */
+  function formatUnitForQuantity(qid, dim, ctx) {
+    ctx = ctx || {};
+    const lang = ctx.lang === "en" ? "en" : "ru";
+    if (qid && ctx.formulasData && ctx.structuresData && ctx.quantData) {
+      const fromLaw = unitFromDefiningLaw(qid, {
+        formulasData: ctx.formulasData,
+        structuresData: ctx.structuresData,
+        quantData: ctx.quantData,
+        unitsData: ctx.unitsData,
+        lang: lang
+      });
+      if (fromLaw) return fromLaw;
+    }
+    return formatUnit(dim, ctx.unitsData, lang, { preferRole: ctx.preferRole });
   }
 
 
@@ -1524,6 +1824,9 @@
     parseDimension: parseDimension,
     vecToKey: vecToKey,
     formatUnit: formatUnit,
+    formatUnitForQuantity: formatUnitForQuantity,
+    findDefiningUnitLaw: findDefiningUnitLaw,
+    unitFromDefiningLaw: unitFromDefiningLaw,
     listNamedUnits: listNamedUnits,
     factorDimension: factorDimension,
     pick: pick,

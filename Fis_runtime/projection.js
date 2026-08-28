@@ -193,7 +193,12 @@
 
   function namedUnitsSorted(dim, unitsData, system) {
     if (window.FisUnits && unitsData?.named) {
-      const list = unitsData.named[dim] || [];
+      // v0.14: named — массив { dimension, … }; legacy: объект dim → []
+      const list = Array.isArray(unitsData.named)
+        ? unitsData.named.filter(function (x) {
+            return x && x.dimension === dim;
+          })
+        : unitsData.named[dim] || [];
       return [...list].sort((a, b) => {
         const fa = a.factor != null ? a.factor : 1;
         const fb = b.factor != null ? b.factor : 1;
@@ -217,15 +222,31 @@
 
   /**
    * Каноническая единица для заголовка (СИ, язык):
-   * formatUnit(dim) → named или composed с делением (m/s, м³/(кг·с²)), не value_unit.
+   * formatUnitForQuantity (defines_unit) → иначе formatUnit(dim).
    * value_unit — устаревшая латинская строка со степенями; не используем в UI.
    */
-  function primaryUnitSymbol(dim, unitsData, lang, quantity) {
+  function primaryUnitSymbol(dim, unitsData, lang, quantity, data) {
     if (!dim) return null;
     if (window.FisUnits) {
-      const r = window.FisUnits.formatUnit(dim, unitsData, lang);
-      if (r.kind === "dimensionless") return null;
-      return r.symbol || null;
+      let r;
+      if (
+        quantity &&
+        quantity.id &&
+        data &&
+        typeof window.FisUnits.formatUnitForQuantity === "function"
+      ) {
+        r = window.FisUnits.formatUnitForQuantity(quantity.id, dim, {
+          unitsData: unitsData,
+          formulasData: data.physi_formulas || data.formulas,
+          structuresData: data.AST || data.structures || data.ast,
+          quantData: data.physi_quant,
+          lang: lang || "ru"
+        });
+      } else {
+        r = window.FisUnits.formatUnit(dim, unitsData, lang);
+      }
+      if (r && r.kind === "dimensionless") return null;
+      return (r && r.symbol) || null;
     }
     const named = namedUnitsSorted(dim, unitsData, "SI");
     if (named.length) {
@@ -365,7 +386,7 @@
     return [];
   }
 
-  /** SI unit symbol for quantity id via units.json (FisUnits.formatUnit). */
+  /** SI unit symbol for quantity id (defines_unit formula → else dim). */
   function unitSymbolForQid(qid, data, lang) {
     if (!qid || !data) return "";
     const flat = flattenQuantities(data.physi_quant);
@@ -373,14 +394,26 @@
       return x.id === qid;
     });
     if (!q || !q.dimension) return "";
-    if (window.FisUnits && typeof window.FisUnits.formatUnit === "function") {
+    if (window.FisUnits) {
       try {
-        const r = window.FisUnits.formatUnit(
-          q.dimension,
-          data.units,
-          lang || "ru"
-        );
-        return (r && r.symbol) || "";
+        if (typeof window.FisUnits.formatUnitForQuantity === "function") {
+          const r = window.FisUnits.formatUnitForQuantity(qid, q.dimension, {
+            unitsData: data.units,
+            formulasData: data.physi_formulas || data.formulas,
+            structuresData: data.AST || data.structures || data.ast,
+            quantData: data.physi_quant,
+            lang: lang || "ru"
+          });
+          return (r && r.symbol) || "";
+        }
+        if (typeof window.FisUnits.formatUnit === "function") {
+          const r = window.FisUnits.formatUnit(
+            q.dimension,
+            data.units,
+            lang || "ru"
+          );
+          return (r && r.symbol) || "";
+        }
       } catch (e) {
         return "";
       }
@@ -501,7 +534,7 @@
 
       if (!derived.unit_symbol) {
         // unit_sys selects system; only SI has full coverage for now
-        const u = primaryUnitSymbol(q.dimension, data.units, lang, q);
+        const u = primaryUnitSymbol(q.dimension, data.units, lang, q, data);
         if (u) derived.unit_symbol = u;
         if (unitSys && unitSys !== "SI" && unitSys !== "SI_named" && unitSys !== "SI_comp") {
           // CGS / natural: mark system; values still SI until unit graphs exist
@@ -522,7 +555,24 @@
         if (namedMeaningful.length) {
           derived.unit_name = namedMeaningful.map((u) => pickName(u.name, lang)).join(", ");
         } else if (q.dimension && q.dimension !== "[1]") {
-          const fullName = composeUnitName(q.dimension, data.units, lang);
+          let fullName = null;
+          if (
+            q.id &&
+            window.FisUnits &&
+            typeof window.FisUnits.formatUnitForQuantity === "function"
+          ) {
+            try {
+              const ru = window.FisUnits.formatUnitForQuantity(q.id, q.dimension, {
+                unitsData: data.units,
+                formulasData: data.physi_formulas || data.formulas,
+                structuresData: data.AST || data.structures || data.ast,
+                quantData: data.physi_quant,
+                lang: lang
+              });
+              if (ru && ru.name) fullName = ru.name;
+            } catch (e) {}
+          }
+          if (!fullName) fullName = composeUnitName(q.dimension, data.units, lang);
           if (fullName) derived.unit_name = fullName;
         }
       }
@@ -808,7 +858,6 @@
         svgHtml = window.ConstructLayout.toSVG(layoutModel, {
           viewportW: 480,
           viewportH: 320,
-          pad: 16,
           showLabels: true
         });
       }
