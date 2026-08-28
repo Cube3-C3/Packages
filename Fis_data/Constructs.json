@@ -1,6 +1,6 @@
 {
-  "schema_version": "0.7.0",
-  "description": "Элементы с position в координатах среды E0. Каркас C = массив этих позиций. Линии не хранятся — считаются port→port. quantities на экземпляре: quantity=ID из physi_quant, value — число для текущего просмотра/симуляции (дефолт из physi_comps).",
+  "schema_version": "0.8.0",
+  "description": "Элементы с position в E0. formula_needs: [{quantity, role?, count≥1}] — запрос связанных формул (роли на совпадение обозначений; count≥2 — общие узлы k₁,k₂…).",
   "constructions": [
     {
       "id": "C1",
@@ -17,7 +17,7 @@
           "role": "support",
           "position": [
             120,
-            280
+            220
           ],
           "quantities": {},
           "rotation": 270
@@ -28,7 +28,7 @@
           "role": "spring_1",
           "position": [
             120,
-            210
+            150
           ],
           "quantities": {
             "k": {
@@ -52,7 +52,7 @@
           "role": "spring_2",
           "position": [
             120,
-            145
+            85
           ],
           "quantities": {
             "k": {
@@ -140,6 +140,44 @@
               "port": "attach"
             }
           }
+        }
+      ],
+      "formula_needs": [
+        {
+          "quantity": "Q013",
+          "role": "spring_constant",
+          "count": 2
+        },
+        {
+          "quantity": "Q008",
+          "count": 2,
+          "roles": [
+            "natural_length",
+            "length",
+            "coordinate",
+            "extension",
+            "path_length"
+          ]
+        },
+        {
+          "quantity": "Q003",
+          "role": "mass",
+          "count": 1
+        },
+        {
+          "quantity": "Q004",
+          "role": "force",
+          "count": 1
+        },
+        {
+          "quantity": "Q001",
+          "role": "energy",
+          "count": 1
+        },
+        {
+          "quantity": "Q007",
+          "role": "period",
+          "count": 1
         }
       ]
     },
@@ -275,6 +313,337 @@
             "toward": "mass1",
             "toward_port": "attach",
             "attach": "center"
+          }
+        }
+      ],
+      "formula_needs": [
+        {
+          "quantity": "Q013",
+          "role": "spring_constant",
+          "count": 2
+        },
+        {
+          "quantity": "Q008",
+          "count": 2,
+          "roles": [
+            "natural_length",
+            "length",
+            "coordinate",
+            "extension",
+            "path_length"
+          ]
+        },
+        {
+          "quantity": "Q003",
+          "role": "mass",
+          "count": 1
+        },
+        {
+          "quantity": "Q004",
+          "role": "force",
+          "count": 1
+        },
+        {
+          "quantity": "Q001",
+          "role": "energy",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "F",
+      "name": [
+        "force on spring",
+        "сила на пружине"
+      ],
+      "environment": "E0",
+      "description": "Тест: стена — пружина — груз. formula_needs с count≥1; роли force/spring_constant/length.",
+      "formula_needs": [
+        {
+          "quantity": "Q004",
+          "role": "force",
+          "count": 1
+        },
+        {
+          "quantity": "Q013",
+          "role": "spring_constant",
+          "count": 1
+        },
+        {
+          "quantity": "Q008",
+          "count": 1,
+          "roles": [
+            "natural_length",
+            "length",
+            "coordinate",
+            "extension",
+            "path_length"
+          ]
+        },
+        {
+          "quantity": "Q003",
+          "role": "mass",
+          "count": 1
+        },
+        {
+          "quantity": "Q006",
+          "role": "acceleration",
+          "count": 1
+        }
+      ],
+      "elements": [
+        {
+          "id": "wall1",
+          "component": "E003",
+          "role": "support",
+          "position": [
+            120,
+            220
+          ],
+          "quantities": {},
+          "rotation": 270
+        },
+        {
+          "id": "spr1",
+          "component": "E001",
+          "role": "spring",
+          "position": [
+            120,
+            120
+          ],
+          "quantities": {
+            "k": {
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 100,
+              "unit": "N/m"
+            },
+            "L": {
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.25,
+              "unit": "m"
+            },
+            "x": {
+              "quantity": "Q008",
+              "role": "extension",
+              "value": 0.05,
+              "unit": "m"
+            }
+          },
+          "rotation": 270
+        },
+        {
+          "id": "mass1",
+          "component": "E002",
+          "role": "load",
+          "position": [
+            120,
+            30
+          ],
+          "quantities": {
+            "m": {
+              "quantity": "Q003",
+              "role": "mass",
+              "value": 0.5,
+              "unit": "kg"
+            }
+          },
+          "rotation": 270
+        }
+      ],
+      "relations": [
+        {
+          "id": "L0",
+          "structure_ref": "R_ATTACH",
+          "line_ref": "L_SEGMENT",
+          "bindings": {
+            "S1": {
+              "element": "wall1",
+              "port": "attach"
+            },
+            "S2": {
+              "element": "spr1",
+              "port": "end_a"
+            }
+          }
+        },
+        {
+          "id": "L1",
+          "structure_ref": "R_ATTACH",
+          "line_ref": "L_SEGMENT",
+          "bindings": {
+            "S1": {
+              "element": "spr1",
+              "port": "end_b"
+            },
+            "S2": {
+              "element": "mass1",
+              "port": "attach"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "N",
+      "name": [
+        "N springs in series",
+        "N пружин последовательно"
+      ],
+      "environment": "E0",
+      "description": "Тест: count=2 для k и L₀ — общие узлы величин; формулы с ролями spring_constant / natural_length.",
+      "formula_needs": [
+        {
+          "quantity": "Q013",
+          "role": "spring_constant",
+          "count": 2
+        },
+        {
+          "quantity": "Q008",
+          "count": 2,
+          "roles": [
+            "natural_length",
+            "length",
+            "coordinate",
+            "extension",
+            "path_length"
+          ]
+        },
+        {
+          "quantity": "Q004",
+          "role": "force",
+          "count": 1
+        },
+        {
+          "quantity": "Q003",
+          "role": "mass",
+          "count": 1
+        }
+      ],
+      "elements": [
+        {
+          "id": "wall1",
+          "component": "E003",
+          "role": "support",
+          "position": [
+            120,
+            240
+          ],
+          "quantities": {},
+          "rotation": 270
+        },
+        {
+          "id": "spr1",
+          "component": "E001",
+          "role": "spring_1",
+          "position": [
+            120,
+            170
+          ],
+          "quantities": {
+            "k": {
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 90,
+              "unit": "N/m"
+            },
+            "L": {
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.15,
+              "unit": "m"
+            }
+          },
+          "rotation": 270
+        },
+        {
+          "id": "spr2",
+          "component": "E001",
+          "role": "spring_2",
+          "position": [
+            120,
+            100
+          ],
+          "quantities": {
+            "k": {
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 110,
+              "unit": "N/m"
+            },
+            "L": {
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.15,
+              "unit": "m"
+            }
+          },
+          "rotation": 270
+        },
+        {
+          "id": "mass1",
+          "component": "E002",
+          "role": "load",
+          "position": [
+            120,
+            30
+          ],
+          "quantities": {
+            "m": {
+              "quantity": "Q003",
+              "role": "mass",
+              "value": 0.6,
+              "unit": "kg"
+            }
+          },
+          "rotation": 270
+        }
+      ],
+      "relations": [
+        {
+          "id": "L0",
+          "structure_ref": "R_ATTACH",
+          "line_ref": "L_SEGMENT",
+          "bindings": {
+            "S1": {
+              "element": "wall1",
+              "port": "attach"
+            },
+            "S2": {
+              "element": "spr1",
+              "port": "end_a"
+            }
+          }
+        },
+        {
+          "id": "L1",
+          "structure_ref": "R_SERIES",
+          "line_ref": "L_SEGMENT",
+          "bindings": {
+            "S1": {
+              "element": "spr1",
+              "port": "end_b"
+            },
+            "S2": {
+              "element": "spr2",
+              "port": "end_a"
+            }
+          }
+        },
+        {
+          "id": "L2",
+          "structure_ref": "R_ATTACH",
+          "line_ref": "L_SEGMENT",
+          "bindings": {
+            "S1": {
+              "element": "spr2",
+              "port": "end_b"
+            },
+            "S2": {
+              "element": "mass1",
+              "port": "attach"
+            }
           }
         }
       ]
