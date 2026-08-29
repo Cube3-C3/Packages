@@ -258,17 +258,52 @@
     return composeUnitSymbol(dim, unitsData, lang);
   }
 
-  function formatConstValue(v) {
+  /**
+   * Значение константы. Для иррациональных (exact=false): до 8 знаков после
+   * запятой; с 5-го знака — градиент затухания (увеличение прозрачности).
+   * Возвращает HTML (rawHtml в const_mode).
+   */
+  function formatConstValue(v, meta) {
     if (v == null) return "";
-    if (typeof v === "string") return v;
-    if (typeof v !== "number") return String(v);
+    if (typeof v === "string") return escapeHtml(v);
+    if (typeof v !== "number") return escapeHtml(String(v));
     if (v === 0) return "0";
     if (Number.isInteger(v)) return String(v);
     const abs = Math.abs(v);
     if (abs !== 0 && (abs >= 1e6 || abs < 1e-3)) {
-      return v.toExponential(8).replace(/e\+?/g, "e");
+      return escapeHtml(v.toExponential(8).replace(/e\+?/g, "e"));
     }
-    return v.toPrecision(12).replace(/(\.\d*?[1-9])0+$/, "$1").replace(/\.$/, "");
+    const exact = meta && meta.exact === true;
+    // 8 знаков после точки; фиксированная строка для стабильных позиций цифр
+    let plain = Math.abs(v).toFixed(8);
+    // убрать хвостовые нули только если exact или не нужен градиент
+    if (exact) {
+      plain = plain.replace(/(\.\d*?[1-9])0+$/, "$1").replace(/\.$/, "");
+      const sign = v < 0 ? "−" : "";
+      return escapeHtml(sign + plain);
+    }
+    // иррациональные: 3.1415 + fade(9)(2)(6)(5)
+    const sign = v < 0 ? "−" : "";
+    const dot = plain.indexOf(".");
+    if (dot < 0) return escapeHtml(sign + plain);
+    const intPart = plain.slice(0, dot);
+    const frac = plain.slice(dot + 1); // ровно 8 цифр
+    const solid = frac.slice(0, 4);
+    const fade = frac.slice(4, 8);
+    // opacity: 5-й → 0.72, 6-й → 0.52, 7-й → 0.32, 8-й → 0.16
+    const opacities = [0.72, 0.52, 0.32, 0.16];
+    let fadeHtml = "";
+    for (let i = 0; i < fade.length; i++) {
+      fadeHtml +=
+        '<span style="opacity:' +
+        opacities[i] +
+        '">' +
+        escapeHtml(fade[i]) +
+        "</span>";
+    }
+    return (
+      escapeHtml(sign + intPart + "." + solid) + fadeHtml
+    );
   }
 
   function isConstantQuantity(q) {
@@ -577,8 +612,8 @@
         }
       }
       if (isConst && q.value != null && !derived.const_value) {
-        // Число без единицы: единица — unit_symbol (СИ, lang, деление) синим, как у величин
-        derived.const_value = formatConstValue(q.value);
+        // Число без единицы; иррациональные — HTML с градиентом прозрачности
+        derived.const_value = formatConstValue(q.value, q);
       }
       if (!derived.usages_rows) {
         derived.usages_rows = usagesView.map((u) => {

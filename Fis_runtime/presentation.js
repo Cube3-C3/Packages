@@ -330,6 +330,12 @@
     const mode = compose.mode || "inline";
     const wrapper = compose.wrapper || "";
 
+    // Размерность [1]: строку системы единиц (СИ: …) не показываем
+    if (slotId === "unit_line") {
+      const dim = (ctx && ctx.q && ctx.q.dimension) || (ctx && ctx.derived && ctx.derived.dimension);
+      if (dim === "[1]") return "";
+    }
+
     if (mode === "usages_table") return renderUsagesTable(ctx, compose);
     if (mode === "formulas_list") return renderFormulasList(data, ctx, compose);
 

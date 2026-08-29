@@ -428,8 +428,11 @@
     return null;
   }
 
-  /** Собрать mul/div факторы: { operand_id, power } (числа пропускаем). */
-  function collectMulDivFactors(node, sign, out) {
+  /**
+   * Собрать mul/div/pow факторы: { operand_id, power }.
+   * bindings — для числовых показателей степени (O6: {num: -2}).
+   */
+  function collectMulDivFactors(node, sign, out, bindings) {
     if (!node || typeof node !== "object") return;
     if (node.operand_id) {
       out.push({ operand_id: node.operand_id, power: sign });
@@ -437,16 +440,30 @@
     }
     if (node.op === "mul") {
       const args = node.args || [];
-      for (let i = 0; i < args.length; i++) collectMulDivFactors(args[i], sign, out);
+      for (let i = 0; i < args.length; i++) collectMulDivFactors(args[i], sign, out, bindings);
       return;
     }
     if (node.op === "div") {
       const args = node.args || [];
-      if (args[0]) collectMulDivFactors(args[0], sign, out);
-      for (let i = 1; i < args.length; i++) collectMulDivFactors(args[i], -sign, out);
+      if (args[0]) collectMulDivFactors(args[0], sign, out, bindings);
+      for (let i = 1; i < args.length; i++) collectMulDivFactors(args[i], -sign, out, bindings);
       return;
     }
-    // pow / sqrt / sin … — не поддерживаем в unit-recovery v1
+    if (node.op === "pow") {
+      const args = node.args || [];
+      const base = args[0];
+      const expNode = args[1];
+      let exp = null;
+      if (expNode && typeof expNode.num === "number") exp = expNode.num;
+      else if (expNode && expNode.operand_id && bindings) {
+        const b = bindings[expNode.operand_id];
+        if (b && typeof b.num === "number") exp = b.num;
+      }
+      if (exp == null || !Number.isFinite(exp)) return;
+      if (base) collectMulDivFactors(base, sign * exp, out, bindings);
+      return;
+    }
+    // sqrt / sin … — не поддерживаем в unit-recovery v1
   }
 
   /**
@@ -555,8 +572,9 @@
     if (!resolved || !resolved.ast || resolved.ast.op !== "eq") return null;
 
     const factors = [];
-    collectMulDivFactors(resolved.ast.lhs, +1, factors);
-    collectMulDivFactors(resolved.ast.rhs, -1, factors);
+    const bindMap = law.bindings || {};
+    collectMulDivFactors(resolved.ast.lhs, +1, factors, bindMap);
+    collectMulDivFactors(resolved.ast.rhs, -1, factors, bindMap);
 
     const byOid = Object.create(null);
     for (let i = 0; i < factors.length; i++) {
@@ -835,9 +853,9 @@
         return [{ html: s, isNum: false, isOne: false, isDiv: inverted }];
       }
 
-      // parentP=0: дробь/сложный множитель без внешних скобок
-      // (раньше parentP=4 → prec(div)=3 < 4 → лишние (2/3) вокруг дроби-множителя)
-      const s = render(n, 0);
+      // parentP = PREC.mul (3): add/sub получают скобки как множители ((2k+1)·λ),
+      // div (prec=3) — без лишних скобок вокруг a/b.
+      const s = render(n, PREC.mul);
       if (!s) return [];
       return [{ html: s, isNum: false, isOne: false, isDiv: inverted }];
     }
@@ -1153,11 +1171,13 @@
     if (!role) return false;
     const r = String(role).toLowerCase();
     return (
-      /^(natural|initial|rest|equilibrium|zero|unloaded|undeformed)/.test(r) ||
+      /^(natural|initial|rest|equilibrium|zero|unloaded|undeformed|common|total|equivalent)/.test(r) ||
       /_(0|init|natural|rest|eq)$/.test(r) ||
       r.indexOf("natural_") === 0 ||
       r.indexOf("initial_") === 0 ||
-      r.indexOf("rest_") === 0
+      r.indexOf("rest_") === 0 ||
+      r.indexOf("common_") === 0 ||
+      r.indexOf("total_") === 0
     );
   }
 

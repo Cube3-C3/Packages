@@ -641,6 +641,14 @@
         const q = String((ctx && ctx.search) || "").trim().toLowerCase();
         const symbolMode = !!(ctx && ctx.symbolMode);
 
+        // Математика: законы и конструкции — не физический контент; списки пусты до появления math-данных
+        if (
+          subjectId === "mathematics" &&
+          (cardType === "formulas" || cardType === "construction")
+        ) {
+          return [];
+        }
+
         let rows = entitiesForCardType(data, cardType).filter(function (item) {
           if (cardType === "construction") return true;
           return matchesFilters(data, item, filters, cardType, subjectId);
