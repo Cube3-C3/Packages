@@ -150,7 +150,9 @@
       "source": {
         "from": "derived",
         "key": "const_value"
-      }
+      },
+      "rawHtml": true,
+      "notes": "HTML: градиент прозрачности для иррациональных"
     },
     "math_kind": {
       "label": [
