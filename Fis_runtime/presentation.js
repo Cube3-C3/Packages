@@ -138,11 +138,15 @@
       }
       const val = resolveValue(part.field, ctx, ontology);
       if (val == null || val === "") return;
+      const def = fieldDef(ontology, part.field);
+      const looksHtml =
+        typeof val === "string" &&
+        (val.indexOf("<span") >= 0 || val.indexOf("<sup") >= 0);
       bits.push(renderAtom(ontology, part.style || "title", val, {
         variant: part.variant,
         wrap: part.wrap,
         className: part.class || "",
-        rawHtml: !!part.rawHtml
+        rawHtml: !!(part.rawHtml || (def && def.rawHtml) || looksHtml)
       }));
     });
     return bits.join("");
@@ -330,10 +334,17 @@
     const mode = compose.mode || "inline";
     const wrapper = compose.wrapper || "";
 
-    // Размерность [1]: строку системы единиц (СИ: …) не показываем
+    // Размерность [1] (физ. и мат.): строку СИ не показываем.
+    // Также не показываем пустую «СИ: » / дубль, если нет unit_name.
     if (slotId === "unit_line") {
-      const dim = (ctx && ctx.q && ctx.q.dimension) || (ctx && ctx.derived && ctx.derived.dimension);
+      const q = (ctx && (ctx.quantity || ctx.q)) || null;
+      const dim =
+        (q && q.dimension) ||
+        (ctx && ctx.derived && ctx.derived.dimension) ||
+        null;
       if (dim === "[1]") return "";
+      const un = ctx && ctx.derived && ctx.derived.unit_name;
+      if (un == null || String(un).trim() === "") return "";
     }
 
     if (mode === "usages_table") return renderUsagesTable(ctx, compose);
