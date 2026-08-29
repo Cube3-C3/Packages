@@ -386,6 +386,20 @@
       partsSpec = compose.const_mode.parts;
     }
 
+    // unit_line: только полное имя. Игнор unit_symbol и « · » даже если
+    // ontology с GitHub ещё со старым шаблоном «СИ: Кл · кулон».
+    if (slotId === "unit_line" && Array.isArray(partsSpec)) {
+      partsSpec = partsSpec.filter(function (raw) {
+        const p = normalizePart(raw);
+        if (!p) return false;
+        if (p.field === "unit_symbol") return false;
+        if (p.literal != null && String(p.literal).replace(/\s/g, "") === "·") {
+          return false;
+        }
+        return true;
+      });
+    }
+
     if (mode === "stack") {
       const blocks = [];
       (partsSpec || []).forEach(function (part) {
