@@ -171,19 +171,6 @@
         ],
         "role": "flow_velocity",
         "notes": "Начальная или скорость потока"
-      },
-      {
-        "name_id": "S034",
-        "symbol": "v₀",
-        "name": [
-          "initial velocity",
-          "начальная скорость"
-        ],
-        "domains": [
-          "kinematics"
-        ],
-        "role": "initial_velocity",
-        "notes": "Начальная скорость"
       }
     ],
     "Q006": [
@@ -274,6 +261,19 @@
         ],
         "role": "coordinate",
         "notes": "Координата"
+      },
+      {
+        "name_id": "S101",
+        "symbol": "x",
+        "name": [
+          "initial coordinate",
+          "начальная координата"
+        ],
+        "domains": [
+          "kinematics"
+        ],
+        "role": "initial_coordinate",
+        "notes": "Начальная координата в x = x₀ + v·t"
       },
       {
         "name_id": "S009",
@@ -384,6 +384,21 @@
         ],
         "role": "wavelength",
         "notes": "Длина волны"
+      },
+      {
+        "name_id": "S102",
+        "symbol": "Δ",
+        "name": [
+          "path difference",
+          "разность хода"
+        ],
+        "domains": [
+          "optics",
+          "wave_optics",
+          "oscillations_and_waves"
+        ],
+        "role": "path_difference",
+        "notes": "Оптическая разность хода; в интерференции Δ = kλ, Δ = (2k+1)λ/2"
       },
       {
         "name_id": "S027",
@@ -1566,20 +1581,6 @@
         ],
         "role": "phase",
         "notes": "Фазовый угол гармонического колебания."
-      },
-      {
-        "name_id": "S046",
-        "symbol": "φ₀",
-        "name": [
-          "initial phase",
-          "начальная фаза"
-        ],
-        "domains": [
-          "oscillations",
-          "wave_physics"
-        ],
-        "role": "initial_phase",
-        "notes": "Начальная фаза в x = A sin(ωt + φ₀)."
       }
     ],
     "C008": [

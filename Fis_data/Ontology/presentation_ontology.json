@@ -325,7 +325,7 @@
               }
             ],
             "const_mode": {
-              "notes": "const_value — только число; unit_symbol — formatUnit(dim), lang+СИ, деление, class unit (синий) как у величин",
+              "notes": "const_value — HTML (градиент для иррациональных); unit_symbol — formatUnit(dim)",
               "parts": [
                 {
                   "field": "symbol",
@@ -340,7 +340,8 @@
                 {
                   "field": "const_value",
                   "style": "title",
-                  "class": "primary"
+                  "class": "primary",
+                  "rawHtml": true
                 },
                 {
                   "field": "unit_symbol",
@@ -362,7 +363,7 @@
             "id": "unit_line",
             "mode": "line",
             "wrapper": "unit-line",
-            "notes": "СИ: formatUnit(dim) — lang + деление (м³/(кг·с²)), class unit (синий). Не value_unit со степенями ⁻¹.",
+            "notes": "СИ: только полное имя единицы (метр / секунда²), без дубля-сокращения м/с².",
             "parts": [
               {
                 "literal": "СИ",
@@ -371,15 +372,6 @@
               },
               {
                 "literal": ": ",
-                "style": "muted"
-              },
-              {
-                "field": "unit_symbol",
-                "style": "symbol",
-                "class": "unit"
-              },
-              {
-                "literal": " · ",
                 "style": "muted"
               },
               {
@@ -508,7 +500,7 @@
               }
             ],
             "const_mode": {
-              "notes": "const_value — только число; unit_symbol — formatUnit(dim), lang+СИ, деление, class unit (синий) как у величин",
+              "notes": "const_value — HTML (градиент для иррациональных); unit_symbol — formatUnit(dim)",
               "parts": [
                 {
                   "field": "symbol",
@@ -523,7 +515,8 @@
                 {
                   "field": "const_value",
                   "style": "title",
-                  "class": "primary"
+                  "class": "primary",
+                  "rawHtml": true
                 },
                 {
                   "field": "unit_symbol",

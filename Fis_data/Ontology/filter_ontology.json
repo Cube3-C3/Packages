@@ -24,12 +24,6 @@
       "label": ["Physics", "Физика"],
       "sections": [
         {
-          "id": "general",
-          "label": ["General", "Общая физика"],
-          "match_domains": ["general"],
-          "notes": "Универсальные величины без узкой привязки"
-        },
-        {
           "id": "mechanics",
           "label": ["Mechanics", "Механика"],
           "match_domains": [
@@ -233,13 +227,13 @@
           "id": "law",
           "entity_kind": "formulas",
           "label": ["Identity / relation", "Тождество / соотношение"],
-          "notes": "Математические тождества и формулы (когда появятся в данных)"
+          "notes": "Математические тождества (не физические законы). Пока список пуст — физ. формулы исключены."
         },
         {
           "id": "construction",
           "entity_kind": "construction",
           "label": ["Construction", "Конструкция"],
-          "notes": "Геометрические построения, графики как объекты (Geo_style / позже)"
+          "notes": "Геометрические построения (не физ. конструкции). Пока список пуст — физ. C* исключены."
         }
       ],
       "side_filters": [

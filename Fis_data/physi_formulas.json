@@ -51,7 +51,7 @@
       },
       "O2": {
         "quantity": "Q008",
-        "role": "coordinate"
+        "role": "initial_coordinate"
       },
       "O3": {
         "quantity": "Q005",
@@ -125,7 +125,8 @@
       },
       "O2": {
         "quantity": "C003",
-        "role": "gravitational_constant"
+        "role": "gravitational_constant",
+        "defines_unit": true
       },
       "O3": {
         "quantity": "Q003",
@@ -683,7 +684,7 @@
     "bindings": {
       "O1": {
         "quantity": "Q038",
-        "role": "resistance"
+        "role": "common"
       },
       "O2": {
         "quantity": "Q038",
@@ -699,11 +700,11 @@
     "law_id": "PHY.EM.008",
     "name": "Последовательное соединение сопротивлений",
     "structure_ref": "A5",
-    "description": "R0 = R3 + R4",
+    "description": "R0 = R1 + R2",
     "bindings": {
       "O1": {
         "quantity": "Q038",
-        "role": "resistance"
+        "role": "common"
       },
       "O2": {
         "quantity": "Q038",
@@ -771,7 +772,7 @@
     "bindings": {
       "O1": {
         "quantity": "Q008",
-        "role": "path_length"
+        "role": "path_difference"
       },
       "O2": {
         "quantity": "Q044",
@@ -791,7 +792,7 @@
     "bindings": {
       "O1": {
         "quantity": "Q008",
-        "role": "path_length"
+        "role": "path_difference"
       },
       "O2": {
         "quantity": "Q044",
@@ -815,7 +816,8 @@
       },
       "O2": {
         "quantity": "C002",
-        "role": "planck_constant"
+        "role": "planck_constant",
+        "defines_unit": true
       },
       "O3": {
         "quantity": "Q037",
