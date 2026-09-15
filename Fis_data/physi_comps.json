@@ -1,6 +1,6 @@
 {
   "schema_version": "0.3.0",
-  "description": "Physical components. IDs = E*. E0 = school environment frame.",
+  "description": "Physical components. IDs = E*. kind=environment provides a Geo Frame (not a special coordinate case).",
   "components": {
     "E0": {
       "name": ["site / environment", "среда / площадка"],
@@ -30,7 +30,7 @@
       },
       "assumptions": ["homogeneous g", "no air drag", "rigid supports"],
       "initial_conditions": {},
-      "notes": "Школьная среда: origin + angle_ref = горизонталь вправо [1,0]. g → Q006, default 9.8 м/с² вниз."
+      "notes": "Провайдер Frame (Geo). origin/axes/angle_* → GeoCompute.frameFromEnv. Не особый случай координат: любой element kind=environment может предоставить Frame. g → Q006, default 9.8 м/с² вниз."
     },
     "E001": {
       "name": ["spring", "пружина"],

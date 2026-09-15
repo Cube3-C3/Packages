@@ -31,7 +31,7 @@
     const name = String(fileName || "").toLowerCase();
     if (!json || typeof json !== "object") return pack;
 
-    if (json.base_components && (json.units || json.named || json.dimensions)) pack.units = json;
+    if (json.base_components && (json.named || json.dimensions)) pack.units = json;
     else if (json.quantities) pack.physi_quant = json;
     else if (json.usages) pack.usages = json;
     else if (json.domains && !json.quantities) pack.domains = json;
@@ -429,9 +429,16 @@
       } else if (key === "structure" || collect === "structure_ref") {
         if (String(item.structure_ref || item.structure || "") !== val) return false;
       } else if (key === "unit_sys" || collect === "unit_sys") {
-        // SI — канон; CGS/natural — оверлей на отображение/пересчёт, НЕ ворота списка.
-        // Нетронутые величины остаются доступны (показ в СИ). Никогда не exclude по unit_sys.
-        return true;
+        // v0.4: system choice (SI / CGS / natural). Non-SI systems have no full
+        // coverage yet — keep all items visible; filter tightens when data exists.
+        if (val === "SI_named" || val === "SI_comp") {
+          const dim = item.dimension;
+          const named = data.units && data.units.named && data.units.named[dim];
+          const hasNamed = Array.isArray(named) && named.length > 0;
+          if (val === "SI_named" && !hasNamed) return false;
+          if (val === "SI_comp" && hasNamed) return false;
+        }
+        // SI / CGS / natural: no hard exclude until unit graphs per system exist
       }
     }
     return true;

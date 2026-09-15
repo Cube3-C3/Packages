@@ -143,10 +143,7 @@
 
   function unitsForDimension(unitsData, dim) {
     if (!unitsData) return null;
-    // v0.15: units[dim] = scales[]; legacy named[dim] / dimensions[dim]
-    if (unitsData.units && Array.isArray(unitsData.units[dim])) {
-      return { units: { SI: unitsData.units[dim] } };
-    }
+    // v0.12+: named[dim]; legacy: dimensions[dim]
     if (unitsData.named && unitsData.named[dim]) {
       return { units: { SI: unitsData.named[dim] } };
     }
@@ -195,7 +192,13 @@
   }
 
   function namedUnitsSorted(dim, unitsData, system) {
-    function sortScales(list) {
+    if (window.FisUnits && unitsData?.named) {
+      // v0.14: named — массив { dimension, … }; legacy: объект dim → []
+      const list = Array.isArray(unitsData.named)
+        ? unitsData.named.filter(function (x) {
+            return x && x.dimension === dim;
+          })
+        : unitsData.named[dim] || [];
       return [...list].sort((a, b) => {
         const fa = a.factor != null ? a.factor : 1;
         const fb = b.factor != null ? b.factor : 1;
@@ -205,21 +208,16 @@
         return score(fa, oa) - score(fb, ob);
       });
     }
-    // v0.15: units[dim]; legacy named array / named[dim]
-    if (unitsData?.units && Array.isArray(unitsData.units[dim])) {
-      return sortScales(unitsData.units[dim]);
-    }
-    if (unitsData?.named) {
-      const list = Array.isArray(unitsData.named)
-        ? unitsData.named.filter(function (x) {
-            return x && x.dimension === dim;
-          })
-        : unitsData.named[dim] || [];
-      return sortScales(list);
-    }
     const info = unitsForDimension(unitsData, dim);
     const list = info?.units?.[system || "SI"] || [];
-    return sortScales(list);
+    return [...list].sort((a, b) => {
+      const fa = a.factor != null ? a.factor : 1;
+      const fb = b.factor != null ? b.factor : 1;
+      const oa = a.offset != null ? a.offset : 0;
+      const ob = b.offset != null ? b.offset : 0;
+      const score = (f, o) => (Math.abs(f - 1) < 1e-9 && Math.abs(o) < 1e-9 ? 0 : 1) + Math.abs(o) * 1e-6 + Math.abs(f - 1);
+      return score(fa, oa) - score(fb, ob);
+    });
   }
 
   /**
@@ -492,12 +490,7 @@
         id: "construction_passport",
         label: ["Construction passport", "Паспорт конструкции"],
         entity_kinds: ["construction"],
-        slots: [
-          "construction_header",
-          "construction_env",
-          "construction_formulas",
-          "construction_graph"
-        ]
+        slots: ["construction_header", "construction_env", "construction_formulas"]
       }
     };
   }
@@ -554,9 +547,7 @@
     const filters = (state && state.filters) || (ctx.filters) || {};
     const subjectId = (state && state.subject) || filterVal(filters, "subject") || "physics";
     const sectionId = filterVal(filters, "section");
-    // Запрос рендера: явный state.unit_sys или top-filter unit_sys (СИ по умолчанию)
-    const unitSys =
-      (state && state.unit_sys) || filterVal(filters, "unit_sys") || "SI";
+    const unitSys = filterVal(filters, "unit_sys");
     // Section-filtered usages for header symbol/name and table (fallback: all)
     let usagesView = usages || [];
 
@@ -577,54 +568,12 @@
       }
 
       if (!derived.unit_symbol) {
-        // unit_sys → group atomic scale symbol when dimension is pure base in that group
-        let u = null;
-        if (
-          unitSys &&
-          unitSys !== "SI" &&
-          unitSys !== "SI_named" &&
-          unitSys !== "SI_comp" &&
-          window.FisUnits &&
-          typeof window.FisUnits.groupIdForUnitSys === "function" &&
-          typeof window.FisUnits.atomicScalesForGroup === "function"
-        ) {
-          try {
-            const gid = window.FisUnits.groupIdForUnitSys(unitSys);
-            const byBase = window.FisUnits.atomicScalesForGroup(data.units, gid);
-            const vec = window.FisUnits.parseDimension(q.dimension || "");
-            const keys = Object.keys(vec).filter(function (b) {
-              return vec[b];
-            });
-            if (keys.length === 1 && vec[keys[0]] === 1 && byBase[keys[0]]) {
-              const sc = byBase[keys[0]];
-              if (
-                sc.composed &&
-                typeof window.FisUnits.assembleScaleLabel === "function"
-              ) {
-                const lab = window.FisUnits.assembleScaleLabel(
-                  sc,
-                  data.units,
-                  lang
-                );
-                u = lab.symbol || "";
-                if (lab.name) derived.unit_name = lab.name;
-              } else {
-                u = Array.isArray(sc.symbol)
-                  ? pickName(sc.symbol, lang)
-                  : String(sc.symbol || "");
-                if (sc.name) {
-                  derived.unit_name = Array.isArray(sc.name)
-                    ? pickName(sc.name, lang)
-                    : String(sc.name);
-                }
-              }
-            }
-          } catch (e) {}
-        }
-        if (!u) u = primaryUnitSymbol(q.dimension, data.units, lang, q, data);
+        // unit_sys selects system; only SI has full coverage for now
+        const u = primaryUnitSymbol(q.dimension, data.units, lang, q, data);
         if (u) derived.unit_symbol = u;
         if (unitSys && unitSys !== "SI" && unitSys !== "SI_named" && unitSys !== "SI_comp") {
-          derived.unit_sys_note = derived.unit_sys_note || unitSys;
+          // CGS / natural: mark system; values still SI until unit graphs exist
+          derived.unit_sys_note = unitSys;
         }
       }
       if (!derived.unit_name) {
@@ -663,39 +612,8 @@
         }
       }
       if (isConst && q.value != null && !derived.const_value) {
-        // Канон в q.value (СИ). unit_sys фильтра рендера → пересчёт / конвенция.
-        let num = q.value;
-        let valueMeta = q;
-        if (
-          window.FisUnits &&
-          typeof window.FisUnits.constNumericForSystem === "function"
-        ) {
-          try {
-            const conv = window.FisUnits.constNumericForSystem(
-              q,
-              data.units,
-              unitSys
-            );
-            if (conv && conv.numeric != null) num = conv.numeric;
-            if (conv && conv.system && conv.system !== "SI") {
-              derived.unit_sys_note = conv.note || conv.system;
-            }
-            if (conv && conv.convention) {
-              valueMeta = Object.assign({}, q, { exact: true });
-              // c ≡ 1 и аналоги: без размерной единицы в шапке
-              derived.unit_symbol = "1";
-              derived.unit_name = derived.unit_sys_note || conv.system;
-            }
-          } catch (e) {}
-        } else if (
-          unitSys &&
-          unitSys !== "SI" &&
-          unitSys !== "SI_named" &&
-          unitSys !== "SI_comp"
-        ) {
-          derived.unit_sys_note = unitSys;
-        }
-        derived.const_value = formatConstValue(num, valueMeta);
+        // Число без единицы; иррациональные — HTML с градиентом прозрачности
+        derived.const_value = formatConstValue(q.value, q);
       }
       if (!derived.usages_rows) {
         derived.usages_rows = usagesView.map((u) => {
@@ -1048,18 +966,6 @@
         qtyRows;
     }
 
-    // related formula ids for graph selector (variant A)
-    const relatedLawOptions = [];
-    (related || []).forEach(function (f) {
-      const id = f.id || f.law_id;
-      if (!id) return;
-      const nm =
-        (Array.isArray(f.name) ? f.name[lang === "en" ? 0 : 1] || f.name[0] : f.name) ||
-        id;
-      relatedLawOptions.push({ id: String(id), name: String(nm), structure_ref: f.structure_ref || "" });
-    });
-    const defaultLawId = relatedLawOptions.length ? relatedLawOptions[0].id : "";
-
     let formulasHtml = "";
     if (related.length) {
       formulasHtml = '<ul class="formulas-list">';
@@ -1107,23 +1013,6 @@
       (qtyRows ? `<div style="margin-top:10px">${qtyRows}</div>` : "") +
       `</div>` +
       `<div class="section" style="margin-top:16px"><h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "Формулы" : "Formulas"}</h3>${formulasHtml}</div>` +
-      // construction_graph (variant A): host for GeoCompute.attachLawGraph + formula select
-      `<div class="section construction-graph-section" style="margin-top:16px" data-construction-graph="1" data-default-law-id="${escapeHtml(defaultLawId)}">` +
-      `<h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "График" : "Graph"}</h3>` +
-      (relatedLawOptions.length
-        ? `<label style="font-size:0.8rem;display:flex;gap:8px;align-items:center;margin-bottom:8px">` +
-          `<span class="pres-muted">${lang === "ru" ? "Формула" : "Formula"}</span>` +
-          `<select class="construction-graph-formula-select" style="font-size:0.85rem;max-width:100%">` +
-          relatedLawOptions
-            .map(function (o, i) {
-              return (
-                `<option value="${escapeHtml(o.id)}"${i === 0 ? " selected" : ""}>${escapeHtml(o.name)} (${escapeHtml(o.id)})</option>`
-              );
-            })
-            .join("") +
-          `</select></label>`
-        : `<div class="pres-muted" style="font-size:0.85rem">${lang === "ru" ? "Нет формулы для графика" : "No formula for graph"}</div>`) +
-      `</div>` +
       `</div>`;
   }
 
@@ -1175,7 +1064,7 @@
       html += `<div class="section"><div class="card"><div class="value pres-muted">${escapeHtml(law.description || law.structure_ref || "")}</div></div></div>`;
     }
 
-    // график больше не в паспорте формулы (перенесён в construction_passport, вариант A)
+    // график — платформа: GeoCompute.attachLawGraph после render_passport
     html += `</div>`;
     container.innerHTML = html;
   }

@@ -3,18 +3,16 @@
  * Host: window.ConstructLayout
  *
  * Вход: construction (из Constructs.json) + пакет данных
- *   { relation_types, components (physi_comps), assets (registry), environment }
+ *   { relation_types, components (physi_comps), assets (registry), environment E0 }
  *
  * Выход: layout model
  *   {
- *     origin, axes, frame (Geo Frame), bounds,
+ *     origin: [0,0], axes, bounds,
  *     nodes: [{ id, component, role, x, y, w, h, asset, anchor, quantities }],
  *     edges: [{ id, structure_ref, from, to, x1,y1,x2,y2 }]
  *   }
  *
- * Координаты — math-space Frame (y-up). Environment (E0) только предоставляет Frame
- * через GeoCompute.frameFromEnv; toSVG → GeoCompute.toScreen. Линии port→port, не хранятся.
- * Требует: window.GeoCompute (загружать geo_compute.js до этого модуля).
+ * position элемента = центр в координатах среды E0 (x→right, y→up). Линии не хранятся — port→port.
  */
 (function (global) {
   "use strict";
@@ -173,7 +171,7 @@
   }
 
 
-  function envFrame(componentsMap, envId, viewportOpts) {
+  function envFrame(componentsMap, envId) {
     const e = componentsMap[envId || "E0"] || {};
     const gRaw = e.g || {};
     // g всегда адресуется к Q006 (free-fall acceleration); value — текущее для просмотра/симуляции
@@ -184,11 +182,6 @@
       unit: gRaw.unit || "m/s^2",
       direction: gRaw.direction || "down"
     };
-    // Frame из Geo-слоя: E0 — провайдер Frame, не особый случай координатной логики.
-    let frame = null;
-    if (global.GeoCompute && typeof global.GeoCompute.frameFromEnv === "function") {
-      frame = global.GeoCompute.frameFromEnv(e, viewportOpts || {});
-    }
     return {
       origin: Array.isArray(e.origin) ? e.origin.slice() : [0, 0],
       origin_corner: e.origin_corner || "bottom_left",
@@ -199,9 +192,7 @@
       g: g,
       quantities: e.quantities || { g: { quantity: g.quantity, role: g.role, value: g.value, unit: g.unit } },
       assumptions: e.assumptions || [],
-      initial_conditions: e.initial_conditions || {},
-      // единый Frame (Geo). toScreen/fromScreen — через него.
-      frame: frame
+      initial_conditions: e.initial_conditions || {}
     };
   }
 
@@ -690,8 +681,6 @@
       origin: env.origin,
       axes: env.axes,
       g: env.g,
-      // Frame из Geo (E0 — провайдер). Единая math↔screen логика.
-      frame: env.frame || null,
       symbols: symbolMap,
       rotation_deg: 0,
       bounds: {
@@ -805,35 +794,15 @@
     const oX = Number(origin[0]) || 0;
     const oY = Number(origin[1]) || 0;
 
-    // Единый Frame (Geo). Если есть — toScreen; иначе fallback (старое поведение, scale=1).
-    let frame = options.frame || (layoutModel && layoutModel.frame) || null;
-    if (frame && global.GeoCompute && typeof global.GeoCompute.setViewport === "function") {
-      frame = global.GeoCompute.setViewport(
-        global.GeoCompute.createFrame ? Object.assign({}, frame) : frame,
-        W,
-        H
-      );
-      // ensure scales default to 1 if unset
-      if (frame.scale_x == null) frame.scale_x = 1;
-      if (frame.scale_y == null) frame.scale_y = 1;
-    }
-
+    // math y-up, origin bottom-left of viewport → svg y-down; scale = 1
     function sx(x) {
-      if (frame && global.GeoCompute && typeof global.GeoCompute.toScreen === "function") {
-        const p = global.GeoCompute.toScreen(frame, { x: x, y: 0 });
-        return p ? p.x : x - oX;
-      }
       return x - oX;
     }
     function syPt(y) {
-      if (frame && global.GeoCompute && typeof global.GeoCompute.toScreen === "function") {
-        const p = global.GeoCompute.toScreen(frame, { x: 0, y: y });
-        return p ? p.y : H - (y - oY);
-      }
       return H - (y - oY);
     }
     function syTop(y, h) {
-      return syPt(y) - (h || 0);
+      return H - (y - oY) - (h || 0);
     }
 
     const strokeMain = 2.2;

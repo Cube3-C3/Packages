@@ -1,20 +1,17 @@
 /**
- * geo_compute.js — вычислительный слой геометрии + пайплайн «формула → данные кривой» (v0.2)
+ * geo_compute.js — вычислительный слой геометрии (канон runtime).
+ * Онтология сортов/ops: ../Geo_style/geo_core.json, geo_ops.json.
  *
- * Кривая: explicit / parametric. Точки не хранятся.
+ * Frame (единая координатная логика среда + график):
+ *   createFrame / frameFromEnv / toScreen / fromScreen / setScale / setViewport
+ *   E0 и др. kind=environment только предоставляют Frame; math y-up → screen через toScreen.
  *
- * Базовый API:
- *   GeoCompute.eval(curve, u) → {x,y}|null
- *   GeoCompute.sample(curve, opts) → [{x,y}, …]
- *   GeoCompute.nearest(curve, point, opts) → {u, point, dist, ok}|null
+ * Кривые:
+ *   eval / sample / nearest
+ *   curveFromAst → { curve, mapping, rebuilt, domain, values }
+ *   buildLawGraphPayload / attachLawGraph / drawPointsOnCanvas
  *
- * Пайплайн до данных для платформенного компонента графика:
- *   GeoCompute.curveFromAst(canonicalAst, { inputOperandId, outputOperandId, domain?, values? })
- *   → { curve, mapping, rebuilt, domain, values }
- *
- * Коэффициенты по умолчанию = 1 (пока). Уточнение под закономерности — позже.
- * Логика перестройки операндов — как в Packages/rebuild_ast.js:
- *   O1 = значение функции, On = аргумент.
+ * Коэффициенты по умолчанию = 1 (пока).
  */
 (function (global) {
   "use strict";
@@ -660,6 +657,179 @@
   }
 
   /**
+   * Собрать числовые величины конструкции (элементы + E0.g) → список {quantity, role, value}.
+   * componentsData опционален — подставляет default_value из шаблона E*.
+   */
+  function collectConstructionQuantityEntries(construction, componentsData) {
+    const entries = [];
+    if (!construction) return entries;
+    const comps =
+      (componentsData && (componentsData.components || componentsData)) || {};
+
+    // E0 / environment
+    const envId = construction.environment || "E0";
+    const envComp = comps[envId] || comps.E0 || {};
+    const gRaw = (envComp && envComp.g) || {};
+    const gVal =
+      gRaw.value != null
+        ? Number(gRaw.value)
+        : envComp.quantities && envComp.quantities.g && envComp.quantities.g.default_value != null
+          ? Number(envComp.quantities.g.default_value)
+          : 9.8;
+    entries.push({
+      key: "env.g",
+      quantity: String(gRaw.quantity || "Q006"),
+      role: gRaw.role || "free_fall_acceleration",
+      value: gVal
+    });
+
+    (construction.elements || []).forEach(function (el) {
+      if (!el) return;
+      const comp = comps[el.component] || {};
+      const defaults = (comp && comp.quantities) || {};
+      const inst = el.quantities || {};
+      const keys = Object.keys(defaults).concat(Object.keys(inst));
+      const seen = Object.create(null);
+      keys.forEach(function (k) {
+        if (seen[k]) return;
+        seen[k] = true;
+        const d = defaults[k] || {};
+        const v = inst[k] || {};
+        const qid = v.quantity || d.quantity;
+        if (!qid) return;
+        let num = null;
+        if (v.value != null && isFinite(Number(v.value))) num = Number(v.value);
+        else if (d.default_value != null && isFinite(Number(d.default_value)))
+          num = Number(d.default_value);
+        if (num == null) return;
+        entries.push({
+          key: (el.id || "?") + "." + k,
+          quantity: String(qid),
+          role: v.role || d.role || k,
+          value: num
+        });
+      });
+    });
+    return entries;
+  }
+
+  /**
+   * По law.bindings + construction → { values: {O2: number, …}, domain?, meta }.
+   * Свободный аргумент графика (последний O*) и O1 (результат) в values не кладём.
+   * Константы M* и C* — из physiQuant.value, если есть.
+   */
+  function valuesFromLawAndConstruction(law, construction, opts) {
+    opts = opts || {};
+    const out = { values: Object.create(null), domain: null, meta: [] };
+    if (!law || !law.bindings) return out;
+
+    const entries = collectConstructionQuantityEntries(
+      construction,
+      opts.components
+    );
+    const byQ = Object.create(null);
+    entries.forEach(function (e) {
+      if (!byQ[e.quantity]) byQ[e.quantity] = [];
+      byQ[e.quantity].push(e);
+    });
+
+    const physi =
+      (opts.physiQuant && (opts.physiQuant.quantities || opts.physiQuant)) ||
+      {};
+
+    const operandIds = Object.keys(law.bindings)
+      .filter(function (k) {
+        return /^O\d+$/.test(k);
+      })
+      .sort(function (a, b) {
+        return Number(a.slice(1)) - Number(b.slice(1));
+      });
+    if (operandIds.length < 2) return out;
+
+    const inputOperandId = operandIds[operandIds.length - 1];
+    const outputOperandId = "O1";
+
+    let lengthHint = null;
+
+    operandIds.forEach(function (oid) {
+      if (oid === inputOperandId || oid === outputOperandId) return;
+      const b = law.bindings[oid];
+      if (!b || typeof b !== "object") return;
+
+      if (b.num != null && isFinite(Number(b.num))) {
+        out.values[oid] = Number(b.num);
+        out.meta.push({ operand: oid, source: "literal", value: out.values[oid] });
+        return;
+      }
+
+      const qid = b.quantity ? String(b.quantity) : null;
+      if (!qid) return;
+
+      // math / physical constants in physi_quant
+      if (/^[MC]\d+/.test(qid) && physi[qid] && physi[qid].value != null) {
+        const cv = Number(physi[qid].value);
+        if (isFinite(cv)) {
+          out.values[oid] = cv;
+          out.meta.push({ operand: oid, source: "const:" + qid, value: cv });
+          return;
+        }
+      }
+
+      const cands = byQ[qid] || [];
+      let pick = null;
+      if (b.role) {
+        for (let i = 0; i < cands.length; i++) {
+          if (cands[i].role === b.role) {
+            pick = cands[i];
+            break;
+          }
+        }
+      }
+      if (!pick && cands.length) pick = cands[0];
+      if (pick && isFinite(pick.value)) {
+        out.values[oid] = pick.value;
+        out.meta.push({
+          operand: oid,
+          source: pick.key,
+          quantity: qid,
+          role: pick.role,
+          value: pick.value
+        });
+      }
+    });
+
+    // domain hint: если аргумент — длина/координата, возьмём масштаб от L в конструкции
+    const inBind = law.bindings[inputOperandId];
+    if (inBind && inBind.quantity === "Q008") {
+      const lens = byQ["Q008"] || [];
+      let maxL = 0;
+      lens.forEach(function (e) {
+        if (e.value > maxL) maxL = e.value;
+      });
+      if (maxL > 0) {
+        lengthHint = [0, Number((maxL * 2).toFixed(4))];
+      } else {
+        lengthHint = [0, 0.5];
+      }
+      out.domain = lengthHint;
+    }
+
+    return out;
+  }
+
+  function findLawById(formulas, lawId) {
+    if (!lawId || !formulas) return null;
+    const laws = Array.isArray(formulas)
+      ? formulas
+      : formulas.formulas || formulas.laws || [];
+    for (let i = 0; i < laws.length; i++) {
+      const l = laws[i];
+      if ((l.law_id || l.id) === lawId) return l;
+    }
+    return null;
+  }
+
+  /**
    * Главный вход для платформы.
    * Находит structure_ref по law_id, считает точки, вставляет HTML-патч, рисует.
    *
@@ -669,6 +839,11 @@
    * @param {object|array} opts.formulas — formulas pack
    * @param {string} opts.lawId
    * @param {string} [opts.structureRef] — если уже известен
+   * @param {object} [opts.construction] — Constructs item → values из величин
+   * @param {object} [opts.components] — physi_comps
+   * @param {object} [opts.physiQuant] — physi_quant (константы)
+   * @param {object} [opts.values] — явный override операндов
+   * @param {number[]} [opts.domain]
    * @param {string} [opts.lang]
    */
   function attachLawGraph(container, opts) {
@@ -681,21 +856,33 @@
       old[i].parentNode && old[i].parentNode.removeChild(old[i]);
     }
 
+    const law = opts.lawId ? findLawById(opts.formulas, opts.lawId) : null;
     let structureRef = opts.structureRef || "";
-    if (!structureRef && opts.lawId && opts.formulas) {
-      const laws = Array.isArray(opts.formulas)
-        ? opts.formulas
-        : opts.formulas.formulas || opts.formulas.laws || [];
-      const law = laws.find(function (l) {
-        return (l.law_id || l.id) === opts.lawId;
+    if (!structureRef && law) structureRef = law.structure_ref || "";
+
+    let values = opts.values ? Object.assign({}, opts.values) : null;
+    let domain = opts.domain || null;
+    let valueMeta = null;
+
+    if (law && opts.construction) {
+      const auto = valuesFromLawAndConstruction(law, opts.construction, {
+        components: opts.components,
+        physiQuant: opts.physiQuant
       });
-      if (law) structureRef = law.structure_ref || "";
+      valueMeta = auto.meta;
+      if (auto.values && Object.keys(auto.values).length) {
+        values = Object.assign({}, auto.values, values || {});
+      }
+      if (!domain && auto.domain) domain = auto.domain;
     }
+    if (!domain) domain = [0, 4];
 
     const payload = buildLawGraphPayload(opts.structures, structureRef, {
-      domain: opts.domain || [0, 4],
-      values: opts.values || null
+      domain: domain,
+      values: values
     });
+    if (payload && valueMeta) payload.valueMeta = valueMeta;
+    if (payload && values) payload.values = values;
 
     const html = lawGraphSlotHtml(payload, {
       structureRef: structureRef,
@@ -703,8 +890,13 @@
       lang: opts.lang || "ru"
     });
 
-    // вставить в конец паспорта или контейнера
-    const passport = container.querySelector(".passport") || container;
+    // вставить в конец паспорта или контейнера (construction-graph host предпочтителен)
+    const passport =
+      container.getAttribute && container.getAttribute("data-construction-graph")
+        ? container
+        : container.querySelector("[data-construction-graph]") ||
+          container.querySelector(".passport") ||
+          container;
     const wrap = document.createElement("div");
     wrap.innerHTML = html;
     while (wrap.firstChild) {
@@ -713,6 +905,110 @@
 
     paintLawGraphHosts(container);
     return payload;
+  }
+
+  // ── Frame (единая координатная логика) ─────────────────
+  // Примитив: math-space (y-up) ↔ screen (y-down).
+  // E0 и плоскость графика — экземпляры одного сорта Frame.
+  // Масштабирование = изменение scale_x / scale_y.
+
+  function createFrame(opts) {
+    opts = opts || {};
+    const origin = Array.isArray(opts.origin) ? [Number(opts.origin[0]) || 0, Number(opts.origin[1]) || 0] : [0, 0];
+    const axes = opts.axes || { x: "right", y: "up" };
+    const scale_x = opts.scale_x != null ? Number(opts.scale_x) : 1;
+    const scale_y = opts.scale_y != null ? Number(opts.scale_y) : 1;
+    const viewportW = opts.viewportW != null ? Number(opts.viewportW) : null;
+    const viewportH = opts.viewportH != null ? Number(opts.viewportH) : null;
+    return {
+      sort: "Frame",
+      origin: origin,
+      axes: { x: axes.x || "right", y: axes.y || "up" },
+      angle_ref: Array.isArray(opts.angle_ref) ? opts.angle_ref.slice() : [1, 0],
+      angle_convention: opts.angle_convention || "ccw_from_ref",
+      origin_corner: opts.origin_corner || "bottom_left",
+      scale_x: isFinite(scale_x) && scale_x !== 0 ? scale_x : 1,
+      scale_y: isFinite(scale_y) && scale_y !== 0 ? scale_y : 1,
+      viewportW: viewportW,
+      viewportH: viewportH
+    };
+  }
+
+  /** Frame из данных environment-компонента (E0 и т.п.). Не особый случай — просто провайдер Frame. */
+  function frameFromEnv(env, opts) {
+    opts = opts || {};
+    const e = env || {};
+    return createFrame({
+      origin: e.origin,
+      axes: e.axes,
+      angle_ref: e.angle_ref,
+      angle_convention: e.angle_convention,
+      origin_corner: e.origin_corner,
+      scale_x: opts.scale_x != null ? opts.scale_x : e.scale_x,
+      scale_y: opts.scale_y != null ? opts.scale_y : e.scale_y,
+      viewportW: opts.viewportW,
+      viewportH: opts.viewportH
+    });
+  }
+
+  /**
+   * math Point → screen {x,y}.
+   * y-up frame + bottom_left origin → screen y = viewportH - (y - oy)*scale_y  (когда viewportH задан).
+   * Если viewportH нет — просто инверсия знака scale_y при axes.y=up (для относительных смещений).
+   */
+  function toScreen(frame, p) {
+    if (!frame || !p) return null;
+    const ox = frame.origin[0];
+    const oy = frame.origin[1];
+    const mx = Number(p.x != null ? p.x : p[0]);
+    const my = Number(p.y != null ? p.y : p[1]);
+    if (!isFinite(mx) || !isFinite(my)) return null;
+    const sx = (mx - ox) * frame.scale_x;
+    let sy = (my - oy) * frame.scale_y;
+    if (frame.axes && frame.axes.y === "up") {
+      if (frame.viewportH != null && isFinite(frame.viewportH)) {
+        sy = frame.viewportH - sy;
+      } else {
+        sy = -sy;
+      }
+    }
+    return { x: sx, y: sy };
+  }
+
+  /** screen Point → math {x,y}. */
+  function fromScreen(frame, px) {
+    if (!frame || !px) return null;
+    const ox = frame.origin[0];
+    const oy = frame.origin[1];
+    const sx = Number(px.x != null ? px.x : px[0]);
+    const syIn = Number(px.y != null ? px.y : px[1]);
+    if (!isFinite(sx) || !isFinite(syIn)) return null;
+    let sy = syIn;
+    if (frame.axes && frame.axes.y === "up") {
+      if (frame.viewportH != null && isFinite(frame.viewportH)) {
+        sy = frame.viewportH - syIn;
+      } else {
+        sy = -syIn;
+      }
+    }
+    return {
+      x: ox + sx / frame.scale_x,
+      y: oy + sy / frame.scale_y
+    };
+  }
+
+  function setScale(frame, scaleX, scaleY) {
+    if (!frame) return frame;
+    if (scaleX != null && isFinite(Number(scaleX)) && Number(scaleX) !== 0) frame.scale_x = Number(scaleX);
+    if (scaleY != null && isFinite(Number(scaleY)) && Number(scaleY) !== 0) frame.scale_y = Number(scaleY);
+    return frame;
+  }
+
+  function setViewport(frame, w, h) {
+    if (!frame) return frame;
+    if (w != null && isFinite(Number(w))) frame.viewportW = Number(w);
+    if (h != null && isFinite(Number(h))) frame.viewportH = Number(h);
+    return frame;
   }
 
   // ── публичный API ────────────────────────────────────────
@@ -745,12 +1041,22 @@
     curveFromAst: curveFromAst,
     curveFromStructure: curveFromStructure,
 
+    // Frame — единая координатная логика (среда + график)
+    createFrame: createFrame,
+    frameFromEnv: frameFromEnv,
+    toScreen: toScreen,
+    fromScreen: fromScreen,
+    setScale: setScale,
+    setViewport: setViewport,
+
     // патч кривой для платформы
     buildLawGraphPayload: buildLawGraphPayload,
     lawGraphSlotHtml: lawGraphSlotHtml,
     paintLawGraphHosts: paintLawGraphHosts,
     attachLawGraph: attachLawGraph,
-    drawPointsOnCanvas: drawPointsOnCanvas
+    drawPointsOnCanvas: drawPointsOnCanvas,
+    collectConstructionQuantityEntries: collectConstructionQuantityEntries,
+    valuesFromLawAndConstruction: valuesFromLawAndConstruction
   };
 
   global.GeoCompute = GeoCompute;

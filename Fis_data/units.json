@@ -1,180 +1,913 @@
 {
   "meta": {
-    "version": "0.14",
-    "description": "base_components + единый массив named (именованные единицы с dimension). Составные не хранятся — строит FisUnits.formatUnit из dimension expr. Дубли чистых SI-баз убраны из named (живут в base_components); [Θ] оставлен из‑за °C/°F.",
+    "version": "0.20",
+    "description": "prefixes + units[dim]→scales + groups. Display labels from scales (composed=prefix×root); base_components optional fallback only.",
     "created": "2026-08-16",
-    "updated": "2026-08-27",
-    "language_order": ["en", "ru"],
-    "notes": "v0.14: named — плоский массив; exact match / catalog по полю dimension. Нет записи = formatUnit(). Температура — единственный случай factor+offset. При факторном разложении знаменатели (opposite-sign) тоже матчятся на крупные named (N⁻¹, J⁻¹…), затем откатываются в композит."
+    "updated": "2026-09-06",
+    "language_order": [
+      "en",
+      "ru"
+    ],
+    "notes": "v0.20: подписи единиц — только assembleScaleLabel / coherent SI scales; base_components — fallback алгебры (порядок баз), не источник UI-имён. formatUnit/listNamedUnits/factor remainder идут через шкалы U*."
   },
   "base_components": {
     "M": {
-      "si_symbol": ["kg", "кг"],
-      "name": ["kilogram", "килограмм"]
+      "si_symbol": [
+        "kg",
+        "кг"
+      ],
+      "name": [
+        "kilogram",
+        "килограмм"
+      ]
     },
     "L": {
-      "si_symbol": ["m", "м"],
-      "name": ["metre", "метр"]
+      "si_symbol": [
+        "m",
+        "м"
+      ],
+      "name": [
+        "metre",
+        "метр"
+      ]
     },
     "T": {
-      "si_symbol": ["s", "с"],
-      "name": ["second", "секунда"]
+      "si_symbol": [
+        "s",
+        "с"
+      ],
+      "name": [
+        "second",
+        "секунда"
+      ]
     },
     "I": {
-      "si_symbol": ["A", "А"],
-      "name": ["ampere", "ампер"]
+      "si_symbol": [
+        "A",
+        "А"
+      ],
+      "name": [
+        "ampere",
+        "ампер"
+      ]
     },
     "Θ": {
-      "si_symbol": ["K", "К"],
-      "name": ["kelvin", "кельвин"]
+      "si_symbol": [
+        "K",
+        "К"
+      ],
+      "name": [
+        "kelvin",
+        "кельвин"
+      ]
     },
     "N": {
-      "si_symbol": ["mol", "моль"],
-      "name": ["mole", "моль"]
+      "si_symbol": [
+        "mol",
+        "моль"
+      ],
+      "name": [
+        "mole",
+        "моль"
+      ]
     },
     "J": {
-      "si_symbol": ["cd", "кд"],
-      "name": ["candela", "кандела"]
+      "si_symbol": [
+        "cd",
+        "кд"
+      ],
+      "name": [
+        "candela",
+        "кандела"
+      ]
     }
   },
-  "named": [
+  "prefixes": [
     {
-      "dimension": "[1]",
-      "name": ["one", "единица"],
-      "symbol": ["1", "1"],
-      "factor": 1
+      "symbol": [
+        "Q",
+        "Кв"
+      ],
+      "name": [
+        "quetta",
+        "кветта"
+      ],
+      "factor": 1e+30
     },
     {
-      "dimension": "[1]",
-      "name": ["radian", "радиан"],
-      "symbol": ["rad", "рад"],
-      "factor": 1,
-      "roles": ["angle", "phase"]
+      "symbol": [
+        "R",
+        "Рн"
+      ],
+      "name": [
+        "ronna",
+        "ронна"
+      ],
+      "factor": 1e+27
     },
     {
-      "dimension": "[1]",
-      "name": ["degree", "градус"],
-      "symbol": ["°", "°"],
-      "factor": 0.017453292519943295,
-      "roles": ["angle", "phase"],
-      "notes": "1° = π/180 rad"
+      "symbol": [
+        "Y",
+        "И"
+      ],
+      "name": [
+        "yotta",
+        "иотта"
+      ],
+      "factor": 1e+24
     },
     {
-      "dimension": "[Θ]",
-      "name": ["kelvin", "кельвин"],
-      "symbol": ["K", "К"],
-      "factor": 1,
-      "offset": 0
+      "symbol": [
+        "Z",
+        "З"
+      ],
+      "name": [
+        "zetta",
+        "зетта"
+      ],
+      "factor": 1e+21
     },
     {
-      "dimension": "[Θ]",
-      "name": ["degree Celsius", "градус Цельсия"],
-      "symbol": ["°C", "°C"],
-      "factor": 1,
-      "offset": 273.15,
-      "notes": "T_K = t_C + 273.15"
+      "symbol": [
+        "E",
+        "Э"
+      ],
+      "name": [
+        "exa",
+        "экса"
+      ],
+      "factor": 1e+18
     },
     {
-      "dimension": "[Θ]",
-      "name": ["degree Fahrenheit", "градус Фаренгейта"],
-      "symbol": ["°F", "°F"],
-      "factor": 0.5555555555555556,
-      "offset": 255.3722222222222,
-      "notes": "T_K = (t_F + 459.67) × 5/9"
+      "symbol": [
+        "P",
+        "П"
+      ],
+      "name": [
+        "peta",
+        "пета"
+      ],
+      "factor": 1000000000000000.0
     },
     {
-      "dimension": "[M L T^{-2}]",
-      "name": ["newton", "ньютон"],
-      "symbol": ["N", "Н"],
-      "factor": 1
+      "symbol": [
+        "T",
+        "Т"
+      ],
+      "name": [
+        "tera",
+        "тера"
+      ],
+      "factor": 1000000000000.0
     },
     {
-      "dimension": "[M L^2 T^{-2}]",
-      "name": ["joule", "джоуль"],
-      "symbol": ["J", "Дж"],
-      "factor": 1,
-      "roles": ["energy", "work", "heat", "torque"]
+      "symbol": [
+        "G",
+        "Г"
+      ],
+      "name": [
+        "giga",
+        "гига"
+      ],
+      "factor": 1000000000.0
     },
     {
-      "dimension": "[M L^2 T^{-3}]",
-      "name": ["watt", "ватт"],
-      "symbol": ["W", "Вт"],
-      "factor": 1
+      "symbol": [
+        "M",
+        "М"
+      ],
+      "name": [
+        "mega",
+        "мега"
+      ],
+      "factor": 1000000.0
     },
     {
-      "dimension": "[M L^{-1} T^{-2}]",
-      "name": ["pascal", "паскаль"],
-      "symbol": ["Pa", "Па"],
-      "factor": 1
+      "symbol": [
+        "k",
+        "к"
+      ],
+      "name": [
+        "kilo",
+        "кило"
+      ],
+      "factor": 1000.0
     },
     {
-      "dimension": "[T^{-1}]",
-      "name": ["hertz", "герц"],
-      "symbol": ["Hz", "Гц"],
-      "factor": 1
+      "symbol": [
+        "h",
+        "г"
+      ],
+      "name": [
+        "hecto",
+        "гекто"
+      ],
+      "factor": 100.0
     },
     {
-      "dimension": "[T I]",
-      "name": ["coulomb", "кулон"],
-      "symbol": ["C", "Кл"],
-      "factor": 1
+      "symbol": [
+        "da",
+        "да"
+      ],
+      "name": [
+        "deca",
+        "дека"
+      ],
+      "factor": 10.0
     },
     {
-      "dimension": "[M L^2 T^{-3} I^{-1}]",
-      "name": ["volt", "вольт"],
-      "symbol": ["V", "В"],
-      "factor": 1
+      "symbol": [
+        "d",
+        "д"
+      ],
+      "name": [
+        "deci",
+        "деци"
+      ],
+      "factor": 0.1
     },
     {
-      "dimension": "[M L^2 T^{-3} I^{-2}]",
-      "name": ["ohm", "ом"],
-      "symbol": ["Ω", "Ом"],
-      "factor": 1
+      "symbol": [
+        "c",
+        "с"
+      ],
+      "name": [
+        "centi",
+        "санти"
+      ],
+      "factor": 0.01
     },
     {
-      "dimension": "[M^{-1} L^{-2} T^3 I^2]",
-      "name": ["siemens", "сименс"],
-      "symbol": ["S", "См"],
-      "factor": 1
+      "symbol": [
+        "m",
+        "м"
+      ],
+      "name": [
+        "milli",
+        "милли"
+      ],
+      "factor": 0.001
     },
     {
-      "dimension": "[M^{-1} L^{-2} T^4 I^2]",
-      "name": ["farad", "фарад"],
-      "symbol": ["F", "Ф"],
-      "factor": 1
+      "symbol": [
+        "µ",
+        "мк"
+      ],
+      "name": [
+        "micro",
+        "микро"
+      ],
+      "factor": 1e-06
     },
     {
-      "dimension": "[M L^2 T^{-2} I^{-2}]",
-      "name": ["henry", "генри"],
-      "symbol": ["H", "Гн"],
-      "factor": 1
+      "symbol": [
+        "n",
+        "н"
+      ],
+      "name": [
+        "nano",
+        "нано"
+      ],
+      "factor": 1e-09
     },
     {
-      "dimension": "[M L^2 T^{-2} I^{-1}]",
-      "name": ["weber", "вебер"],
-      "symbol": ["Wb", "Вб"],
-      "factor": 1
+      "symbol": [
+        "p",
+        "п"
+      ],
+      "name": [
+        "pico",
+        "пико"
+      ],
+      "factor": 1e-12
     },
     {
-      "dimension": "[M T^{-2} I^{-1}]",
-      "name": ["tesla", "тесла"],
-      "symbol": ["T", "Тл"],
-      "factor": 1
+      "symbol": [
+        "f",
+        "ф"
+      ],
+      "name": [
+        "femto",
+        "фемто"
+      ],
+      "factor": 1e-15
     },
     {
-      "dimension": "[L^{-1}]",
-      "name": ["dioptre", "диоптрия"],
-      "symbol": ["D", "дптр"],
-      "factor": 1,
-      "roles": ["optical_power"],
-      "preferred_for": ["Q036"]
+      "symbol": [
+        "a",
+        "а"
+      ],
+      "name": [
+        "atto",
+        "атто"
+      ],
+      "factor": 1e-18
     },
     {
-      "dimension": "[L^2]",
-      "name": ["square metre", "квадратный метр"],
-      "symbol": ["m²", "м²"],
-      "factor": 1,
-      "roles": ["area"]
+      "symbol": [
+        "z",
+        "з"
+      ],
+      "name": [
+        "zepto",
+        "зепто"
+      ],
+      "factor": 1e-21
+    },
+    {
+      "symbol": [
+        "y",
+        "и"
+      ],
+      "name": [
+        "yocto",
+        "иокто"
+      ],
+      "factor": 1e-24
+    },
+    {
+      "symbol": [
+        "r",
+        "р"
+      ],
+      "name": [
+        "ronto",
+        "ронто"
+      ],
+      "factor": 1e-27
+    },
+    {
+      "symbol": [
+        "q",
+        "кв"
+      ],
+      "name": [
+        "quecto",
+        "квекто"
+      ],
+      "factor": 1e-30
     }
-  ]
+  ],
+  "units": {
+    "[1]": [
+      {
+        "id": "U001",
+        "name": [
+          "one",
+          "единица"
+        ],
+        "symbol": [
+          "1",
+          "1"
+        ],
+        "factor": 1
+      },
+      {
+        "id": "U002",
+        "name": [
+          "radian",
+          "радиан"
+        ],
+        "symbol": [
+          "rad",
+          "рад"
+        ],
+        "factor": 1,
+        "roles": [
+          "angle",
+          "phase"
+        ]
+      },
+      {
+        "id": "U003",
+        "name": [
+          "degree",
+          "градус"
+        ],
+        "symbol": [
+          "°",
+          "°"
+        ],
+        "factor": 0.017453292519943295,
+        "roles": [
+          "angle",
+          "phase"
+        ],
+        "notes": "1° = π/180 rad"
+      }
+    ],
+    "[L]": [
+      {
+        "id": "U004",
+        "name": [
+          "metre",
+          "метр"
+        ],
+        "symbol": [
+          "m",
+          "м"
+        ],
+        "factor": 1,
+        "prefixable": true,
+        "root": true
+      },
+      {
+        "id": "U028",
+        "factor": 0.01,
+        "composed": {
+          "prefix_factor": 0.01,
+          "scale_id": "U004"
+        },
+        "notes": "CGS length / common: centi × metre; name/symbol assembled"
+      },
+      {
+        "id": "U031",
+        "factor": 1000,
+        "composed": {
+          "prefix_factor": 1000,
+          "scale_id": "U004"
+        },
+        "notes": "kilo × metre; name/symbol assembled"
+      },
+      {
+        "id": "U032",
+        "factor": 0.001,
+        "composed": {
+          "prefix_factor": 0.001,
+          "scale_id": "U004"
+        },
+        "notes": "milli × metre; name/symbol assembled"
+      },
+      {
+        "id": "U030",
+        "name": [
+          "light-second",
+          "световая секунда"
+        ],
+        "symbol": [
+          "ls",
+          "сс"
+        ],
+        "factor": 299792458,
+        "notes": "Natural-units length anchor: distance light travels in 1 s (= c m). With U006 → c ≡ 1"
+      }
+    ],
+    "[M]": [
+      {
+        "id": "U005",
+        "dimension_note": "[M]",
+        "factor": 1,
+        "composed": {
+          "prefix_factor": 1000,
+          "scale_id": "U029"
+        },
+        "notes": "SI coherent mass: assemble name/symbol from prefix(factor=1e3)×U029 gram"
+      },
+      {
+        "id": "U029",
+        "name": [
+          "gram",
+          "грамм"
+        ],
+        "symbol": [
+          "g",
+          "г"
+        ],
+        "factor": 0.001,
+        "prefixable": true,
+        "notes": "Mass root scale (CGS coherent; SI uses kilo×gram → kg)",
+        "root": true
+      }
+    ],
+    "[T]": [
+      {
+        "id": "U006",
+        "name": [
+          "second",
+          "секунда"
+        ],
+        "symbol": [
+          "s",
+          "с"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[I]": [
+      {
+        "id": "U007",
+        "name": [
+          "ampere",
+          "ампер"
+        ],
+        "symbol": [
+          "A",
+          "А"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[Θ]": [
+      {
+        "id": "U008",
+        "name": [
+          "kelvin",
+          "кельвин"
+        ],
+        "symbol": [
+          "K",
+          "К"
+        ],
+        "factor": 1,
+        "offset": 0
+      },
+      {
+        "id": "U009",
+        "name": [
+          "degree Celsius",
+          "градус Цельсия"
+        ],
+        "symbol": [
+          "°C",
+          "°C"
+        ],
+        "factor": 1,
+        "offset": 273.15,
+        "notes": "T_K = t_C + 273.15"
+      },
+      {
+        "id": "U010",
+        "name": [
+          "degree Fahrenheit",
+          "градус Фаренгейта"
+        ],
+        "symbol": [
+          "°F",
+          "°F"
+        ],
+        "factor": 0.5555555555555556,
+        "offset": 255.3722222222222,
+        "notes": "T_K = (t_F + 459.67) × 5/9"
+      }
+    ],
+    "[N]": [
+      {
+        "id": "U011",
+        "name": [
+          "mole",
+          "моль"
+        ],
+        "symbol": [
+          "mol",
+          "моль"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[J]": [
+      {
+        "id": "U012",
+        "name": [
+          "candela",
+          "кандела"
+        ],
+        "symbol": [
+          "cd",
+          "кд"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[L^2]": [
+      {
+        "id": "U013",
+        "name": [
+          "square metre",
+          "квадратный метр"
+        ],
+        "symbol": [
+          "m²",
+          "м²"
+        ],
+        "factor": 1,
+        "roles": [
+          "area"
+        ],
+        "prefixable": true
+      }
+    ],
+    "[L^{-1}]": [
+      {
+        "id": "U014",
+        "name": [
+          "dioptre",
+          "диоптрия"
+        ],
+        "symbol": [
+          "D",
+          "дптр"
+        ],
+        "factor": 1
+      }
+    ],
+    "[T^{-1}]": [
+      {
+        "id": "U015",
+        "name": [
+          "hertz",
+          "герц"
+        ],
+        "symbol": [
+          "Hz",
+          "Гц"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M L T^{-2}]": [
+      {
+        "id": "U016",
+        "name": [
+          "newton",
+          "ньютон"
+        ],
+        "symbol": [
+          "N",
+          "Н"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M L^2 T^{-2}]": [
+      {
+        "id": "U017",
+        "name": [
+          "joule",
+          "джоуль"
+        ],
+        "symbol": [
+          "J",
+          "Дж"
+        ],
+        "factor": 1,
+        "roles": [
+          "energy",
+          "work",
+          "heat",
+          "torque"
+        ],
+        "prefixable": true
+      }
+    ],
+    "[M L^2 T^{-3}]": [
+      {
+        "id": "U018",
+        "name": [
+          "watt",
+          "ватт"
+        ],
+        "symbol": [
+          "W",
+          "Вт"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M L^{-1} T^{-2}]": [
+      {
+        "id": "U019",
+        "name": [
+          "pascal",
+          "паскаль"
+        ],
+        "symbol": [
+          "Pa",
+          "Па"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[T I]": [
+      {
+        "id": "U020",
+        "name": [
+          "coulomb",
+          "кулон"
+        ],
+        "symbol": [
+          "C",
+          "Кл"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M L^2 T^{-3} I^{-1}]": [
+      {
+        "id": "U021",
+        "name": [
+          "volt",
+          "вольт"
+        ],
+        "symbol": [
+          "V",
+          "В"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M L^2 T^{-3} I^{-2}]": [
+      {
+        "id": "U022",
+        "name": [
+          "ohm",
+          "ом"
+        ],
+        "symbol": [
+          "Ω",
+          "Ом"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M^{-1} L^{-2} T^3 I^2]": [
+      {
+        "id": "U023",
+        "name": [
+          "siemens",
+          "сименс"
+        ],
+        "symbol": [
+          "S",
+          "См"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M^{-1} L^{-2} T^4 I^2]": [
+      {
+        "id": "U024",
+        "name": [
+          "farad",
+          "фарад"
+        ],
+        "symbol": [
+          "F",
+          "Ф"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M L^2 T^{-2} I^{-2}]": [
+      {
+        "id": "U025",
+        "name": [
+          "henry",
+          "генри"
+        ],
+        "symbol": [
+          "H",
+          "Гн"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M L^2 T^{-2} I^{-1}]": [
+      {
+        "id": "U026",
+        "name": [
+          "weber",
+          "вебер"
+        ],
+        "symbol": [
+          "Wb",
+          "Вб"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ],
+    "[M T^{-2} I^{-1}]": [
+      {
+        "id": "U027",
+        "name": [
+          "tesla",
+          "тесла"
+        ],
+        "symbol": [
+          "T",
+          "Тл"
+        ],
+        "factor": 1,
+        "prefixable": true
+      }
+    ]
+  },
+  "groups": {
+    "si_coherent": {
+      "name": [
+        "SI coherent",
+        "когерентные СИ"
+      ],
+      "kind": "system",
+      "scale_ids": [
+        "U001",
+        "U002",
+        "U004",
+        "U005",
+        "U006",
+        "U007",
+        "U008",
+        "U011",
+        "U012",
+        "U013",
+        "U014",
+        "U015",
+        "U016",
+        "U017",
+        "U018",
+        "U019",
+        "U020",
+        "U021",
+        "U022",
+        "U023",
+        "U024",
+        "U025",
+        "U026",
+        "U027"
+      ]
+    },
+    "temperature_scales": {
+      "name": [
+        "temperature scales",
+        "температурные шкалы"
+      ],
+      "kind": "scale_family",
+      "scale_ids": [
+        "U008",
+        "U009",
+        "U010"
+      ]
+    },
+    "angle": {
+      "name": [
+        "angle",
+        "угол"
+      ],
+      "kind": "role_family",
+      "scale_ids": [
+        "U002",
+        "U003"
+      ]
+    },
+    "si_accepted": {
+      "name": [
+        "SI accepted",
+        "допущенные к СИ"
+      ],
+      "kind": "system",
+      "scale_ids": [
+        "U003",
+        "U009"
+      ]
+    },
+    "cgs": {
+      "name": [
+        "CGS",
+        "СГС"
+      ],
+      "kind": "system",
+      "scale_ids": [
+        "U028",
+        "U029",
+        "U006"
+      ],
+      "notes": "Mechanical CGS: cm, g, s. Derived (dyn, erg) via dimension, not stored."
+    },
+    "natural": {
+      "name": [
+        "Natural units (c)",
+        "Естественные единицы (c)"
+      ],
+      "kind": "system",
+      "scale_ids": [
+        "U030",
+        "U006"
+      ],
+      "notes": "Length = light-second, time = second → c = 1 by scale factors. ħ=1 etc. later."
+    }
+  }
 }

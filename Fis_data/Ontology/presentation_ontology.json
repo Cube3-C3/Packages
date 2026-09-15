@@ -7,7 +7,7 @@
       "ru"
     ],
     "structure": "tree[card_type].{list_item, passport.slots[]} + style_kinds + fields",
-    "notes": "v: category removed; math_kind/invariance i18n."
+    "notes": "v: category removed; math_kind/invariance i18n.; law_graph removed from formulas → construction only [2026-09-04]"
   },
   "style_kinds": {
     "symbol": {
@@ -637,12 +637,6 @@
                 "variant": "math"
               }
             ]
-          },
-          {
-            "id": "law_graph",
-            "mode": "law_graph",
-            "wrapper": "law-graph-slot",
-            "notes": "Простой график закономерности: оси + кривая. Domain [0,4], coeffs=1. Без выбора осей и hit-test."
           }
         ]
       }

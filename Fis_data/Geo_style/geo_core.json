@@ -1,12 +1,11 @@
 {
   "meta": {
-    "version": "0.2",
-    "description": "Ядро вычислимой геометрии. Сорты (Point, Vec2, Length, Angle, Frame…) и конструкторы. Фигуры не хранятся — из величин и ops (geo_ops.json). Runtime: Fis_runtime/geo_compute.js.",
+    "version": "0.1",
+    "description": "Ядро вычислимой геометрии. Сорты (Point, Vec2, Length, Angle…) и конструкторы фигур. Фигуры не хранятся как готовые объекты — они вычисляются из величин и операций (см. geo_ops.json). Размерность 0D–2D; 3D — задел.",
     "created": "2026-08-18",
-    "updated": "2026-09-07",
     "language_order": ["en", "ru"],
-    "related": ["geo_ops.json", "../Fis_runtime/geo_compute.js"],
-    "notes": "Frame — единая СК для среды и графиков. Environment (E0) предоставляет Frame; не особый случай. Примитивы = конструкторы над сортами → проекция SVG/Canvas."
+    "related": ["geo_ops.json"],
+    "notes": "Примитивы = именованные конструкторы над сортами. Хранение «готовой» геометрии минимизировано: выражение → проекция (SVG/Canvas/DOM)."
   },
 
   "sorts": {
@@ -53,12 +52,6 @@
       "name": ["Shape 2D", "Фигура 2D"],
       "math_kind": "scalar",
       "notes": "Замкнутая или заполняемая 2D-область (результат конструкторов)."
-    },
-    "Frame": {
-      "dim": 2,
-      "name": ["Coordinate frame", "Система координат / фрейм"],
-      "math_kind": "vector",
-      "notes": "Аффинная 2D-система отсчёта. Math-space: origin + axes (по умолчанию x→right, y→up) + независимые scale_x / scale_y (math → screen). Не хранит точки — только отображение. Среда (E0) и плоскость графика — экземпляры одного сорта."
     }
   },
 
@@ -178,25 +171,13 @@
         { "name": "points", "sort": "Point", "role": "vertices", "variadic": true }
       ],
       "notes": "Замкнутая ломаная. Ориентация (CW/CCW) влияет на fill."
-    },
-    "frame": {
-      "id": "G0.frame",
-      "dim": 2,
-      "name": ["Frame", "Фрейм"],
-      "result_sort": "Frame",
-      "params": [
-        { "name": "origin", "sort": "Point", "role": "origin", "optional": true },
-        { "name": "scale_x", "sort": "Scalar", "role": "scale", "optional": true },
-        { "name": "scale_y", "sort": "Scalar", "role": "scale", "optional": true }
-      ],
-      "notes": "Примитивный конструктор. origin default [0,0]; scale_x/scale_y default 1 (math unit = screen unit). axes и angle_ref фиксированы на уровне сорта (y-up, ccw). Viewport (W×H) — параметр рендера, не сорта."
     }
   },
 
   "dim_groups": {
     "0D": ["Point"],
     "1D": ["Vec2", "Path2", "Length"],
-    "2D": ["Shape2", "Frame"],
+    "2D": ["Shape2"],
     "scalar": ["Angle", "Scalar"]
   }
 }

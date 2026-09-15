@@ -12,7 +12,7 @@
       "v0.4: card_type как корень снят. Тип сущности = abstraction_level.entity_kind (phys_quant | math_const | formulas | construction).",
       "physics sections ≈ 10 верхних доменов domains.json (parent=null, кроме mathematics); match включает потомков.",
       "mathematics sections: arithmetic, geometry, algebra, graphs — пока filter-only ids (до наполнения usages).",
-      "unit_sys: не дробление SI named/comp, а выбор системы (SI + перспектива CGS / natural / …).",
+      "unit_sys: СИ = канон; CGS/natural = оверлей (коррективы шкал/констант). Фильтр НЕ ограничивает список — нетронутые величины остаются, показ в СИ.",
       "construction — entity_kind=construction; данные Constructs.json + physi_comps; layout в Fis_runtime/construct_layout.js; паспорт construction_passport."
     ]
   },
@@ -108,17 +108,17 @@
         {
           "value": "SI",
           "label": ["SI", "СИ"],
-          "notes": "Международная система единиц"
+          "notes": "Канон: все величины и числа по умолчанию"
         },
         {
           "value": "CGS",
           "label": ["CGS", "СГС"],
-          "notes": "Перспектива: сантиметр-грамм-секунда (пока без полного покрытия в units.json)"
+          "notes": "Оверлей: cm/g/s где есть шкалы group cgs; остальное без изменений (СИ)"
         },
         {
           "value": "natural",
           "label": ["Natural units", "Естественные единицы"],
-          "notes": "Перспектива: ħ = c = 1 и аналоги"
+          "notes": "Оверлей: light-second и т.п. где покрыто group natural; остальное — СИ"
         }
       ],
       "abstraction_levels": [

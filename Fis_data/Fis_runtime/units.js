@@ -71,23 +71,10 @@
   }
 
   /**
-   * Каталог шкал → плоский массив [{ dimension, id?, name, symbol, … }].
-   * v0.15: units = { "[dim]": [ scales… ] }
-   * legacy: named = массив или { "[dim]": […] }
+   * named: единый массив [{ dimension, name, symbol, … }].
+   * Обратная совместимость: если пришёл старый объект { "[dim]": [units…] } — разворачиваем.
    */
   function namedAsArray(unitsData) {
-    const byDim = unitsData?.units;
-    if (byDim && typeof byDim === "object" && !Array.isArray(byDim)) {
-      const out = [];
-      for (const [dim, scales] of Object.entries(byDim)) {
-        if (!Array.isArray(scales)) continue;
-        for (const u of scales) {
-          if (!u || typeof u !== "object") continue;
-          out.push(Object.assign({ dimension: dim }, u));
-        }
-      }
-      return out;
-    }
     const raw = unitsData?.named;
     if (Array.isArray(raw)) return raw;
     if (!raw || typeof raw !== "object") return [];
@@ -233,43 +220,38 @@
         }
       }
       if (!best) break;
-      {
-        const u = best.entry.unit;
-        const pairs = labelPairsFromScale(u, unitsData);
-        parts.push({
-          kind: "named",
-          key: best.entry.key,
-          symbol: pairs.symbol,
-          name: pairs.name,
-          power: best.sub.k
-        });
-      }
+      parts.push({
+        kind: "named",
+        key: best.entry.key,
+        symbol: best.entry.unit.symbol,
+        name: best.entry.unit.name,
+        power: best.sub.k
+      });
       remaining = best.sub.next;
       progress = true;
     }
 
-    // remainder → base atoms (подписи из когерентных SI-шкал, не из base_components)
+    // remainder → base atoms
     for (const b of BASE_ORDER) {
       const p = remaining[b];
       if (!p) continue;
-      const pairs = coherentBaseLabelPairs(b, unitsData);
+      const baseInfo = unitsData?.base_components?.[b];
       parts.push({
         kind: "base",
         key: b,
-        symbol: pairs.symbol,
-        name: pairs.name,
+        symbol: baseInfo?.si_symbol || [b, b],
+        name: baseInfo?.name || [b, b],
         power: p
       });
       delete remaining[b];
     }
     for (const b of Object.keys(remaining)) {
       if (!remaining[b]) continue;
-      const pairs = coherentBaseLabelPairs(b, unitsData);
       parts.push({
         kind: "base",
         key: b,
-        symbol: pairs.symbol,
-        name: pairs.name,
+        symbol: [b, b],
+        name: [b, b],
         power: remaining[b]
       });
     }
@@ -331,24 +313,15 @@
     if (!dim || dim === "[1]") {
       const exact1 = namedForDimension(unitsData, "[1]");
       const u = exact1[0];
-      if (u) {
-        const lab = assembleScaleLabel(u, unitsData, lang);
-        return {
-          symbol: lab.symbol || "1",
-          name: lab.name || (lang === "ru" ? "единица" : "one"),
-          kind: "dimensionless",
-          units: exact1
-        };
-      }
       return {
-        symbol: "1",
-        name: lang === "ru" ? "единица" : "one",
+        symbol: u ? pick(u.symbol, lang) : "1",
+        name: u ? pick(u.name, lang) : lang === "ru" ? "единица" : "one",
         kind: "dimensionless",
         units: exact1
       };
     }
 
-    // 1) exact scale match — подпись только через assembleScaleLabel
+    // 1) exact named match (единый массив named → filter by dimension)
     const exactList = namedForDimension(unitsData, dim);
     if (exactList.length) {
       let chosen = exactList[0];
@@ -358,44 +331,31 @@
         );
         if (hit) chosen = hit;
       }
-      // для составных dimension предпочитаем не-composed «когерентную» (factor≈1), иначе первую
-      if (!opts.preferRole && exactList.length > 1) {
-        const coh = exactList.find(function (u) {
-          const f = effectiveScaleFactor(u, unitsData);
-          const o = u.offset != null ? Number(u.offset) : 0;
-          return Math.abs(f - 1) < 1e-12 && Math.abs(o) < 1e-12;
-        });
-        if (coh) chosen = coh;
-      }
-      const lab = assembleScaleLabel(chosen, unitsData, lang);
       return {
-        symbol: lab.symbol,
-        name: lab.name,
+        symbol: pick(chosen.symbol, lang),
+        name: pick(chosen.name, lang),
         kind: "named",
         units: exactList,
         offset: chosen.offset,
-        factor: effectiveScaleFactor(chosen, unitsData),
-        scale_id: chosen.id || null
+        factor: chosen.factor
       };
     }
 
-    // exact base single — подпись из когерентной SI-шкалы (U004/U005…), не base_components
+    // exact base single (из base_components; чистые SI-базы в named больше не дублируются)
     const vec = parseDimension(dim);
     const vKeys = Object.keys(vec).filter((k) => vec[k]);
     if (vKeys.length === 1 && Math.abs(vec[vKeys[0]]) === 1) {
       const b = vKeys[0];
       const power = vec[b];
-      const siMap = coherentSiScaleByBase(unitsData);
-      const scale = siMap[b];
-      if (scale && power === 1) {
-        const lab = assembleScaleLabel(scale, unitsData, lang);
+      const baseInfo = unitsData?.base_components?.[b];
+      if (baseInfo && power === 1) {
         return {
-          symbol: lab.symbol,
-          name: lab.name,
+          symbol: pick(baseInfo.si_symbol, lang),
+          name: pick(baseInfo.name, lang),
           kind: "named",
-          units: [scale],
-          factor: effectiveScaleFactor(scale, unitsData),
-          scale_id: scale.id || null
+          units: [
+            { dimension: "[" + b + "]", name: baseInfo.name, symbol: baseInfo.si_symbol, factor: 1 }
+          ]
         };
       }
     }
@@ -411,493 +371,19 @@
   }
 
   /**
-   * Все шкалы точного dim — подписи через assembleScaleLabel
+   * Все именованные варианты для точного dim (K, °C, °F…)
    */
   function listNamedUnits(dim, unitsData, lang) {
     const list = namedForDimension(unitsData, dim);
-    return list.map(function (u) {
-      const lab = assembleScaleLabel(u, unitsData, lang);
-      return {
-        symbol: lab.symbol,
-        name: lab.name,
-        factor: effectiveScaleFactor(u, unitsData),
-        offset: u.offset,
-        roles: u.roles,
-        notes: u.notes,
-        dimension: u.dimension,
-        id: u.id,
-        composed: u.composed || null
-      };
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // Const value vs unit_sys: canonical SI → current scales
-  // ─────────────────────────────────────────────────────────────
-
-  /**
-   * Шкалы одной dimension (v0.15 units[dim] | legacy named).
-   */
-  function scalesForDimension(unitsData, dim) {
-    if (!unitsData || !dim) return [];
-    if (unitsData.units && Array.isArray(unitsData.units[dim])) {
-      return unitsData.units[dim].slice();
-    }
-    return namedForDimension(unitsData, dim);
-  }
-
-  /** Prefix registry entry by en-symbol (k, M, m, µ, …). */
-  function findPrefix(unitsData, prefixSymbol) {
-    const list = (unitsData && unitsData.prefixes) || [];
-    const want = String(prefixSymbol || "");
-    for (let i = 0; i < list.length; i++) {
-      const p = list[i];
-      const syms = Array.isArray(p.symbol) ? p.symbol : [p.symbol];
-      for (let j = 0; j < syms.length; j++) {
-        if (String(syms[j]) === want) return p;
-      }
-    }
-    return null;
-  }
-
-  /** Prefix by numeric factor (1000 → kilo). Exact match. */
-  function findPrefixByFactor(unitsData, factor) {
-    const list = (unitsData && unitsData.prefixes) || [];
-    const want = Number(factor);
-    if (!(want > 0) || Number.isNaN(want)) return null;
-    for (let i = 0; i < list.length; i++) {
-      const p = list[i];
-      const f = p.factor != null ? Number(p.factor) : NaN;
-      if (!(f > 0)) continue;
-      if (Math.abs(f - want) <= 1e-12 * Math.max(1, Math.abs(want))) return p;
-    }
-    return null;
-  }
-
-  function scaleById(unitsData, id) {
-    if (!id) return null;
-    const all = namedAsArray(unitsData);
-    for (let i = 0; i < all.length; i++) {
-      if (all[i] && all[i].id === id) return all[i];
-    }
-    return null;
-  }
-
-  /** Prefix from composed: prefix_factor (preferred) or legacy prefix_symbol. */
-  function prefixFromComposed(unitsData, composed) {
-    if (!composed) return null;
-    if (composed.prefix_factor != null) {
-      return findPrefixByFactor(unitsData, composed.prefix_factor);
-    }
-    if (composed.prefix_symbol) {
-      return findPrefix(unitsData, composed.prefix_symbol);
-    }
-    return null;
-  }
-
-  /**
-   * Сборка symbol/name: prefix + root (composed-запись без своих name/symbol).
-   * Единая точка подписи шкалы для formatUnit / list / parts / projection.
-   */
-  function assembleScaleLabel(scale, unitsData, lang) {
-    if (!scale) return { symbol: "", name: "" };
-    if (scale.composed && scale.composed.scale_id) {
-      const root = scaleById(unitsData, scale.composed.scale_id);
-      const pref = prefixFromComposed(unitsData, scale.composed);
-      const rSym = root
-        ? pick(root.symbol, lang) ||
-          (Array.isArray(root.symbol) ? root.symbol[0] : "")
-        : "";
-      const rName = root
-        ? pick(root.name, lang) ||
-          (Array.isArray(root.name) ? root.name[0] : "")
-        : "";
-      const pSym = pref
-        ? pick(pref.symbol, lang) ||
-          (Array.isArray(pref.symbol) ? pref.symbol[0] : "")
-        : "";
-      const pName = pref
-        ? pick(pref.name, lang) ||
-          (Array.isArray(pref.name) ? pref.name[0] : "")
-        : "";
-      const symbol = String(pSym) + String(rSym);
-      const name = String(pName) + String(rName);
-      return { symbol: symbol, name: name, prefix: pref, root: root };
-    }
-    return {
-      symbol:
-        pick(scale.symbol, lang) ||
-        (Array.isArray(scale.symbol) ? scale.symbol[0] : String(scale.symbol || "")),
-      name:
-        pick(scale.name, lang) ||
-        (Array.isArray(scale.name) ? scale.name[0] : String(scale.name || ""))
-    };
-  }
-
-  /** Билингвальные [en, ru] пары для parts / catalog */
-  function labelPairsFromScale(scale, unitsData) {
-    const en = assembleScaleLabel(scale, unitsData, "en");
-    const ru = assembleScaleLabel(scale, unitsData, "ru");
-    return {
-      symbol: [en.symbol || "", ru.symbol || ""],
-      name: [en.name || "", ru.name || ""]
-    };
-  }
-
-  /**
-   * Подпись когерентной SI-базы (L→m/U004, M→kg/U005…) из реестра шкал.
-   * base_components — только fallback, если шкалы ещё нет.
-   */
-  function coherentBaseLabelPairs(baseLetter, unitsData) {
-    const map = coherentSiScaleByBase(unitsData);
-    const scale = map && map[baseLetter];
-    if (scale) return labelPairsFromScale(scale, unitsData);
-    const baseInfo =
-      unitsData && unitsData.base_components && unitsData.base_components[baseLetter];
-    if (baseInfo) {
-      return {
-        symbol: baseInfo.si_symbol || [baseLetter, baseLetter],
-        name: baseInfo.name || [baseLetter, baseLetter]
-      };
-    }
-    return { symbol: [baseLetter, baseLetter], name: [baseLetter, baseLetter] };
-  }
-
-  /**
-   * Эффективный factor шкалы к когерентной СИ-базе dimension.
-   * composed: { prefix_factor|prefix_symbol, scale_id } → prefix.factor × root.factor
-   */
-  function effectiveScaleFactor(scale, unitsData) {
-    if (!scale) return 1;
-    if (scale.composed && scale.composed.scale_id) {
-      const root = scaleById(unitsData, scale.composed.scale_id);
-      const pref = prefixFromComposed(unitsData, scale.composed);
-      const rf = root && root.factor != null ? Number(root.factor) : 1;
-      const pf = pref && pref.factor != null ? Number(pref.factor) : 1;
-      return pf * rf;
-    }
-    return scale.factor != null ? Number(scale.factor) : 1;
-  }
-
-  /**
-   * Разрешение «шкалы или подобной в масштабе»:
-   * 1) явная запись U* в dimension (id / symbol);
-   * 2) иначе prefix × root (prefixable/root) с тем же суммарным factor.
-   *
-   * @returns { scale, kind: "explicit"|"prefixed", prefix?, root? } | null
-   */
-  function resolveScale(unitsData, dim, opts) {
-    opts = opts || {};
-    const scales = scalesForDimension(unitsData, dim);
-    if (!scales.length) return null;
-
-    function asPrefixed(s) {
-      return {
-        scale: s,
-        kind: "prefixed",
-        prefix: prefixFromComposed(unitsData, s.composed),
-        root: scaleById(unitsData, s.composed.scale_id),
-        label: assembleScaleLabel(s, unitsData, opts.lang || "en")
-      };
-    }
-
-    // by id
-    if (opts.scaleId) {
-      for (let i = 0; i < scales.length; i++) {
-        if (scales[i].id === opts.scaleId) {
-          const s = scales[i];
-          if (s.composed) return asPrefixed(s);
-          return { scale: s, kind: "explicit", label: assembleScaleLabel(s, unitsData, opts.lang || "en") };
-        }
-      }
-    }
-
-    // by symbol exact (explicit symbol or assembled prefix+root)
-    if (opts.symbol) {
-      const want = String(opts.symbol);
-      for (let i = 0; i < scales.length; i++) {
-        const s = scales[i];
-        if (s.composed) {
-          const lab = assembleScaleLabel(s, unitsData, "en");
-          const labRu = assembleScaleLabel(s, unitsData, "ru");
-          if (lab.symbol === want || labRu.symbol === want) return asPrefixed(s);
-          continue;
-        }
-        const syms = Array.isArray(s.symbol) ? s.symbol : [s.symbol];
-        for (let j = 0; j < syms.length; j++) {
-          if (String(syms[j]) === want) {
-            return { scale: s, kind: "explicit", label: assembleScaleLabel(s, unitsData, opts.lang || "en") };
-          }
-        }
-      }
-      // prefix × root symbol (e.g. "kg" from k + g without composed row)
-      const prefixes = (unitsData && unitsData.prefixes) || [];
-      const ordered = prefixes.slice().sort(function (a, b) {
-        const sa = String((Array.isArray(a.symbol) ? a.symbol[0] : a.symbol) || "");
-        const sb = String((Array.isArray(b.symbol) ? b.symbol[0] : b.symbol) || "");
-        return sb.length - sa.length;
-      });
-      for (let i = 0; i < ordered.length; i++) {
-        const p = ordered[i];
-        const psyms = Array.isArray(p.symbol) ? p.symbol : [p.symbol];
-        for (let j = 0; j < psyms.length; j++) {
-          const ps = String(psyms[j]);
-          if (!ps || want.length <= ps.length) continue;
-          if (want.slice(0, ps.length) !== ps) continue;
-          const rest = want.slice(ps.length);
-          for (let k = 0; k < scales.length; k++) {
-            const root = scales[k];
-            if (root.composed) continue;
-            if (root.prefixable === false) continue;
-            const rsyms = Array.isArray(root.symbol) ? root.symbol : [root.symbol];
-            for (let r = 0; r < rsyms.length; r++) {
-              if (String(rsyms[r]) === rest) {
-                const factor =
-                  (p.factor != null ? Number(p.factor) : 1) *
-                  (root.factor != null ? Number(root.factor) : 1);
-                const ephemeral = {
-                  id: null,
-                  factor: factor,
-                  dimension: dim,
-                  composed: {
-                    prefix_factor: p.factor,
-                    scale_id: root.id
-                  }
-                };
-                return {
-                  scale: ephemeral,
-                  kind: "prefixed",
-                  prefix: p,
-                  root: root,
-                  label: assembleScaleLabel(ephemeral, unitsData, opts.lang || "en")
-                };
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // by target factor (match explicit or prefix×root)
-    if (opts.factor != null && Number(opts.factor) > 0) {
-      const tf = Number(opts.factor);
-      for (let i = 0; i < scales.length; i++) {
-        const s = scales[i];
-        const ef = effectiveScaleFactor(s, unitsData);
-        if (Math.abs(ef - tf) < 1e-12 * Math.max(1, Math.abs(tf))) {
-          if (s.composed) return asPrefixed(s);
-          return { scale: s, kind: "explicit", label: assembleScaleLabel(s, unitsData, opts.lang || "en") };
-        }
-      }
-      const roots = scales.filter(function (s) {
-        return !s.composed && s.prefixable !== false;
-      });
-      const prefixes = (unitsData && unitsData.prefixes) || [];
-      for (let i = 0; i < prefixes.length; i++) {
-        const p = prefixes[i];
-        const pf = p.factor != null ? Number(p.factor) : 1;
-        for (let k = 0; k < roots.length; k++) {
-          const root = roots[k];
-          const rf = root.factor != null ? Number(root.factor) : 1;
-          const ef = pf * rf;
-          if (Math.abs(ef - tf) < 1e-12 * Math.max(1, Math.abs(tf))) {
-            const ephemeral = {
-              id: null,
-              factor: ef,
-              dimension: dim,
-              composed: { prefix_factor: pf, scale_id: root.id }
-            };
-            return {
-              scale: ephemeral,
-              kind: "prefixed",
-              prefix: p,
-              root: root,
-              label: assembleScaleLabel(ephemeral, unitsData, opts.lang || "en")
-            };
-          }
-        }
-      }
-    }
-
-    // group preference: first scale listed in group.scale_ids for this dim
-    if (opts.groupId && unitsData.groups && unitsData.groups[opts.groupId]) {
-      const ids = unitsData.groups[opts.groupId].scale_ids || [];
-      for (let i = 0; i < ids.length; i++) {
-        for (let j = 0; j < scales.length; j++) {
-          if (scales[j].id === ids[i]) {
-            return resolveScale(unitsData, dim, { scaleId: scales[j].id });
-          }
-        }
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Когерентная SI-шкала на одну базовую букву (L→m, T→s, …).
-   * factor≈1, offset≈0; предпочтение group si_coherent.
-   * Учитывает composed (kg = k×g → effective factor 1).
-   */
-  function coherentSiScaleByBase(unitsData) {
-    const map = Object.create(null);
-    const siIds = (unitsData &&
-      unitsData.groups &&
-      unitsData.groups.si_coherent &&
-      unitsData.groups.si_coherent.scale_ids) || [];
-    const siSet = Object.create(null);
-    for (let i = 0; i < siIds.length; i++) siSet[siIds[i]] = true;
-
-    const dims =
-      unitsData && unitsData.units && typeof unitsData.units === "object"
-        ? Object.keys(unitsData.units)
-        : [];
-    for (let d = 0; d < dims.length; d++) {
-      const dim = dims[d];
-      const vec = parseDimension(dim);
-      const keys = Object.keys(vec).filter(function (k) {
-        return vec[k];
-      });
-      if (keys.length !== 1 || vec[keys[0]] !== 1) continue;
-      const base = keys[0];
-      const scales = scalesForDimension(unitsData, dim);
-      let chosen = null;
-      for (let i = 0; i < scales.length; i++) {
-        const s = scales[i];
-        const f = effectiveScaleFactor(s, unitsData);
-        const o = s.offset != null ? Number(s.offset) : 0;
-        if (Math.abs(f - 1) > 1e-12 || Math.abs(o) > 1e-12) continue;
-        if (s.id && siSet[s.id]) {
-          chosen = s;
-          break;
-        }
-        if (!chosen) chosen = s;
-      }
-      if (chosen) map[base] = chosen;
-    }
-    return map;
-  }
-
-  /**
-   * numeric_new = numeric_si * Π (f_si / f_cur)^p
-   * factor через effectiveScaleFactor (kg = k×g учтён).
-   * targetByBase: { L: scaleObj, T: scaleObj, … } — текущие атомарные шкалы.
-   */
-  function convertNumericFromSi(numericSi, dim, unitsData, targetByBase) {
-    if (numericSi == null || typeof numericSi !== "number") return numericSi;
-    const vec = typeof dim === "string" ? parseDimension(dim) : dim || {};
-    const siByBase = coherentSiScaleByBase(unitsData);
-    let k = 1;
-    const bases = Object.keys(vec);
-    for (let i = 0; i < bases.length; i++) {
-      const b = bases[i];
-      const p = vec[b];
-      if (!p) continue;
-      const si = siByBase[b];
-      const cur = targetByBase && targetByBase[b];
-      if (!si || !cur) continue;
-      const fSi = effectiveScaleFactor(si, unitsData);
-      const fCur = effectiveScaleFactor(cur, unitsData);
-      if (!(fSi > 0) || !(fCur > 0)) continue;
-      k *= Math.pow(fSi / fCur, p);
-    }
-    return numericSi * k;
-  }
-
-  /** filter unit_sys value → groups.* id */
-  function groupIdForUnitSys(unitSys) {
-    const sys = String(unitSys || "SI");
-    if (sys === "SI" || sys === "SI_named" || sys === "SI_comp") return "si_coherent";
-    if (sys === "CGS" || sys === "cgs") return "cgs";
-    if (sys === "natural" || sys === "natural_c") return "natural";
-    return sys;
-  }
-
-  /**
-   * Атомарные шкалы группы: base letter → scale (только чистые [L], [M], …).
-   */
-  function atomicScalesForGroup(unitsData, groupId) {
-    const group =
-      unitsData && unitsData.groups && unitsData.groups[groupId];
-    const targetByBase = Object.create(null);
-    if (!group || !Array.isArray(group.scale_ids)) return targetByBase;
-    const idSet = Object.create(null);
-    for (let i = 0; i < group.scale_ids.length; i++) idSet[group.scale_ids[i]] = true;
-    const all = namedAsArray(unitsData);
-    for (let i = 0; i < all.length; i++) {
-      const s = all[i];
-      if (!s || !s.id || !idSet[s.id]) continue;
-      const vec = parseDimension(s.dimension);
-      const keys = Object.keys(vec).filter(function (k) {
-        return vec[k];
-      });
-      if (keys.length !== 1 || vec[keys[0]] !== 1) continue;
-      const base = keys[0];
-      if (!targetByBase[base]) targetByBase[base] = s;
-    }
-    return targetByBase;
-  }
-
-  /**
-   * Каноническое value константы (СИ) → число в контексте unit_sys.
-   * Пересчёт по атомарным шкалам groups (cgs / natural / …).
-   * natural: light-second + s → c ≡ 1 через factor; неполные базы dimension → fallback SI.
-   *
-   * @returns {{ numeric, system, convention?: boolean, fallback?: boolean, note?: string }}
-   */
-  function constNumericForSystem(quantity, unitsData, unitSys) {
-    const v = quantity && quantity.value;
-    if (v == null || typeof v !== "number") {
-      return { numeric: v, system: unitSys || "SI", fallback: true };
-    }
-    const sys = unitSys || "SI";
-    if (sys === "SI" || sys === "SI_named" || sys === "SI_comp") {
-      return { numeric: v, system: "SI" };
-    }
-    const groupId = groupIdForUnitSys(sys);
-    const targetByBase = atomicScalesForGroup(unitsData, groupId);
-    if (!Object.keys(targetByBase).length) {
-      return {
-        numeric: v,
-        system: "SI",
-        fallback: true,
-        note: sys + ": нет атомарных шкал в group «" + groupId + "», показан СИ"
-      };
-    }
-    const dim = quantity.dimension;
-    const vec = parseDimension(dim);
-    const need = Object.keys(vec).filter(function (b) {
-      return vec[b];
-    });
-    const missing = need.filter(function (b) {
-      return !targetByBase[b];
-    });
-    if (missing.length) {
-      return {
-        numeric: v,
-        system: "SI",
-        fallback: true,
-        note:
-          sys +
-          ": нет шкал для [" +
-          missing.join(",") +
-          "] в «" +
-          groupId +
-          "», показан СИ"
-      };
-    }
-    const converted = convertNumericFromSi(v, dim, unitsData, targetByBase);
-    const out = { numeric: converted, system: sys, group: groupId };
-    if (
-      groupId === "natural" &&
-      quantity.id === "C001" &&
-      Math.abs(converted - 1) < 1e-6
-    ) {
-      out.convention = true;
-      out.note = "c ≡ 1 (light-second / second)";
-      out.numeric = 1;
-    }
-    return out;
+    return list.map((u) => ({
+      symbol: pick(u.symbol, lang),
+      name: pick(u.name, lang),
+      factor: u.factor,
+      offset: u.offset,
+      roles: u.roles,
+      notes: u.notes,
+      dimension: u.dimension
+    }));
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -999,14 +485,13 @@
     }
     if (r && (r.kind === "named" || r.kind === "dimensionless")) {
       const exact = namedForDimension(unitsData, dim);
-      if (exact[0]) {
-        const pairs = labelPairsFromScale(exact[0], unitsData);
+      if (exact[0] && exact[0].symbol) {
         return [
           {
             kind: "named",
             key: dim,
-            symbol: pairs.symbol,
-            name: pairs.name,
+            symbol: exact[0].symbol,
+            name: exact[0].name,
             power: 1
           }
         ];
@@ -1017,17 +502,20 @@
       });
       if (keys.length === 1 && Math.abs(vec[keys[0]]) === 1 && vec[keys[0]] > 0) {
         const b = keys[0];
-        const pairs = coherentBaseLabelPairs(b, unitsData);
-        return [
-          {
-            kind: "base",
-            key: b,
-            symbol: pairs.symbol,
-            name: pairs.name,
-            power: 1
-          }
-        ];
+        const baseInfo = unitsData && unitsData.base_components && unitsData.base_components[b];
+        if (baseInfo) {
+          return [
+            {
+              kind: "base",
+              key: b,
+              symbol: baseInfo.si_symbol,
+              name: baseInfo.name,
+              power: 1
+            }
+          ];
+        }
       }
+      // fallback: уже локализованные строки как «символ»
       return [
         {
           kind: "named",
@@ -2657,21 +2145,6 @@
     findDefiningUnitLaw: findDefiningUnitLaw,
     unitFromDefiningLaw: unitFromDefiningLaw,
     listNamedUnits: listNamedUnits,
-    scalesForDimension: scalesForDimension,
-    findPrefix: findPrefix,
-    findPrefixByFactor: findPrefixByFactor,
-    scaleById: scaleById,
-    prefixFromComposed: prefixFromComposed,
-    assembleScaleLabel: assembleScaleLabel,
-    labelPairsFromScale: labelPairsFromScale,
-    coherentBaseLabelPairs: coherentBaseLabelPairs,
-    effectiveScaleFactor: effectiveScaleFactor,
-    resolveScale: resolveScale,
-    coherentSiScaleByBase: coherentSiScaleByBase,
-    convertNumericFromSi: convertNumericFromSi,
-    groupIdForUnitSys: groupIdForUnitSys,
-    atomicScalesForGroup: atomicScalesForGroup,
-    constNumericForSystem: constNumericForSystem,
     factorDimension: factorDimension,
     pick: pick,
     astToDisplay: astToDisplay,

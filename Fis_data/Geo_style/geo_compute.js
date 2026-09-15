@@ -1,11 +1,4 @@
 /**
- * STALE / не канон. Runtime геометрии = ../Fis_runtime/geo_compute.js
- * (там Frame, toScreen/fromScreen, law-graph, valuesFromLawAndConstruction).
- *
- * Этот файл — исторический снимок. Онтология: geo_core.json + geo_ops.json.
- * Не подключать в projections.html.
- *
- * ---
  * geo_compute.js — вычислительный слой геометрии + пайплайн «формула → данные кривой» (v0.2)
  *
  * Кривая: explicit / parametric. Точки не хранятся.
@@ -18,6 +11,10 @@
  * Пайплайн до данных для платформенного компонента графика:
  *   GeoCompute.curveFromAst(canonicalAst, { inputOperandId, outputOperandId, domain?, values? })
  *   → { curve, mapping, rebuilt, domain, values }
+ *
+ * Коэффициенты по умолчанию = 1 (пока). Уточнение под закономерности — позже.
+ * Логика перестройки операндов — как в Packages/rebuild_ast.js:
+ *   O1 = значение функции, On = аргумент.
  */
 (function (global) {
   "use strict";
