@@ -1,21 +1,21 @@
 /**
  * FisPackage — заменяемый предметный пакет.
- * Платформа владеет DOM, компонентами и типами сигналов.
- * Пакет только: данные, ingest, handlers → payload / render-result.
  *
- * Контракт handlers (платформа вызывает при наличии):
- *   card_types(ctx)           → [{ id, label }]
- *   filter_schema(ctx)        → [{ id, label, options:[{value,label}] }]
- *   list_items(ctx)           → [{ id, html }]
- *   list_title(ctx)           → string
- *   render_passport(ctx)      → void (рисует в ctx.container)
- *   resolve_slot_action(el)   → { type, payload } | null
- *   id_field(cardType)        → state key for entity id
- *   summarize(data)           → { keys, nQ, nU, nF }
- *   ingest_file(name, json, pack)
+ * Слой вычислений (вариант A):
+ *   createInitialState(pack, lang) → state
+ *   handleSignal(signal, state, pack) → { state, intents }
  *
- * Сигналы платформы, на которые пакет может отвечать:
- *   card_type_change | filter_change | search_change | list_select | slot_action
+ * state — чистый снимок UI-контекста (без DOM).
+ * intents — декларативные команды для платформы (refresh_*, navigate effects, external_link…).
+ *
+ * Legacy handlers (платформа вызывает при наличии, пока не мигрирована):
+ *   card_types / subjects / abstraction_levels / filter_schema /
+ *   list_items / list_title / render_passport / resolve_slot_action /
+ *   id_field / summarize
+ *
+ * Сигналы:
+ *   card_type_change | filter_change | search_change | list_select |
+ *   slot_action | lang_change
  */
 (function (global) {
   "use strict";
@@ -437,6 +437,180 @@
     return true;
   }
 
+  /**
+   * Pure initial state from pack + language.
+   * Platform may store this snapshot; package never mutates it in place.
+   */
+  function createInitialState(pack, lang) {
+    pack = pack || {};
+    const L = lang || "ru";
+    const subjects = subjectNodes(pack);
+    const subjectId = (subjects[0] && subjects[0].id) || "physics";
+    const levels = abstractionLevels(pack, subjectId);
+    const firstAbs = (levels[0] && levels[0].id) || "element";
+    const cardType =
+      entityKindForAbstraction(pack, subjectId, firstAbs) ||
+      (levels[0] && (levels[0].entity_kind || levels[0].id)) ||
+      "phys_quant";
+
+    return {
+      lang: L,
+      subject: subjectId,
+      abstraction: firstAbs,
+      card_type: cardType,
+      section: null,
+      unit_sys: null,
+      quantity_id: null,
+      law_id: null,
+      construction_id: null,
+      search: "",
+      symbolMode: false,
+      /** side + top filter values: { [criterionId]: { value, ... } } */
+      filters: {}
+    };
+  }
+
+  /**
+   * Pure signal reducer.
+   * @param {{ type: string, payload?: object }} signal
+   * @param {object} state  previous snapshot (not mutated)
+   * @param {object} [pack] data pack (needed for ontology lookups on navigate)
+   * @returns {{ state: object, intents: Array<{type: string, ...}> }}
+   *
+   * Intent vocabulary (platform interprets):
+   *   refresh_all | refresh_list | refresh_passport | refresh_filters
+   *   external_link { href, target? }
+   *   custom { ... }
+   */
+  function handleSignal(signal, state, pack) {
+    if (!signal || !signal.type) {
+      return { state: state || createInitialState(pack), intents: [] };
+    }
+    pack = pack || {};
+    const prev = state || createInitialState(pack);
+    // shallow clone + nested filters clone
+    const next = Object.assign({}, prev, {
+      filters: Object.assign({}, prev.filters || {})
+    });
+    const intents = [];
+    const p = signal.payload || {};
+
+    switch (signal.type) {
+      case "lang_change": {
+        next.lang = p.lang || next.lang;
+        intents.push({ type: "refresh_all" });
+        break;
+      }
+
+      case "card_type_change": {
+        if (p.cardType != null) next.card_type = p.cardType;
+        if (p.abstraction != null) next.abstraction = p.abstraction;
+        if (p.subject != null) next.subject = p.subject;
+        next.quantity_id = null;
+        next.law_id = null;
+        next.construction_id = null;
+        intents.push({ type: "refresh_all" });
+        break;
+      }
+
+      case "filter_change": {
+        const af = p.filters || {};
+        if (af.section) {
+          next.section = af.section.value || null;
+          next.filters.section = af.section;
+        }
+        if (af.unit_sys) {
+          next.unit_sys = af.unit_sys.value || null;
+          next.filters.unit_sys = af.unit_sys;
+        }
+        if (af.subject && af.subject.value) {
+          next.subject = af.subject.value;
+          next.filters.subject = af.subject;
+        }
+        if (af.abstraction && af.abstraction.value) {
+          next.abstraction = af.abstraction.value;
+          next.filters.abstraction = af.abstraction;
+          // keep card_type in sync if entity_kind available
+          const ek = entityKindForAbstraction(pack, next.subject, next.abstraction);
+          if (ek) next.card_type = ek;
+        }
+        // merge remaining side filters
+        Object.keys(af).forEach(function (k) {
+          if (k === "section" || k === "unit_sys" || k === "subject" || k === "abstraction") return;
+          next.filters[k] = af[k];
+        });
+        intents.push({ type: "refresh_list" });
+        break;
+      }
+
+      case "search_change": {
+        if (p.search != null) next.search = String(p.search);
+        if (p.symbolMode != null) next.symbolMode = !!p.symbolMode;
+        intents.push({ type: "refresh_list" });
+        break;
+      }
+
+      case "list_select": {
+        const id = p.id;
+        const ct = p.cardType || next.card_type;
+        next.quantity_id = null;
+        next.law_id = null;
+        next.construction_id = null;
+        const field = idFieldForCardType(ct);
+        next[field] = id;
+        intents.push({ type: "refresh_list" });
+        intents.push({ type: "refresh_passport" });
+        break;
+      }
+
+      case "slot_action": {
+        // inner = what resolve_slot_action returned: { type, payload }
+        const inner = p.type ? p : p.payload || p;
+        if (!inner || !inner.type) break;
+
+        if (inner.type === "navigate") {
+          const np = inner.payload || {};
+          const cardType = np.cardType;
+          const id = np.id;
+          if (!cardType || !id) break;
+
+          if (np.abstraction) {
+            next.abstraction = np.abstraction;
+          } else if (cardType === "formulas") {
+            next.abstraction = "law";
+          } else if (cardType === "phys_quant" || cardType === "math_const") {
+            next.abstraction = "element";
+          } else if (cardType === "construction") {
+            next.abstraction = "construction";
+          }
+
+          if (np.subject) next.subject = np.subject;
+          if (np.section != null && np.section !== "") next.section = np.section;
+
+          next.card_type = cardType;
+          next.quantity_id = null;
+          next.law_id = null;
+          next.construction_id = null;
+          next[idFieldForCardType(cardType)] = id;
+          next.search = "";
+          intents.push({ type: "refresh_all" });
+        } else if (inner.type === "external_link") {
+          const lp = inner.payload || {};
+          if (lp.href) intents.push({ type: "external_link", href: lp.href, target: lp.target || "_self" });
+        } else if (inner.type === "custom") {
+          intents.push({ type: "custom", payload: inner.payload || {} });
+        }
+        break;
+      }
+
+      default:
+        // unknown signal — no state change
+        break;
+    }
+
+    return { state: next, intents: intents };
+  }
+
   function handlers(data) {
     data = data || {};
 
@@ -620,8 +794,11 @@
         return out;
       },
 
-      list_items: function (ctx) {
-        const lang = (ctx && ctx.lang) || "ru";
+      /**
+       * Shared filtered entity list for list_items / list_rows.
+       * Returns raw entity objects (not yet projected to UI).
+       */
+      _filteredEntities: function (ctx) {
         const subjectId = (ctx && ctx.subject) || "physics";
         const abstractionId = (ctx && ctx.abstraction) || null;
         const cardType =
@@ -634,12 +811,11 @@
         const q = String((ctx && ctx.search) || "").trim().toLowerCase();
         const symbolMode = !!(ctx && ctx.symbolMode);
 
-        // Математика: законы и конструкции — не физический контент; списки пусты до появления math-данных
         if (
           subjectId === "mathematics" &&
           (cardType === "formulas" || cardType === "construction")
         ) {
-          return [];
+          return { cardType: cardType, subjectId: subjectId, sectionId: null, rows: [] };
         }
 
         let rows = entitiesForCardType(data, cardType).filter(function (item) {
@@ -690,9 +866,22 @@
           });
         }
 
-        const sectionId = filterValue(filters, "section");
+        return {
+          cardType: cardType,
+          subjectId: subjectId,
+          sectionId: filterValue(filters, "section"),
+          rows: rows
+        };
+      },
 
-        return rows.map(function (item) {
+      list_items: function (ctx) {
+        const lang = (ctx && ctx.lang) || "ru";
+        const pack = this._filteredEntities(ctx);
+        const cardType = pack.cardType;
+        const subjectId = pack.subjectId;
+        const sectionId = pack.sectionId;
+
+        return pack.rows.map(function (item) {
           const id =
             cardType === "formulas"
               ? item.law_id || item.id
@@ -724,7 +913,6 @@
             } else {
               let usages =
                 (data.usages && data.usages.usages && data.usages.usages[item.id]) || [];
-              // Prefer symbols/names whose domains match active section
               if (sectionId) {
                 const matched = usages.filter(function (u) {
                   return usageMatchesSection(data, u, subjectId, sectionId);
@@ -772,6 +960,95 @@
           }
           return { id: id, html: html };
         });
+      },
+
+      /**
+       * Structured rows for table / alphabet hosts (no HTML).
+       * Sorted A→Z by sort_key (name or symbol).
+       * columns: fixed semantic keys the package chooses.
+       */
+      list_rows: function (ctx) {
+        const lang = (ctx && ctx.lang) || "ru";
+        const pack = this._filteredEntities(ctx);
+        const cardType = pack.cardType;
+        const subjectId = pack.subjectId;
+        const sectionId = pack.sectionId;
+
+        const mapped = pack.rows.map(function (item) {
+          const id =
+            cardType === "formulas"
+              ? item.law_id || item.id
+              : item.id;
+
+          if (cardType === "construction") {
+            const nm = Array.isArray(item.name)
+              ? lang === "ru"
+                ? item.name[1] || item.name[0]
+                : item.name[0] || item.name[1]
+              : item.name || item.id;
+            return {
+              id: id,
+              sort_key: String(nm || id).toLowerCase(),
+              symbol: item.id || "",
+              name: String(nm || "—"),
+              kind: "construction",
+              extra: ""
+            };
+          }
+
+          if (cardType === "formulas") {
+            const nm = item.name || item.law_id || item.id || "—";
+            return {
+              id: id,
+              sort_key: String(nm).toLowerCase(),
+              symbol: item.structure_ref || item.law_id || id,
+              name: String(nm),
+              kind: "law",
+              extra: (formulaDomains(data, item) || []).slice(0, 3).join(", ")
+            };
+          }
+
+          // quantity / math_const
+          let usages =
+            (data.usages && data.usages.usages && data.usages.usages[item.id]) || [];
+          if (sectionId) {
+            const matched = usages.filter(function (u) {
+              return usageMatchesSection(data, u, subjectId, sectionId);
+            });
+            if (matched.length) usages = matched;
+          }
+          const pick = usages[0] || {};
+          const nm = Array.isArray(pick.name)
+            ? lang === "ru"
+              ? pick.name[1] || pick.name[0]
+              : pick.name[0] || pick.name[1]
+            : pick.name || item.id;
+          const sym = pick.symbol || item.id || "";
+          return {
+            id: id,
+            sort_key: String(nm || sym || id).toLowerCase(),
+            symbol: String(sym),
+            name: String(nm || "—"),
+            kind: cardType === "math_const" ? "math_const" : "quantity",
+            extra: item.dimension ? String(item.dimension) : ""
+          };
+        });
+
+        mapped.sort(function (a, b) {
+          if (a.sort_key < b.sort_key) return -1;
+          if (a.sort_key > b.sort_key) return 1;
+          return String(a.id).localeCompare(String(b.id));
+        });
+
+        return {
+          columns: [
+            { id: "symbol", label: lang === "ru" ? "Символ" : "Symbol" },
+            { id: "name", label: lang === "ru" ? "Название" : "Name" },
+            { id: "kind", label: lang === "ru" ? "Тип" : "Kind" },
+            { id: "extra", label: lang === "ru" ? "Доп." : "Extra" }
+          ],
+          rows: mapped
+        };
       },
 
       render_passport: function (ctx) {
@@ -908,9 +1185,18 @@
       "filter_change",
       "search_change",
       "list_select",
-      "slot_action"
+      "slot_action",
+      "lang_change"
     ],
+
+    /** Pure compute layer (variant A) */
+    createInitialState: createInitialState,
+    handleSignal: handleSignal,
+
+    /** Data ingest */
     ingestFile: ingestFile,
+
+    /** Legacy handler factory — platform may still call until fully migrated */
     handlers: handlers,
     idFieldForCardType: idFieldForCardType
   };
