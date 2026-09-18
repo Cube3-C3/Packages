@@ -1,852 +1,1183 @@
-[
-  {
-    "law_id": "PHY.KIN.001",
-    "name": "Скорость при равномерном движении",
-    "structure_ref": "A1",
-    "description": "v = s / t",
-    "bindings": {
-      "O1": {
-        "quantity": "Q005",
+{
+  "schema_version": "1.0.0",
+  "id": "physi_formulas",
+  "description": "Сборки P*: structure_ref (однооператорный AST) + bindings; имя результата в denotations (quantity→[{law_id,role}]). Рекурсия {law}.",
+  "denotations": {
+    "Q005": [
+      {
+        "law_id": "P001",
         "role": "velocity"
-      },
-      "O2": {
-        "quantity": "Q008",
-        "role": "path_length"
-      },
-      "O3": {
-        "quantity": "Q007",
-        "role": "time"
       }
-    }
-  },
-  {
-    "law_id": "PHY.KIN.002",
-    "name": "Ускорение",
-    "structure_ref": "A4",
-    "description": "a = Δv / t",
-    "bindings": {
-      "O1": {
-        "quantity": "Q006",
+    ],
+    "Q006": [
+      {
+        "law_id": "P002",
         "role": "acceleration"
-      },
-      "O2": {
-        "quantity": "Q005",
-        "role": "velocity"
-      },
-      "O3": {
-        "quantity": "Q007",
-        "role": "time"
       }
-    }
-  },
-  {
-    "law_id": "PHY.KIN.004",
-    "name": "Координата при равномерном движении",
-    "structure_ref": "A6",
-    "description": "x = x_0 + v * t",
-    "bindings": {
-      "O1": {
-        "quantity": "Q008",
+    ],
+    "Q008": [
+      {
+        "law_id": "P003",
         "role": "coordinate"
       },
-      "O2": {
-        "quantity": "Q008",
-        "role": "initial_coordinate"
-      },
-      "O3": {
-        "quantity": "Q005",
-        "role": "velocity"
-      },
-      "O4": {
-        "quantity": "Q007",
-        "role": "time"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.KIN.006",
-    "name": "Путь при равноускоренном движении",
-    "structure_ref": "A8",
-    "description": "s = v_0 * t + (a * t^2) / 2",
-    "bindings": {
-      "O1": {
-        "quantity": "Q008",
+      {
+        "law_id": "P004",
         "role": "path_length"
       },
-      "O2": {
-        "quantity": "Q005",
-        "role": "initial_velocity"
-      },
-      "O3": {
-        "quantity": "Q007",
-        "role": "time"
-      },
-      "O4": {
-        "quantity": "Q006",
-        "role": "acceleration"
-      },
-      "O5": {
-        "num": 2
-      },
-      "O6": {
-        "num": 2
-      }
-    }
-  },
-  {
-    "law_id": "PHY.DYN.001",
-    "name": "Второй закон Ньютона",
-    "structure_ref": "A2",
-    "description": "F = m * a",
-    "bindings": {
-      "O1": {
-        "quantity": "Q004",
-        "role": "force"
-      },
-      "O2": {
-        "quantity": "Q003",
-        "role": "mass"
-      },
-      "O3": {
-        "quantity": "Q006",
-        "role": "acceleration"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.DYN.007",
-    "name": "Закон всемирного тяготения",
-    "structure_ref": "A9",
-    "description": "F = G * m1 * m2 * r^-2",
-    "bindings": {
-      "O1": {
-        "quantity": "Q004",
-        "role": "force"
-      },
-      "O2": {
-        "quantity": "C003",
-        "role": "gravitational_constant",
-        "defines_unit": true
-      },
-      "O3": {
-        "quantity": "Q003",
-        "role": "mass"
-      },
-      "O4": {
-        "quantity": "Q003",
-        "role": "mass"
-      },
-      "O5": {
-        "quantity": "Q008",
-        "role": "radius_vector"
-      },
-      "O6": {
-        "num": -2
-      }
-    }
-  },
-  {
-    "law_id": "PHY.ENERGY.003",
-    "name": "Кинетическая энергия",
-    "structure_ref": "A7",
-    "description": "E = (m * v^2) / 2",
-    "bindings": {
-      "O1": {
-        "quantity": "Q001",
-        "role": "energy"
-      },
-      "O2": {
-        "quantity": "Q003",
-        "role": "mass"
-      },
-      "O3": {
-        "quantity": "Q005",
-        "role": "velocity"
-      },
-      "O4": {
-        "num": 2
-      },
-      "O5": {
-        "num": 2
-      }
-    }
-  },
-  {
-    "law_id": "PHY.ENERGY.005",
-    "name": "Потенциальная энергия упругой деформации",
-    "structure_ref": "A7",
-    "description": "E = (k * x^2) / 2",
-    "bindings": {
-      "O1": {
-        "quantity": "Q001",
-        "role": "energy"
-      },
-      "O2": {
-        "quantity": "Q013",
-        "role": "spring_constant"
-      },
-      "O3": {
-        "quantity": "Q008",
-        "role": "coordinate"
-      },
-      "O4": {
-        "num": 2
-      },
-      "O5": {
-        "num": 2
-      }
-    }
-  },
-  {
-    "law_id": "PHY.ELEC.003",
-    "name": "Закон Ома для участка цепи",
-    "structure_ref": "A2",
-    "description": "U = I * R",
-    "bindings": {
-      "O1": {
-        "quantity": "Q012",
-        "role": "potential_emf"
-      },
-      "O2": {
-        "quantity": "Q031",
-        "role": "electric_current"
-      },
-      "O3": {
-        "quantity": "Q038",
-        "role": "resistance"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.OPT.002",
-    "name": "Формула тонкой линзы",
-    "structure_ref": "A10",
-    "description": "1/F = 1/d + 1/f  ->  (1/F) = (1/d) + (1/f)",
-    "bindings": {
-      "O1": {
-        "num": 1
-      },
-      "O2": {
-        "quantity": "Q008",
+      {
+        "law_id": "P010",
         "role": "focal_length"
       },
-      "O3": {
-        "num": 1
-      },
-      "O4": {
-        "quantity": "Q008",
-        "role": "distance"
-      },
-      "O5": {
-        "num": 1
-      },
-      "O6": {
-        "quantity": "Q008",
-        "role": "image_distance"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.MECH.001",
-    "name": "Момент силы",
-    "structure_ref": "A2",
-    "description": "M = F * l",
-    "bindings": {
-      "O1": {
-        "quantity": "Q026",
-        "role": "torque"
-      },
-      "O2": {
-        "quantity": "Q004",
-        "role": "force"
-      },
-      "O3": {
-        "quantity": "Q008",
-        "role": "length"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.MECH.002",
-    "name": "Равновесие рычага",
-    "structure_ref": "A11",
-    "description": "F1 * l1 = F2 * l2",
-    "bindings": {
-      "O1": {
-        "quantity": "Q004",
-        "role": "force"
-      },
-      "O2": {
-        "quantity": "Q008",
-        "role": "length"
-      },
-      "O3": {
-        "quantity": "Q004",
-        "role": "force"
-      },
-      "O4": {
-        "quantity": "Q008",
-        "role": "length"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.MECH.003",
-    "name": "Сила Архимеда",
-    "structure_ref": "A3",
-    "description": "FA = rho * g * V",
-    "bindings": {
-      "O1": {
-        "quantity": "Q004",
-        "role": "force"
-      },
-      "O2": {
-        "quantity": "Q025",
-        "role": "density"
-      },
-      "O3": {
-        "quantity": "Q006",
-        "role": "free_fall_acceleration"
-      },
-      "O4": {
-        "quantity": "Q028",
-        "role": "volume"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.MECH.004",
-    "name": "Закон Гука",
-    "structure_ref": "A2",
-    "description": "F_упр = k * delta_l",
-    "bindings": {
-      "O1": {
-        "quantity": "Q004",
-        "role": "force"
-      },
-      "O2": {
-        "quantity": "Q013",
-        "role": "spring_constant",
-        "defines_unit": true
-      },
-      "O3": {
-        "quantity": "Q008",
-        "role": "length"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.OSC.001",
-    "name": "Период математического маятника",
-    "structure_ref": "A12",
-    "description": "T = 2π * sqrt(l/g)",
-    "bindings": {
-      "O1": {
-        "quantity": "Q007",
-        "role": "period"
-      },
-      "O2": {
-        "quantity": "M009",
-        "role": "two_pi"
-      },
-      "O3": {
-        "quantity": "Q008",
-        "role": "length"
-      },
-      "O4": {
-        "quantity": "Q006",
-        "role": "free_fall_acceleration"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.OSC.002",
-    "name": "Период пружинного маятника",
-    "structure_ref": "A12",
-    "description": "T = 2π * sqrt(m/k)",
-    "bindings": {
-      "O1": {
-        "quantity": "Q007",
-        "role": "period"
-      },
-      "O2": {
-        "quantity": "M009",
-        "role": "two_pi"
-      },
-      "O3": {
-        "quantity": "Q003",
-        "role": "mass"
-      },
-      "O4": {
-        "quantity": "Q013",
-        "role": "spring_constant"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.OSC.003",
-    "name": "Гармоническое колебание",
-    "structure_ref": "A13",
-    "description": "x = A * sin(omega*t + phi0)",
-    "bindings": {
-      "O1": {
-        "quantity": "Q008",
+      {
+        "law_id": "P017",
         "role": "coordinate"
       },
-      "O2": {
-        "quantity": "Q008",
-        "role": "amplitude"
+      {
+        "law_id": "P033",
+        "role": "path_difference"
       },
-      "O3": {
-        "quantity": "Q037",
-        "role": "frequency"
+      {
+        "law_id": "P034",
+        "role": "path_difference"
       },
-      "O4": {
-        "quantity": "Q007",
-        "role": "time"
+      {
+        "law_id": "P110",
+        "role": "path_length"
       },
-      "O5": {
-        "quantity": "Q043",
-        "role": "initial_phase"
+      {
+        "law_id": "P111",
+        "role": "path_length"
+      },
+      {
+        "law_id": "P112",
+        "role": "path_length"
       }
-    }
-  },
-  {
-    "law_id": "PHY.THERM.001",
-    "name": "Нагревание вещества",
-    "structure_ref": "A3",
-    "description": "Q = c * m * delta_T",
-    "bindings": {
-      "O1": {
-        "quantity": "Q010",
-        "role": "heat"
+    ],
+    "Q004": [
+      {
+        "law_id": "P005",
+        "role": "force"
       },
-      "O2": {
-        "quantity": "Q016",
-        "role": "specific_heat",
-        "defines_unit": true
+      {
+        "law_id": "P006",
+        "role": "force"
       },
-      "O3": {
-        "quantity": "Q003",
-        "role": "mass"
+      {
+        "law_id": "P013",
+        "role": "force"
       },
-      "O4": {
-        "quantity": "Q029",
-        "role": "temperature"
+      {
+        "law_id": "P014",
+        "role": "force"
+      },
+      {
+        "law_id": "P023",
+        "role": "force"
+      },
+      {
+        "law_id": "P024",
+        "role": "force"
       }
-    }
-  },
-  {
-    "law_id": "PHY.THERM.002",
-    "name": "Удельная теплота плавления",
-    "structure_ref": "A2",
-    "description": "Q = lambda * m",
-    "bindings": {
-      "O1": {
-        "quantity": "Q010",
-        "role": "heat"
-      },
-      "O2": {
-        "quantity": "Q017",
-        "role": "latent_heat_fusion",
-        "defines_unit": true
-      },
-      "O3": {
-        "quantity": "Q003",
-        "role": "mass"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.THERM.003",
-    "name": "Удельная теплота парообразования",
-    "structure_ref": "A2",
-    "description": "Q = L * m",
-    "bindings": {
-      "O1": {
-        "quantity": "Q010",
-        "role": "heat"
-      },
-      "O2": {
-        "quantity": "Q018",
-        "role": "latent_heat_vaporization",
-        "defines_unit": true
-      },
-      "O3": {
-        "quantity": "Q003",
-        "role": "mass"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.THERM.004",
-    "name": "Давление идеального газа через энергию",
-    "structure_ref": "A23",
-    "description": "p = (2/3) * n * E",
-    "bindings": {
-      "O1": {
-        "quantity": "Q027",
-        "role": "pressure"
-      },
-      "O2": {
-        "num": 2
-      },
-      "O3": {
-        "quantity": "Q023",
-        "role": "number_density"
-      },
-      "O4": {
-        "quantity": "Q001",
+    ],
+    "Q001": [
+      {
+        "law_id": "P007",
         "role": "energy"
       },
-      "O5": {
-        "num": 3
+      {
+        "law_id": "P008",
+        "role": "energy"
+      },
+      {
+        "law_id": "P035",
+        "role": "energy"
+      },
+      {
+        "law_id": "P036",
+        "role": "energy"
       }
-    }
-  },
-  {
-    "law_id": "PHY.THERM.005",
-    "name": "Уравнение Менделеева–Клапейрона",
-    "structure_ref": "A26",
-    "description": "p * V = (m / mu) * R * T",
-    "bindings": {
-      "O1": {
-        "quantity": "Q027",
-        "role": "pressure"
+    ],
+    "Q012": [
+      {
+        "law_id": "P009",
+        "role": "potential_emf"
       },
-      "O2": {
-        "quantity": "Q028",
-        "role": "volume"
-      },
-      "O3": {
-        "quantity": "Q003",
-        "role": "mass"
-      },
-      "O4": {
-        "quantity": "Q021",
-        "role": "molar_mass"
-      },
-      "O5": {
-        "quantity": "C004",
-        "role": "gas_constant"
-      },
-      "O6": {
-        "quantity": "Q029",
-        "role": "temperature"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.EM.001",
-    "name": "Сила Ампера",
-    "structure_ref": "A27",
-    "description": "FA = B * I * l * sin(alpha)",
-    "bindings": {
-      "O1": {
-        "quantity": "Q004",
-        "role": "force"
-      },
-      "O2": {
-        "quantity": "Q032",
-        "role": "magnetic_induction"
-      },
-      "O3": {
-        "quantity": "Q031",
-        "role": "electric_current"
-      },
-      "O4": {
-        "quantity": "Q008",
-        "role": "length"
-      },
-      "O5": {
-        "quantity": "Q043",
-        "role": "angle"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.EM.002",
-    "name": "Сила Лоренца",
-    "structure_ref": "A27",
-    "description": "Fl = q * v * B * sin(alpha)",
-    "bindings": {
-      "O1": {
-        "quantity": "Q004",
-        "role": "force"
-      },
-      "O2": {
-        "quantity": "Q030",
-        "role": "electric_charge"
-      },
-      "O3": {
-        "quantity": "Q005",
-        "role": "velocity"
-      },
-      "O4": {
-        "quantity": "Q032",
-        "role": "magnetic_induction"
-      },
-      "O5": {
-        "quantity": "Q043",
-        "role": "angle"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.EM.003",
-    "name": "Связь тока и заряда",
-    "structure_ref": "A1",
-    "description": "I = q / t",
-    "bindings": {
-      "O1": {
-        "quantity": "Q031",
-        "role": "electric_current"
-      },
-      "O2": {
-        "quantity": "Q030",
-        "role": "electric_charge"
-      },
-      "O3": {
-        "quantity": "Q007",
-        "role": "time"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.EM.004",
-    "name": "Магнитный поток",
-    "structure_ref": "A16",
-    "description": "Phi = B * S * cos(alpha)",
-    "bindings": {
-      "O1": {
-        "quantity": "Q033",
-        "role": "magnetic_flux"
-      },
-      "O2": {
-        "quantity": "Q032",
-        "role": "magnetic_induction"
-      },
-      "O3": {
-        "quantity": "Q042",
-        "role": "area"
-      },
-      "O4": {
-        "quantity": "Q043",
-        "role": "angle"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.EM.005",
-    "name": "Поток через индуктивность",
-    "structure_ref": "A2",
-    "description": "Phi = L * I",
-    "bindings": {
-      "O1": {
-        "quantity": "Q033",
-        "role": "magnetic_flux"
-      },
-      "O2": {
-        "quantity": "Q035",
-        "role": "inductance"
-      },
-      "O3": {
-        "quantity": "Q031",
-        "role": "electric_current"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.EM.006",
-    "name": "Закон электромагнитной индукции",
-    "structure_ref": "A17",
-    "description": "Epsilon = -delta(Phi) / delta(t)",
-    "bindings": {
-      "O1": {
-        "quantity": "Q012",
+      {
+        "law_id": "P028",
         "role": "emf"
+      }
+    ],
+    "Q026": [
+      {
+        "law_id": "P011",
+        "role": "torque"
+      }
+    ],
+    "Q007": [
+      {
+        "law_id": "P015",
+        "role": "period"
       },
-      "O2": {
-        "quantity": "Q033",
+      {
+        "law_id": "P016",
+        "role": "period"
+      }
+    ],
+    "Q010": [
+      {
+        "law_id": "P018",
+        "role": "heat"
+      },
+      {
+        "law_id": "P019",
+        "role": "heat"
+      },
+      {
+        "law_id": "P020",
+        "role": "heat"
+      }
+    ],
+    "Q027": [
+      {
+        "law_id": "P021",
+        "role": "pressure"
+      }
+    ],
+    "Q031": [
+      {
+        "law_id": "P025",
+        "role": "electric_current"
+      }
+    ],
+    "Q033": [
+      {
+        "law_id": "P026",
         "role": "magnetic_flux"
       },
-      "O3": {
-        "quantity": "Q007",
-        "role": "time"
+      {
+        "law_id": "P027",
+        "role": "magnetic_flux"
       }
-    }
-  },
-  {
-    "law_id": "PHY.EM.007",
-    "name": "Параллельное соединение сопротивлений",
-    "structure_ref": "A18",
-    "description": "1/R0 = 1/R1 + 1/R2",
-    "bindings": {
-      "O1": {
-        "quantity": "Q038",
+    ],
+    "Q038": [
+      {
+        "law_id": "P029",
         "role": "common"
       },
-      "O2": {
-        "quantity": "Q038",
-        "role": "resistance"
-      },
-      "O3": {
-        "quantity": "Q038",
-        "role": "resistance"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.EM.008",
-    "name": "Последовательное соединение сопротивлений",
-    "structure_ref": "A5",
-    "description": "R0 = R1 + R2",
-    "bindings": {
-      "O1": {
-        "quantity": "Q038",
+      {
+        "law_id": "P030",
         "role": "common"
-      },
-      "O2": {
-        "quantity": "Q038",
-        "role": "resistance"
-      },
-      "O3": {
-        "quantity": "Q038",
-        "role": "resistance"
       }
-    }
+    ]
   },
-  {
-    "law_id": "PHY.OPT.001",
-    "name": "Закон преломления Снеллиуса",
-    "structure_ref": "A20",
-    "description": "n1 * sin(alpha) = n2 * sin(beta)",
-    "bindings": {
-      "O1": {
-        "quantity": "Q015",
-        "role": "refractive_index"
-      },
-      "O2": {
-        "quantity": "Q043",
-        "role": "angle"
-      },
-      "O3": {
-        "quantity": "Q015",
-        "role": "refractive_index"
-      },
-      "O4": {
-        "quantity": "Q043",
-        "role": "refracted_angle"
+  "formulas": [
+    {
+      "law_id": "P200",
+      "name": "Удвоение порядка",
+      "structure_ref": "A2",
+      "description": "2 * k",
+      "bindings": {
+        "O2": {
+          "num": 2
+        },
+        "O3": {
+          "quantity": "Q044",
+          "role": "order"
+        }
+      }
+    },
+    {
+      "law_id": "P201",
+      "name": "Нечётный множитель 2k+1",
+      "structure_ref": "A5",
+      "description": "2*k + 1",
+      "bindings": {
+        "O2": {
+          "law": "P200"
+        },
+        "O3": {
+          "num": 1
+        }
+      }
+    },
+    {
+      "law_id": "P202",
+      "name": "Произведение нечётного множителя и длины волны",
+      "structure_ref": "A2",
+      "description": "(2k+1) * lambda",
+      "bindings": {
+        "O2": {
+          "law": "P201"
+        },
+        "O3": {
+          "quantity": "Q008",
+          "role": "wavelength"
+        }
+      }
+    },
+    {
+      "law_id": "P034",
+      "name": "Разность хода (нечётные половины)",
+      "structure_ref": "A1",
+      "description": "Delta = (2*k + 1) * lambda / 2",
+      "bindings": {
+        "O2": {
+          "law": "P202"
+        },
+        "O3": {
+          "num": 2
+        }
+      }
+    },
+    {
+      "law_id": "P110",
+      "name": "Произведение скорости и времени",
+      "structure_ref": "A2",
+      "description": "s = v * t",
+      "bindings": {
+        "O2": {
+          "quantity": "Q005",
+          "role": "velocity"
+        },
+        "O3": {
+          "quantity": "Q007",
+          "role": "time"
+        }
+      }
+    },
+    {
+      "law_id": "P111",
+      "name": "Произведение начальной скорости и времени",
+      "structure_ref": "A2",
+      "description": "s = v_0 * t",
+      "bindings": {
+        "O2": {
+          "quantity": "Q005",
+          "role": "initial_velocity"
+        },
+        "O3": {
+          "quantity": "Q007",
+          "role": "time"
+        }
+      }
+    },
+    {
+      "law_id": "P210",
+      "name": "Квадрат времени",
+      "structure_ref": "A2",
+      "description": "t * t",
+      "bindings": {
+        "O2": {
+          "quantity": "Q007",
+          "role": "time"
+        },
+        "O3": {
+          "quantity": "Q007",
+          "role": "time"
+        }
+      }
+    },
+    {
+      "law_id": "P211",
+      "name": "Произведение ускорения и квадрата времени",
+      "structure_ref": "A2",
+      "description": "a * t^2",
+      "bindings": {
+        "O2": {
+          "quantity": "Q006",
+          "role": "acceleration"
+        },
+        "O3": {
+          "law": "P210"
+        }
+      }
+    },
+    {
+      "law_id": "P112",
+      "name": "Квадратичный член пути",
+      "structure_ref": "A1",
+      "description": "(a * t^2) / 2",
+      "bindings": {
+        "O2": {
+          "law": "P211"
+        },
+        "O3": {
+          "num": 2
+        }
+      }
+    },
+    {
+      "law_id": "P212",
+      "name": "Квадрат скорости",
+      "structure_ref": "A2",
+      "description": "v * v",
+      "bindings": {
+        "O2": {
+          "quantity": "Q005",
+          "role": "velocity"
+        },
+        "O3": {
+          "quantity": "Q005",
+          "role": "velocity"
+        }
+      }
+    },
+    {
+      "law_id": "P213",
+      "name": "Произведение массы и квадрата скорости",
+      "structure_ref": "A2",
+      "description": "m * v^2",
+      "bindings": {
+        "O2": {
+          "quantity": "Q003",
+          "role": "mass"
+        },
+        "O3": {
+          "law": "P212"
+        }
+      }
+    },
+    {
+      "law_id": "P007",
+      "name": "Кинетическая энергия",
+      "structure_ref": "A1",
+      "description": "E = (m * v^2) / 2",
+      "bindings": {
+        "O2": {
+          "law": "P213"
+        },
+        "O3": {
+          "num": 2
+        }
+      }
+    },
+    {
+      "law_id": "P214",
+      "name": "Квадрат координаты",
+      "structure_ref": "A2",
+      "description": "x * x",
+      "bindings": {
+        "O2": {
+          "quantity": "Q008",
+          "role": "coordinate"
+        },
+        "O3": {
+          "quantity": "Q008",
+          "role": "coordinate"
+        }
+      }
+    },
+    {
+      "law_id": "P215",
+      "name": "Произведение жёсткости и квадрата координаты",
+      "structure_ref": "A2",
+      "description": "k * x^2",
+      "bindings": {
+        "O2": {
+          "quantity": "Q013",
+          "role": "spring_constant"
+        },
+        "O3": {
+          "law": "P214"
+        }
+      }
+    },
+    {
+      "law_id": "P008",
+      "name": "Потенциальная энергия упругой деформации",
+      "structure_ref": "A1",
+      "description": "E = (k * x^2) / 2",
+      "bindings": {
+        "O2": {
+          "law": "P215"
+        },
+        "O3": {
+          "num": 2
+        }
+      }
+    },
+    {
+      "law_id": "P001",
+      "name": "Скорость при равномерном движении",
+      "structure_ref": "A1",
+      "description": "v = s / t",
+      "bindings": {
+        "O2": {
+          "quantity": "Q008",
+          "role": "path_length"
+        },
+        "O3": {
+          "quantity": "Q007",
+          "role": "time"
+        }
+      }
+    },
+    {
+      "law_id": "P003",
+      "name": "Координата при равномерном движении",
+      "structure_ref": "A5",
+      "description": "x = x_0 + v * t",
+      "bindings": {
+        "O2": {
+          "quantity": "Q008",
+          "role": "initial_coordinate"
+        },
+        "O3": {
+          "law": "P110"
+        }
+      }
+    },
+    {
+      "law_id": "P004",
+      "name": "Путь при равноускоренном движении",
+      "structure_ref": "A5",
+      "description": "s = v_0 * t + (a * t^2) / 2",
+      "bindings": {
+        "O2": {
+          "law": "P111"
+        },
+        "O3": {
+          "law": "P112"
+        }
+      }
+    },
+    {
+      "law_id": "P005",
+      "name": "Второй закон Ньютона",
+      "structure_ref": "A2",
+      "description": "F = m * a",
+      "bindings": {
+        "O2": {
+          "quantity": "Q003",
+          "role": "mass"
+        },
+        "O3": {
+          "quantity": "Q006",
+          "role": "acceleration"
+        }
+      }
+    },
+    {
+      "law_id": "P035",
+      "name": "Энергия фотона",
+      "structure_ref": "A2",
+      "description": "E = h * nu",
+      "bindings": {
+        "O2": {
+          "quantity": "C002",
+          "role": "planck_constant",
+          "defines_unit": true
+        },
+        "O3": {
+          "quantity": "Q037",
+          "role": "frequency"
+        }
+      }
+    },
+    {
+      "law_id": "P036",
+      "name": "Уравнение фотоэффекта Эйнштейна",
+      "structure_ref": "A5",
+      "description": "Ek = A_work + hν",
+      "bindings": {
+        "O2": {
+          "quantity": "Q009",
+          "role": "work"
+        },
+        "O3": {
+          "law": "P035"
+        }
+      }
+    },
+    {
+      "law_id": "P011",
+      "name": "Момент силы",
+      "structure_ref": "A2",
+      "description": "M = F * l",
+      "bindings": {
+        "O2": {
+          "quantity": "Q004",
+          "role": "force"
+        },
+        "O3": {
+          "quantity": "Q008",
+          "role": "length"
+        }
+      }
+    },
+    {
+      "law_id": "P014",
+      "name": "Закон Гука",
+      "structure_ref": "A2",
+      "description": "F_упр = k * delta_l",
+      "bindings": {
+        "O2": {
+          "quantity": "Q013",
+          "role": "spring_constant"
+        },
+        "O3": {
+          "quantity": "Q008",
+          "role": "length"
+        }
+      }
+    },
+    {
+      "law_id": "P009",
+      "name": "Закон Ома (участок)",
+      "structure_ref": "A2",
+      "description": "U = I * R",
+      "bindings": {
+        "O2": {
+          "quantity": "Q031",
+          "role": "electric_current"
+        },
+        "O3": {
+          "quantity": "Q038",
+          "role": "resistance"
+        }
+      }
+    },
+    {
+      "law_id": "P025",
+      "name": "Сила тока",
+      "structure_ref": "A1",
+      "description": "I = q / t",
+      "bindings": {
+        "O2": {
+          "quantity": "Q030",
+          "role": "electric_charge"
+        },
+        "O3": {
+          "quantity": "Q007",
+          "role": "time"
+        }
+      }
+    },
+    {
+      "law_id": "P027",
+      "name": "Поток через индуктивность",
+      "structure_ref": "A2",
+      "description": "Phi = L * I",
+      "bindings": {
+        "O2": {
+          "quantity": "Q035",
+          "role": "inductance"
+        },
+        "O3": {
+          "quantity": "Q031",
+          "role": "electric_current"
+        }
+      }
+    },
+    {
+      "law_id": "P019",
+      "name": "Количество теплоты (плавление)",
+      "structure_ref": "A2",
+      "description": "Q = lambda * m",
+      "bindings": {
+        "O2": {
+          "quantity": "Q017",
+          "role": "latent_heat_fusion"
+        },
+        "O3": {
+          "quantity": "Q003",
+          "role": "mass"
+        }
+      }
+    },
+    {
+      "law_id": "P020",
+      "name": "Количество теплоты (парообразование)",
+      "structure_ref": "A2",
+      "description": "Q = L * m",
+      "bindings": {
+        "O2": {
+          "quantity": "Q018",
+          "role": "latent_heat_vaporization"
+        },
+        "O3": {
+          "quantity": "Q003",
+          "role": "mass"
+        }
+      }
+    },
+    {
+      "law_id": "P033",
+      "name": "Разность хода (целые)",
+      "structure_ref": "A2",
+      "description": "Delta = k * lambda",
+      "bindings": {
+        "O2": {
+          "quantity": "Q044",
+          "role": "order"
+        },
+        "O3": {
+          "quantity": "Q008",
+          "role": "wavelength"
+        }
+      }
+    },
+    {
+      "law_id": "P013",
+      "name": "Сила Архимеда",
+      "structure_ref": "A3",
+      "description": "FA = rho * g * V",
+      "bindings": {
+        "O2": {
+          "quantity": "Q025",
+          "role": "density"
+        },
+        "O3": {
+          "quantity": "Q006",
+          "role": "free_fall_acceleration"
+        },
+        "O4": {
+          "quantity": "Q028",
+          "role": "volume"
+        }
+      }
+    },
+    {
+      "law_id": "P018",
+      "name": "Количество теплоты (нагревание)",
+      "structure_ref": "A3",
+      "description": "Q = c * m * delta_T",
+      "bindings": {
+        "O2": {
+          "quantity": "Q016",
+          "role": "specific_heat"
+        },
+        "O3": {
+          "quantity": "Q003",
+          "role": "mass"
+        },
+        "O4": {
+          "quantity": "Q029",
+          "role": "temperature"
+        }
+      }
+    },
+    {
+      "law_id": "P030",
+      "name": "Последовательное соединение сопротивлений",
+      "structure_ref": "A5",
+      "description": "R0 = R1 + R2",
+      "bindings": {
+        "O2": {
+          "quantity": "Q038",
+          "role": "resistance"
+        },
+        "O3": {
+          "quantity": "Q038",
+          "role": "resistance"
+        }
+      }
+    },
+    {
+      "law_id": "P029",
+      "name": "Параллельное соединение сопротивлений",
+      "structure_ref": "A18",
+      "description": "1/R0 = 1/R1 + 1/R2",
+      "bindings": {
+        "O2": {
+          "quantity": "Q038",
+          "role": "resistance"
+        },
+        "O3": {
+          "quantity": "Q038",
+          "role": "resistance"
+        }
+      }
+    },
+    {
+      "law_id": "P220",
+      "name": "Квадрат радиус-вектора",
+      "structure_ref": "A2",
+      "description": "r * r",
+      "bindings": {
+        "O2": {
+          "quantity": "Q008",
+          "role": "radius_vector"
+        },
+        "O3": {
+          "quantity": "Q008",
+          "role": "radius_vector"
+        }
+      }
+    },
+    {
+      "law_id": "P221",
+      "name": "Произведение масс",
+      "structure_ref": "A2",
+      "description": "m1 * m2",
+      "bindings": {
+        "O2": {
+          "quantity": "Q003",
+          "role": "mass"
+        },
+        "O3": {
+          "quantity": "Q003",
+          "role": "mass"
+        }
+      }
+    },
+    {
+      "law_id": "P222",
+      "name": "G * m1 * m2",
+      "structure_ref": "A2",
+      "description": "G * (m1*m2)",
+      "bindings": {
+        "O2": {
+          "quantity": "C003",
+          "role": "gravitational_constant",
+          "defines_unit": true
+        },
+        "O3": {
+          "law": "P221"
+        }
+      }
+    },
+    {
+      "law_id": "P006",
+      "name": "Закон всемирного тяготения",
+      "structure_ref": "A1",
+      "description": "F = G * m1 * m2 / r^2",
+      "bindings": {
+        "O2": {
+          "law": "P222"
+        },
+        "O3": {
+          "law": "P220"
+        }
+      }
+    },
+    {
+      "law_id": "P230",
+      "name": "n * E",
+      "structure_ref": "A2",
+      "description": "n * E",
+      "bindings": {
+        "O2": {
+          "quantity": "Q023",
+          "role": "number_density"
+        },
+        "O3": {
+          "quantity": "Q001",
+          "role": "energy"
+        }
+      }
+    },
+    {
+      "law_id": "P231",
+      "name": "2 * n * E",
+      "structure_ref": "A2",
+      "description": "2 * (n*E)",
+      "bindings": {
+        "O2": {
+          "num": 2
+        },
+        "O3": {
+          "law": "P230"
+        }
+      }
+    },
+    {
+      "law_id": "P021",
+      "name": "Давление идеального газа через энергию",
+      "structure_ref": "A1",
+      "description": "p = (2/3) * n * E",
+      "bindings": {
+        "O2": {
+          "law": "P231"
+        },
+        "O3": {
+          "num": 3
+        }
+      }
+    },
+    {
+      "law_id": "P240",
+      "name": "Приращение скорости",
+      "structure_ref": "AU_delta",
+      "description": "Δv",
+      "bindings": {
+        "O2": {
+          "quantity": "Q005",
+          "role": "velocity"
+        }
+      }
+    },
+    {
+      "law_id": "P002",
+      "name": "Ускорение",
+      "structure_ref": "A1",
+      "description": "a = Δv / t",
+      "bindings": {
+        "O2": {
+          "law": "P240"
+        },
+        "O3": {
+          "quantity": "Q007",
+          "role": "time"
+        }
+      }
+    },
+    {
+      "law_id": "P241",
+      "name": "Приращение магнитного потока",
+      "structure_ref": "AU_delta",
+      "description": "ΔΦ",
+      "bindings": {
+        "O2": {
+          "quantity": "Q033",
+          "role": "magnetic_flux"
+        }
+      }
+    },
+    {
+      "law_id": "P242",
+      "name": "Скорость изменения потока",
+      "structure_ref": "A1",
+      "description": "ΔΦ / t",
+      "bindings": {
+        "O2": {
+          "law": "P241"
+        },
+        "O3": {
+          "quantity": "Q007",
+          "role": "time"
+        }
+      }
+    },
+    {
+      "law_id": "P028",
+      "name": "Закон электромагнитной индукции",
+      "structure_ref": "AU_neg",
+      "description": "Epsilon = -ΔΦ/t",
+      "bindings": {
+        "O2": {
+          "law": "P242"
+        }
+      }
+    },
+    {
+      "law_id": "P250",
+      "name": "Отношение l/g",
+      "structure_ref": "A1",
+      "description": "l / g",
+      "bindings": {
+        "O2": {
+          "quantity": "Q008",
+          "role": "length"
+        },
+        "O3": {
+          "quantity": "Q006",
+          "role": "free_fall_acceleration"
+        }
+      }
+    },
+    {
+      "law_id": "P251",
+      "name": "Корень из l/g",
+      "structure_ref": "AU_sqrt",
+      "description": "sqrt(l/g)",
+      "bindings": {
+        "O2": {
+          "law": "P250"
+        }
+      }
+    },
+    {
+      "law_id": "P015",
+      "name": "Период математического маятника",
+      "structure_ref": "A2",
+      "description": "T = 2π * sqrt(l/g)",
+      "bindings": {
+        "O2": {
+          "quantity": "M009",
+          "role": "two_pi"
+        },
+        "O3": {
+          "law": "P251"
+        }
+      }
+    },
+    {
+      "law_id": "P252",
+      "name": "Отношение m/k",
+      "structure_ref": "A1",
+      "description": "m / k",
+      "bindings": {
+        "O2": {
+          "quantity": "Q003",
+          "role": "mass"
+        },
+        "O3": {
+          "quantity": "Q013",
+          "role": "spring_constant"
+        }
+      }
+    },
+    {
+      "law_id": "P253",
+      "name": "Корень из m/k",
+      "structure_ref": "AU_sqrt",
+      "description": "sqrt(m/k)",
+      "bindings": {
+        "O2": {
+          "law": "P252"
+        }
+      }
+    },
+    {
+      "law_id": "P016",
+      "name": "Период пружинного маятника",
+      "structure_ref": "A2",
+      "description": "T = 2π * sqrt(m/k)",
+      "bindings": {
+        "O2": {
+          "quantity": "M009",
+          "role": "two_pi"
+        },
+        "O3": {
+          "law": "P253"
+        }
+      }
+    },
+    {
+      "law_id": "P260",
+      "name": "Произведение ω·t",
+      "structure_ref": "A2",
+      "description": "omega * t",
+      "bindings": {
+        "O2": {
+          "quantity": "Q037",
+          "role": "frequency"
+        },
+        "O3": {
+          "quantity": "Q007",
+          "role": "time"
+        }
+      }
+    },
+    {
+      "law_id": "P261",
+      "name": "Фаза ωt+φ0",
+      "structure_ref": "A5",
+      "description": "omega*t + phi0",
+      "bindings": {
+        "O2": {
+          "law": "P260"
+        },
+        "O3": {
+          "quantity": "Q043",
+          "role": "initial_phase"
+        }
+      }
+    },
+    {
+      "law_id": "P262",
+      "name": "Синус фазы",
+      "structure_ref": "AU_sin",
+      "description": "sin(phase)",
+      "bindings": {
+        "O2": {
+          "law": "P261"
+        }
+      }
+    },
+    {
+      "law_id": "P017",
+      "name": "Гармоническое колебание",
+      "structure_ref": "A2",
+      "description": "x = A * sin(omega*t + phi0)",
+      "bindings": {
+        "O2": {
+          "quantity": "Q008",
+          "role": "amplitude"
+        },
+        "O3": {
+          "law": "P262"
+        }
+      }
+    },
+    {
+      "law_id": "P270",
+      "name": "B * I",
+      "structure_ref": "A2",
+      "description": "B * I",
+      "bindings": {
+        "O2": {
+          "quantity": "Q032",
+          "role": "magnetic_induction"
+        },
+        "O3": {
+          "quantity": "Q031",
+          "role": "electric_current"
+        }
+      }
+    },
+    {
+      "law_id": "P271",
+      "name": "B * I * l",
+      "structure_ref": "A2",
+      "description": "(B*I) * l",
+      "bindings": {
+        "O2": {
+          "law": "P270"
+        },
+        "O3": {
+          "quantity": "Q008",
+          "role": "length"
+        }
+      }
+    },
+    {
+      "law_id": "P272",
+      "name": "sin α (Ампер)",
+      "structure_ref": "AU_sin",
+      "description": "sin(alpha)",
+      "bindings": {
+        "O2": {
+          "quantity": "Q043",
+          "role": "angle"
+        }
+      }
+    },
+    {
+      "law_id": "P023",
+      "name": "Сила Ампера",
+      "structure_ref": "A2",
+      "description": "FA = B * I * l * sin(alpha)",
+      "bindings": {
+        "O2": {
+          "law": "P271"
+        },
+        "O3": {
+          "law": "P272"
+        }
+      }
+    },
+    {
+      "law_id": "P273",
+      "name": "q * v",
+      "structure_ref": "A2",
+      "description": "q * v",
+      "bindings": {
+        "O2": {
+          "quantity": "Q030",
+          "role": "electric_charge"
+        },
+        "O3": {
+          "quantity": "Q005",
+          "role": "velocity"
+        }
+      }
+    },
+    {
+      "law_id": "P274",
+      "name": "q * v * B",
+      "structure_ref": "A2",
+      "description": "(q*v) * B",
+      "bindings": {
+        "O2": {
+          "law": "P273"
+        },
+        "O3": {
+          "quantity": "Q032",
+          "role": "magnetic_induction"
+        }
+      }
+    },
+    {
+      "law_id": "P275",
+      "name": "sin α (Лоренц)",
+      "structure_ref": "AU_sin",
+      "description": "sin(alpha)",
+      "bindings": {
+        "O2": {
+          "quantity": "Q043",
+          "role": "angle"
+        }
+      }
+    },
+    {
+      "law_id": "P024",
+      "name": "Сила Лоренца",
+      "structure_ref": "A2",
+      "description": "Fl = q * v * B * sin(alpha)",
+      "bindings": {
+        "O2": {
+          "law": "P274"
+        },
+        "O3": {
+          "law": "P275"
+        }
+      }
+    },
+    {
+      "law_id": "P280",
+      "name": "B * S",
+      "structure_ref": "A2",
+      "description": "B * S",
+      "bindings": {
+        "O2": {
+          "quantity": "Q032",
+          "role": "magnetic_induction"
+        },
+        "O3": {
+          "quantity": "Q042",
+          "role": "area"
+        }
+      }
+    },
+    {
+      "law_id": "P281",
+      "name": "cos α",
+      "structure_ref": "AU_cos",
+      "description": "cos(alpha)",
+      "bindings": {
+        "O2": {
+          "quantity": "Q043",
+          "role": "angle"
+        }
+      }
+    },
+    {
+      "law_id": "P026",
+      "name": "Магнитный поток",
+      "structure_ref": "A2",
+      "description": "Phi = B * S * cos(alpha)",
+      "bindings": {
+        "O2": {
+          "law": "P280"
+        },
+        "O3": {
+          "law": "P281"
+        }
+      }
+    },
+    {
+      "law_id": "P010",
+      "name": "Формула тонкой линзы",
+      "structure_ref": "A18",
+      "description": "1/F = 1/d + 1/f",
+      "bindings": {
+        "O2": {
+          "quantity": "Q008",
+          "role": "distance"
+        },
+        "O3": {
+          "quantity": "Q008",
+          "role": "image_distance"
+        }
       }
     }
-  },
-  {
-    "law_id": "PHY.OPT.003",
-    "name": "Дифракционная решётка / щель",
-    "structure_ref": "A24",
-    "description": "d * sin(alpha) = k * lambda",
-    "bindings": {
-      "O1": {
-        "quantity": "Q008",
-        "role": "distance"
-      },
-      "O2": {
-        "quantity": "Q043",
-        "role": "angle"
-      },
-      "O3": {
-        "quantity": "Q044",
-        "role": "order"
-      },
-      "O4": {
-        "quantity": "Q008",
-        "role": "wavelength"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.OPT.004",
-    "name": "Интерференционный максимум",
-    "structure_ref": "A2",
-    "description": "Delta = k * lambda",
-    "bindings": {
-      "O1": {
-        "quantity": "Q008",
-        "role": "path_difference"
-      },
-      "O2": {
-        "quantity": "Q044",
-        "role": "order"
-      },
-      "O3": {
-        "quantity": "Q008",
-        "role": "wavelength"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.OPT.005",
-    "name": "Интерференционный минимум",
-    "structure_ref": "A25",
-    "description": "Delta = (2*k + 1) * lambda / 2",
-    "bindings": {
-      "O1": {
-        "quantity": "Q008",
-        "role": "path_difference"
-      },
-      "O2": {
-        "quantity": "Q044",
-        "role": "order"
-      },
-      "O3": {
-        "quantity": "Q008",
-        "role": "wavelength"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.QM.001",
-    "name": "Энергия фотона",
-    "structure_ref": "A2",
-    "description": "E = h * nu",
-    "bindings": {
-      "O1": {
-        "quantity": "Q001",
-        "role": "energy"
-      },
-      "O2": {
-        "quantity": "C002",
-        "role": "planck_constant",
-        "defines_unit": true
-      },
-      "O3": {
-        "quantity": "Q037",
-        "role": "frequency"
-      }
-    }
-  },
-  {
-    "law_id": "PHY.QM.002",
-    "name": "Уравнение фотоэффекта Эйнштейна",
-    "structure_ref": "A6",
-    "description": "Ek = A_work + h * nu",
-    "bindings": {
-      "O1": {
-        "quantity": "Q001",
-        "role": "energy"
-      },
-      "O2": {
-        "quantity": "Q009",
-        "role": "work"
-      },
-      "O3": {
-        "quantity": "C002",
-        "role": "planck_constant"
-      },
-      "O4": {
-        "quantity": "Q037",
-        "role": "frequency"
-      }
-    }
-  }
-]
+  ],
+  "deferred_equations": [
+    "P012",
+    "P022",
+    "P031",
+    "P032"
+  ]
+}
