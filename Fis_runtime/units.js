@@ -1953,10 +1953,8 @@
     const path = stack || [];
     if (lid && path.indexOf(lid) >= 0) return ids;
     const nextPath = lid ? path.concat([lid]) : path.slice();
-    const b = law.bindings;
-    if (!b || typeof b !== "object") return ids;
-    Object.keys(b).forEach(function (k) {
-      const v = b[k];
+
+    function walkCell(v) {
       if (v == null) return;
       if (typeof v === "string" && v) {
         ids.push(v);
@@ -1966,7 +1964,7 @@
       if (v.quantity != null) ids.push(String(v.quantity));
       else if (v.ref != null && !isLawBinding(v)) ids.push(String(v.ref));
       else if (v.quantity_id != null) ids.push(String(v.quantity_id));
-      const nestedId = lawIdFromBinding(v);
+      const nestedId = lawIdFromBinding(v) || v.assembly;
       if (nestedId && formulasData) {
         const nested = findLawById(formulasData, nestedId);
         if (nested) {
@@ -1974,7 +1972,16 @@
           for (let i = 0; i < sub.length; i++) ids.push(sub[i]);
         }
       }
-    });
+    }
+
+    const b = law.bindings;
+    if (b && typeof b === "object") {
+      Object.keys(b).forEach(function (k) {
+        walkCell(b[k]);
+      });
+    }
+    if (law.lhs) walkCell(law.lhs);
+    if (law.rhs) walkCell(law.rhs);
     return ids;
   }
 
@@ -2046,6 +2053,26 @@
         );
         if (!nestedInst || !nestedInst.ast) {
           return { law_ref: nestedLawId, error: "expand_failed", empty: true };
+        }
+        return extractRhs(nestedInst.ast);
+      }
+      // Inline assembly in binding: { structure_ref, bindings }
+      if (b && typeof b === "object" && (b.structure_ref || b.scheme) && ctx) {
+        const mini = {
+          structure_ref: b.structure_ref,
+          scheme: b.scheme,
+          arity: b.arity,
+          bindings: b.bindings || {}
+        };
+        const nestedInst = instantiateLaw(
+          mini,
+          ctx.structuresData,
+          ctx.usagesData,
+          ctx.formulasData,
+          ctx.stack || []
+        );
+        if (!nestedInst || !nestedInst.ast) {
+          return { error: "inline_structure_failed", empty: true };
         }
         return extractRhs(nestedInst.ast);
       }
@@ -2313,6 +2340,42 @@
   }
 
   /**
+   * Side of equation: {law}|{structure_ref,bindings}. Definition assemblies → RHS expr only.
+   */
+  function expandSideExpr(side, structuresData, usagesData, formulasData, stack) {
+    if (!side || typeof side !== "object") return null;
+    const path = Array.isArray(stack) ? stack : [];
+
+    if (side.law || side.law_id || side.assembly) {
+      const id = String(side.law || side.law_id || side.assembly);
+      const nested = findLawById(formulasData, id);
+      if (!nested) return { op: "ref", ref: id };
+      const pack = instantiateLaw(nested, structuresData, usagesData, formulasData, path);
+      if (!pack || !pack.ast) return null;
+      if (nested.kind === "equation" || nested.structure_ref === "EQ") return pack.ast;
+      if (pack.ast.op === "eq" && pack.ast.rhs) return pack.ast.rhs;
+      return pack.ast;
+    }
+
+    if (side.structure_ref || side.scheme) {
+      const mini = {
+        law_id: side.law_id || null,
+        structure_ref: side.structure_ref,
+        scheme: side.scheme,
+        arity: side.arity,
+        bindings: side.bindings || {}
+      };
+      const pack = instantiateLaw(mini, structuresData, usagesData, formulasData, path);
+      if (!pack || !pack.ast) return null;
+      if (pack.ast.op === "eq" && pack.ast.rhs) return pack.ast.rhs;
+      return pack.ast;
+    }
+
+    if (side.op) return side;
+    return null;
+  }
+
+  /**
    * law + structures → готовый пакет формулы (ast уже с ref/num).
    * UI только рисует пакет, не резолвит bindings.
    * structure_ref A1/A2/A3/A5/A18 → scheme+arity; либо law.scheme.
@@ -2350,6 +2413,28 @@
         bindings: null
       };
     }
+
+    // Equation: two sides (lhs / rhs), render as expr = expr
+    if (law.kind === "equation" || law.structure_ref === "EQ") {
+      const L = expandSideExpr(law.lhs, structuresData, usagesData, formulasData, nextStack);
+      const R = expandSideExpr(law.rhs, structuresData, usagesData, formulasData, nextStack);
+      return {
+        id: law.law_id || law.id,
+        name: law.name,
+        description: law.description,
+        structure_ref: "EQ",
+        kind: "equation",
+        scheme: null,
+        arity: null,
+        defines: null,
+        bindings: law.bindings || null,
+        lhs: law.lhs || null,
+        rhs: law.rhs || null,
+        nested: true,
+        ast: { op: "eq", lhs: L, rhs: R }
+      };
+    }
+
     const resolved = resolveLawStructure(law, structuresData);
     if (!resolved || !resolved.ast) {
       return {
@@ -2930,6 +3015,7 @@
     getLawsList: getLawsList,
     denotationForLaw: denotationForLaw,
     bindingsWithDefines: bindingsWithDefines,
+    expandSideExpr: expandSideExpr,
     instantiateLaw: instantiateLaw,
     formulasUsing: formulasUsing,
     collectConstructionNeeds: collectConstructionNeeds,
