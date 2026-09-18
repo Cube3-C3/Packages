@@ -1847,6 +1847,8 @@
   /**
    * Удобная обёртка для bindings формулы { O1: {quantity, role}, ... }.
    * Возвращает map operand_id → { base, index, symbol, ... }.
+   * Law-binding ({law|law_id|formula}) пропускаются — символы вложенного
+   * закона резолвятся при его собственном instantiateLaw.
    */
   function normalizeFormulaBindings(bindings, usagesData) {
     const entries = [];
@@ -1854,8 +1856,10 @@
     Object.keys(bindings).forEach(function (oid) {
       const b = bindings[oid];
       if (!b || typeof b !== "object") return;
+      if (isLawBinding(b)) return;
+      if (b.num != null || b.value != null || b.const != null) return;
       const qid = b.quantity || b.ref || b.quantity_id;
-      if (qid == null || b.num != null || b.value != null || b.const != null) return;
+      if (qid == null) return;
       entries.push({
         key: oid,
         quantity: String(qid),
@@ -1899,6 +1903,81 @@
 
   // ── Package prep (данные → готовый пакет для UI-рендера) ──────────
 
+  /**
+   * Binding ссылается на другой закон из physi_formulas (рекурсия).
+   * Форматы: { law: "P035" } | { law_id: "P035" } | { formula: "P035" }
+   */
+  function lawIdFromBinding(binding) {
+    if (!binding || typeof binding !== "object") return null;
+    if (binding.law != null) return String(binding.law);
+    if (binding.law_id != null) return String(binding.law_id);
+    if (binding.formula != null) return String(binding.formula);
+    return null;
+  }
+
+  function isLawBinding(binding) {
+    return lawIdFromBinding(binding) != null;
+  }
+
+  function findLawById(formulasData, lawId) {
+    if (!lawId) return null;
+    const laws = getLawsList(formulasData);
+    const want = String(lawId);
+    for (let i = 0; i < laws.length; i++) {
+      const L = laws[i];
+      if (!L) continue;
+      if (String(L.law_id || L.id || "") === want) return L;
+    }
+    return null;
+  }
+
+  /**
+   * Из AST уравнения взять rhs (для подстановки вложенного закона как члена).
+   * Если узла eq нет — вернуть весь узел.
+   */
+  function extractRhs(ast) {
+    if (!ast || typeof ast !== "object") return ast;
+    if (ast.op === "eq" && ast.rhs != null) return ast.rhs;
+    if (ast.rhs != null && ast.lhs != null) return ast.rhs;
+    return ast;
+  }
+
+  /**
+   * Все quantity-id из закона с рекурсией по {law|law_id|formula}.
+   * Циклы отсекаются по stack law_id.
+   */
+  function collectLawQuantityIds(law, formulasData, stack) {
+    const ids = [];
+    if (!law) return ids;
+    const lid = String(law.law_id || law.id || "");
+    const path = stack || [];
+    if (lid && path.indexOf(lid) >= 0) return ids;
+    const nextPath = lid ? path.concat([lid]) : path.slice();
+    const b = law.bindings;
+    if (!b || typeof b !== "object") return ids;
+    Object.keys(b).forEach(function (k) {
+      const v = b[k];
+      if (v == null) return;
+      if (typeof v === "string" && v) {
+        ids.push(v);
+        return;
+      }
+      if (typeof v !== "object") return;
+      if (v.quantity != null) ids.push(String(v.quantity));
+      else if (v.ref != null && !isLawBinding(v)) ids.push(String(v.ref));
+      else if (v.quantity_id != null) ids.push(String(v.quantity_id));
+      const nestedId = lawIdFromBinding(v);
+      if (nestedId && formulasData) {
+        const nested = findLawById(formulasData, nestedId);
+        if (nested) {
+          const sub = collectLawQuantityIds(nested, formulasData, nextPath);
+          for (let i = 0; i < sub.length; i++) ids.push(sub[i]);
+        }
+      }
+    });
+    return ids;
+  }
+
   function bindingToLeaf(binding) {
     if (binding == null) return { empty: true };
     if (typeof binding === "string") return { ref: binding };
@@ -1908,6 +1987,10 @@
       if (binding.num != null) return Number(binding.num);
       if (binding.value != null) return Number(binding.value);
       if (binding.const != null) return Number(binding.const);
+      // Рекурсия: не лист — обрабатывается в resolveAst / instantiateLaw
+      if (isLawBinding(binding)) {
+        return { law_ref: lawIdFromBinding(binding) };
+      }
       // { quantity, role } — новый формат bindings в physi_formulas
       if (binding.quantity != null) {
         const leaf = { ref: String(binding.quantity) };
@@ -1928,18 +2011,44 @@
     return { ref: String(binding) };
   }
 
-  function resolveAst(node, bindings, symbolByOperand) {
+  /**
+   * @param ctx optional { formulasData, structuresData, usagesData, stack: string[] }
+   *            при law-binding подставляет RHS вложенного instantiateLaw
+   */
+  function resolveAst(node, bindings, symbolByOperand, ctx) {
     if (node == null) return node;
     if (typeof node !== "object") return node;
     if (Array.isArray(node)) {
       return node.map(function (n) {
-        return resolveAst(n, bindings, symbolByOperand);
+        return resolveAst(n, bindings, symbolByOperand, ctx);
       });
     }
     if (node.operand_id) {
       const oid = node.operand_id;
       const b = bindings ? bindings[oid] : undefined;
       if (b === undefined) return { empty: true };
+      const nestedLawId = lawIdFromBinding(b);
+      if (nestedLawId && ctx && ctx.formulasData) {
+        const stack = ctx.stack || [];
+        if (stack.indexOf(nestedLawId) >= 0) {
+          return { law_ref: nestedLawId, cycle: true, empty: true };
+        }
+        const nestedLaw = findLawById(ctx.formulasData, nestedLawId);
+        if (!nestedLaw) {
+          return { law_ref: nestedLawId, missing: true, empty: true };
+        }
+        const nestedInst = instantiateLaw(
+          nestedLaw,
+          ctx.structuresData,
+          ctx.usagesData,
+          ctx.formulasData,
+          stack
+        );
+        if (!nestedInst || !nestedInst.ast) {
+          return { law_ref: nestedLawId, error: "expand_failed", empty: true };
+        }
+        return extractRhs(nestedInst.ast);
+      }
       const leaf = bindingToLeaf(b);
       if (leaf && typeof leaf === "object" && symbolByOperand && symbolByOperand[oid]) {
         const sm = symbolByOperand[oid];
@@ -1951,7 +2060,7 @@
     }
     const out = {};
     for (const k of Object.keys(node)) {
-      out[k] = resolveAst(node[k], bindings, symbolByOperand);
+      out[k] = resolveAst(node[k], bindings, symbolByOperand, ctx);
     }
     return out;
   }
@@ -1981,7 +2090,7 @@
     if (typeof formulasData === "object") {
       const vals = Object.keys(formulasData)
         .filter(function (k) {
-          return k !== "meta";
+          return k !== "meta" && k !== "denotations" && k !== "schema_version" && k !== "id" && k !== "description" && k !== "deferred_equations";
         })
         .map(function (k) {
           return formulasData[k];
@@ -1992,6 +2101,52 @@
       if (vals.length) return vals;
     }
     return [];
+  }
+
+  /**
+   * denotations: quantity → [{law_id, role}] → reverse law_id → {quantity, role}
+   */
+  function denotationForLaw(formulasData, lawId) {
+    if (!formulasData || !lawId) return null;
+    const den = formulasData.denotations;
+    if (!den || typeof den !== "object") return null;
+    const want = String(lawId);
+    const keys = Object.keys(den);
+    for (let i = 0; i < keys.length; i++) {
+      const qid = keys[i];
+      const list = den[qid];
+      if (!Array.isArray(list)) continue;
+      for (let j = 0; j < list.length; j++) {
+        const e = list[j];
+        if (e && String(e.law_id) === want) {
+          const out = { quantity: qid };
+          if (e.role) out.role = e.role;
+          if (e.defines_unit) out.defines_unit = true;
+          return out;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Bindings with O1 from denotations when result slot omitted (new formula model).
+   */
+  function bindingsWithDefines(law, formulasData) {
+    const base = (law && law.bindings) || {};
+    const out = {};
+    Object.keys(base).forEach(function (k) {
+      out[k] = base[k];
+    });
+    if (out.O1 != null) return out;
+    const lid = law && (law.law_id || law.id);
+    const den = denotationForLaw(formulasData, lid);
+    if (den && den.quantity) {
+      out.O1 = { quantity: den.quantity };
+      if (den.role) out.O1.role = den.role;
+      if (den.defines_unit) out.O1.defines_unit = true;
+    }
+    return out;
   }
 
   function leafOperand(n) {
@@ -2040,6 +2195,23 @@
       };
     }
 
+    // Unary schemes: O1 = op(O2)
+    const unaryOp = {
+      unary_delta: "delta",
+      unary_neg: "neg",
+      unary_sin: "sin",
+      unary_cos: "cos",
+      unary_sqrt: "sqrt",
+      unary_inv: "inv"
+    };
+    if (unaryOp[schemeId]) {
+      return {
+        op: "eq",
+        lhs: leafOperand(1),
+        rhs: { op: unaryOp[schemeId], arg: leafOperand(2) }
+      };
+    }
+
     return null;
   }
 
@@ -2050,6 +2222,17 @@
     for (const k of Object.keys(bindings)) {
       const m = /^O(\d+)$/.exec(k);
       if (m) max = Math.max(max, Number(m[1]));
+    }
+    if (max < 1) return null;
+    if (
+      schemeId === "unary_delta" ||
+      schemeId === "unary_neg" ||
+      schemeId === "unary_sin" ||
+      schemeId === "unary_cos" ||
+      schemeId === "unary_sqrt" ||
+      schemeId === "unary_inv"
+    ) {
+      return 1;
     }
     if (max < 2) return null;
     if (schemeId === "ratio") return 2;
@@ -2133,9 +2316,28 @@
    * law + structures → готовый пакет формулы (ast уже с ref/num).
    * UI только рисует пакет, не резолвит bindings.
    * structure_ref A1/A2/A3/A5/A18 → scheme+arity; либо law.scheme.
+   *
+   * formulasData (опц.) + stack — рекурсия: binding {law:"P035"} → RHS вложенного закона.
+   * stack — цепочка law_id для защиты от циклов.
    */
-  function instantiateLaw(law, structuresData, usagesData) {
+  function instantiateLaw(law, structuresData, usagesData, formulasData, stack) {
     if (!law) return null;
+    const selfId = String(law.law_id || law.id || "");
+    const path = Array.isArray(stack) ? stack : [];
+    if (selfId && path.indexOf(selfId) >= 0) {
+      return {
+        id: selfId,
+        name: law.name,
+        description: law.description,
+        ast: null,
+        structure_ref: law.structure_ref,
+        bindings: law.bindings || null,
+        error: "cycle",
+        cycle: path.concat([selfId])
+      };
+    }
+    const nextStack = selfId ? path.concat([selfId]) : path.slice();
+
     if (law.ast && !law.structure_ref && !law.scheme) {
       return {
         id: law.id || law.law_id,
@@ -2162,8 +2364,15 @@
         error: "structure_not_found"
       };
     }
-    const bindings = law.bindings || {};
+    const bindings = bindingsWithDefines(law, formulasData);
     const symbolMap = normalizeFormulaBindings(bindings, usagesData);
+    const ctx = {
+      formulasData: formulasData || null,
+      structuresData: structuresData,
+      usagesData: usagesData,
+      stack: nextStack
+    };
+    const den = denotationForLaw(formulasData, selfId);
     return {
       id: law.law_id || law.id,
       name: law.name,
@@ -2172,10 +2381,19 @@
       scheme: resolved.scheme,
       arity: resolved.arity,
       structure_name: resolved.structure_name,
+      defines: den,
       bindings: bindings,
       symbols: symbolMap,
-      ast: resolveAst(resolved.ast, bindings, symbolMap)
+      nested: hasLawBindings(bindings),
+      ast: resolveAst(resolved.ast, bindings, symbolMap, ctx)
     };
+  }
+
+  function hasLawBindings(bindings) {
+    if (!bindings || typeof bindings !== "object") return false;
+    return Object.keys(bindings).some(function (k) {
+      return isLawBinding(bindings[k]);
+    });
   }
 
   function formulasUsing(formulasData, qid, structuresData, usagesData) {
@@ -2192,8 +2410,8 @@
     }
     for (let i = 0; i < laws.length; i++) {
       const law = laws[i];
-      // usagesData → нормализованные символы (R₁, m₁, …) на листьях AST
-      const inst = instantiateLaw(law, structuresData, usagesData);
+      // usagesData → нормализованные символы; formulasData → рекурсия law-binding
+      const inst = instantiateLaw(law, structuresData, usagesData, formulasData);
       if (!inst || !inst.ast) continue;
       const refs = Object.create(null);
       walkRefs(inst.ast, refs);
@@ -2281,7 +2499,24 @@
       let ok = true;
       for (const oid of Object.keys(bindings)) {
         const b = bindings[oid];
-        if (!b || !b.quantity) continue;
+        if (!b) continue;
+        // Вложенный закон: все его quantity должны входить в needs
+        if (isLawBinding(b)) {
+          const nested = findLawById(formulasData, lawIdFromBinding(b));
+          const nestedIds = collectLawQuantityIds(nested, formulasData, []);
+          for (let ni = 0; ni < nestedIds.length; ni++) {
+            const nqid = nestedIds[ni];
+            if (/^[MC]\d+/.test(nqid)) continue;
+            if (!needQ[nqid]) {
+              ok = false;
+              break;
+            }
+            used.push({ quantity: nqid, role: "" });
+          }
+          if (!ok) break;
+          continue;
+        }
+        if (!b.quantity) continue;
         const qid = b.quantity;
         // M* / C* — константы, в needs конструкции не требуются
         if (/^[MC]\d+/.test(qid)) continue;
@@ -2325,7 +2560,7 @@
       }
 
       const score = used.length * 10 + roleHits * 5 - roleMiss * 3 + multiBonus;
-      const inst = instantiateLaw(law, structuresData, usagesData);
+      const inst = instantiateLaw(law, structuresData, usagesData, formulasData);
       if (!inst || !inst.ast) continue;
       scored.push({ inst: inst, score: score });
     }
@@ -2682,12 +2917,19 @@
     formulaToPretty: formulaToPretty,
     bindingToLeaf: bindingToLeaf,
     resolveAst: resolveAst,
+    lawIdFromBinding: lawIdFromBinding,
+    isLawBinding: isLawBinding,
+    findLawById: findLawById,
+    extractRhs: extractRhs,
+    collectLawQuantityIds: collectLawQuantityIds,
     getStructuresList: getStructuresList,
     getSchemesMap: getSchemesMap,
     getAliasesMap: getAliasesMap,
     buildSchemeAst: buildSchemeAst,
     resolveLawStructure: resolveLawStructure,
     getLawsList: getLawsList,
+    denotationForLaw: denotationForLaw,
+    bindingsWithDefines: bindingsWithDefines,
     instantiateLaw: instantiateLaw,
     formulasUsing: formulasUsing,
     collectConstructionNeeds: collectConstructionNeeds,

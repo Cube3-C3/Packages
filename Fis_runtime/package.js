@@ -314,8 +314,17 @@
     return domains;
   }
 
-  /** Quantity ids bound in a law (operand roles). */
-  function bindingQuantityIds(law) {
+  /**
+   * Quantity ids bound in a law (operand roles), с рекурсией по {law|law_id|formula}.
+   * При наличии FisUnits.collectLawQuantityIds — полный обход; иначе только прямые quantity.
+   */
+  function bindingQuantityIds(law, formulasData) {
+    if (
+      global.FisUnits &&
+      typeof global.FisUnits.collectLawQuantityIds === "function"
+    ) {
+      return global.FisUnits.collectLawQuantityIds(law, formulasData || null, []);
+    }
     const ids = [];
     const b = law && law.bindings;
     if (!b || typeof b !== "object") return ids;
@@ -328,12 +337,13 @@
   }
 
   /**
-   * Domains of a formula = union of domains of all operand quantities' usages.
-   * Section of a formula is derived from this set (not stored on the law).
+   * Domains of a formula = union of domains of all operand quantities' usages
+   * (включая вложенные законы).
    */
   function formulaDomains(data, law) {
     const set = Object.create(null);
-    bindingQuantityIds(law).forEach(function (qid) {
+    const formulasData = data && (data.formulas || data.physi_formulas) || null;
+    bindingQuantityIds(law, formulasData).forEach(function (qid) {
       const usages = data.usages && data.usages.usages && data.usages.usages[qid];
       (usages || []).forEach(function (u) {
         (u.domains || []).forEach(function (d) {

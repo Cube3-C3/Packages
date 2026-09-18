@@ -43,7 +43,14 @@
     return entry;
   }
 
-  function bindingQuantityIds(law) {
+  function bindingQuantityIds(law, formulasData) {
+    if (
+      typeof window !== "undefined" &&
+      window.FisUnits &&
+      typeof window.FisUnits.collectLawQuantityIds === "function"
+    ) {
+      return window.FisUnits.collectLawQuantityIds(law, formulasData || null, []);
+    }
     const ids = [];
     const b = law && law.bindings;
     if (!b || typeof b !== "object") return ids;
@@ -55,10 +62,11 @@
     return ids;
   }
 
-  /** Domains of a formula = union of operand quantities' usage domains. */
+  /** Domains of a formula = union of operand quantities' usage domains (с рекурсией). */
   function formulaDomains(data, law) {
     const set = Object.create(null);
-    bindingQuantityIds(law).forEach(function (qid) {
+    const formulasData = data && (data.formulas || data.physi_formulas) || null;
+    bindingQuantityIds(law, formulasData).forEach(function (qid) {
       const usages = data.usages && data.usages.usages && data.usages.usages[qid];
       (usages || []).forEach(function (u) {
         (u.domains || []).forEach(function (d) {
@@ -364,9 +372,14 @@
   function resolveAst(node, bindings) {
     return window.FisUnits ? window.FisUnits.resolveAst(node, bindings) : node;
   }
-  function instantiateLaw(law, structuresData, usagesData) {
+  function instantiateLaw(law, structuresData, usagesData, formulasData) {
     return window.FisUnits
-      ? window.FisUnits.instantiateLaw(law, structuresData, usagesData)
+      ? window.FisUnits.instantiateLaw(
+          law,
+          structuresData,
+          usagesData,
+          formulasData
+        )
       : null;
   }
 
@@ -755,7 +768,16 @@
 
     if (ctx.law && !derived.formula_html) {
       const law = ctx.law;
-      const inst = ctx.inst || (law ? instantiateLaw(law, data.structures, data.usages) : null);
+      const inst =
+        ctx.inst ||
+        (law
+          ? instantiateLaw(
+              law,
+              data.structures,
+              data.usages,
+              data.formulas || data.physi_formulas
+            )
+          : null);
       if (inst && inst.ast) {
         // Пакет решает семантику клика по символу: navigate → паспорт величины.
         // Ядро (astToDisplay / emitSym) только вызывает wrapSym, если его передали.
@@ -1140,7 +1162,12 @@
       container.innerHTML = `<div class="empty">Формула <code>${escapeHtml(lawId)}</code> не найдена</div>`;
       return;
     }
-    const inst = instantiateLaw(law, data.structures, data.usages);
+    const inst = instantiateLaw(
+      law,
+      data.structures,
+      data.usages,
+      data.formulas || data.physi_formulas
+    );
     const lawForPres = Object.assign({}, law, {
       structure_ref: (inst && inst.structure_ref) || law.structure_ref,
       name: (inst && inst.name) || law.name
