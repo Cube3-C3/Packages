@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.2.0",
   "id": "physi_formulas",
-  "description": "Сборки P*: structure_ref (однооператорный AST) + bindings; имя результата в denotations (quantity→[{law_id,role}]). Рекурсия {law}.",
+  "description": "Сборки P* (structure_ref + bindings, {law}); denotations; уравнения kind=equation structure_ref=EQ с lhs/rhs.",
   "denotations": {
     "Q005": [
       {
@@ -23,10 +23,6 @@
       {
         "law_id": "P004",
         "role": "path_length"
-      },
-      {
-        "law_id": "P010",
-        "role": "focal_length"
       },
       {
         "law_id": "P017",
@@ -509,15 +505,14 @@
       "law_id": "P014",
       "name": "Закон Гука",
       "structure_ref": "A2",
-      "description": "F_упр = k * delta_l",
+      "description": "F_упр = k * Δl",
       "bindings": {
         "O2": {
           "quantity": "Q013",
           "role": "spring_constant"
         },
         "O3": {
-          "quantity": "Q008",
-          "role": "length"
+          "law": "P291"
         }
       }
     },
@@ -641,7 +636,7 @@
       "law_id": "P018",
       "name": "Количество теплоты (нагревание)",
       "structure_ref": "A3",
-      "description": "Q = c * m * delta_T",
+      "description": "Q = c * m * ΔT",
       "bindings": {
         "O2": {
           "quantity": "Q016",
@@ -652,8 +647,7 @@
           "role": "mass"
         },
         "O4": {
-          "quantity": "Q029",
-          "role": "temperature"
+          "law": "P290"
         }
       }
     },
@@ -1160,24 +1154,226 @@
     {
       "law_id": "P010",
       "name": "Формула тонкой линзы",
-      "structure_ref": "A18",
+      "kind": "equation",
+      "structure_ref": "EQ",
       "description": "1/F = 1/d + 1/f",
+      "lhs": {
+        "structure_ref": "AU_inv",
+        "bindings": {
+          "O2": {
+            "quantity": "Q008",
+            "role": "focal_length"
+          }
+        }
+      },
+      "rhs": {
+        "structure_ref": "A5",
+        "bindings": {
+          "O2": {
+            "structure_ref": "AU_inv",
+            "bindings": {
+              "O2": {
+                "quantity": "Q008",
+                "role": "distance"
+              }
+            }
+          },
+          "O3": {
+            "structure_ref": "AU_inv",
+            "bindings": {
+              "O2": {
+                "quantity": "Q008",
+                "role": "image_distance"
+              }
+            }
+          }
+        }
+      },
+      "bindings": {}
+    },
+    {
+      "law_id": "P290",
+      "name": "Приращение температуры",
+      "structure_ref": "AU_delta",
+      "description": "ΔT",
+      "bindings": {
+        "O2": {
+          "quantity": "Q029",
+          "role": "temperature"
+        }
+      }
+    },
+    {
+      "law_id": "P291",
+      "name": "Приращение длины",
+      "structure_ref": "AU_delta",
+      "description": "Δl",
       "bindings": {
         "O2": {
           "quantity": "Q008",
-          "role": "distance"
-        },
-        "O3": {
-          "quantity": "Q008",
-          "role": "image_distance"
+          "role": "length"
         }
       }
+    },
+    {
+      "law_id": "P012",
+      "name": "Правило рычага",
+      "kind": "equation",
+      "structure_ref": "EQ",
+      "description": "F * l = F * l",
+      "lhs": {
+        "structure_ref": "A2",
+        "bindings": {
+          "O2": {
+            "quantity": "Q004",
+            "role": "force"
+          },
+          "O3": {
+            "quantity": "Q008",
+            "role": "length"
+          }
+        }
+      },
+      "rhs": {
+        "structure_ref": "A2",
+        "bindings": {
+          "O2": {
+            "quantity": "Q004",
+            "role": "force"
+          },
+          "O3": {
+            "quantity": "Q008",
+            "role": "length"
+          }
+        }
+      },
+      "bindings": {}
+    },
+    {
+      "law_id": "P022",
+      "name": "Уравнение Менделеева–Клапейрона",
+      "kind": "equation",
+      "structure_ref": "EQ",
+      "description": "p * V = (m / mu) * R * T",
+      "lhs": {
+        "structure_ref": "A2",
+        "bindings": {
+          "O2": {
+            "quantity": "Q027",
+            "role": "pressure"
+          },
+          "O3": {
+            "quantity": "Q028",
+            "role": "volume"
+          }
+        }
+      },
+      "rhs": {
+        "structure_ref": "A2",
+        "bindings": {
+          "O2": {
+            "structure_ref": "A2",
+            "bindings": {
+              "O2": {
+                "structure_ref": "A1",
+                "bindings": {
+                  "O2": {
+                    "quantity": "Q003",
+                    "role": "mass"
+                  },
+                  "O3": {
+                    "quantity": "Q021",
+                    "role": "molar_mass"
+                  }
+                }
+              },
+              "O3": {
+                "quantity": "C004",
+                "role": "gas_constant"
+              }
+            }
+          },
+          "O3": {
+            "quantity": "Q029",
+            "role": "temperature"
+          }
+        }
+      },
+      "bindings": {}
+    },
+    {
+      "law_id": "P031",
+      "name": "Закон преломления Снеллиуса",
+      "kind": "equation",
+      "structure_ref": "EQ",
+      "description": "n1 * sin(alpha) = n2 * sin(beta)",
+      "lhs": {
+        "structure_ref": "A2",
+        "bindings": {
+          "O2": {
+            "quantity": "Q015",
+            "role": "refractive_index"
+          },
+          "O3": {
+            "structure_ref": "AU_sin",
+            "bindings": {
+              "O2": {
+                "quantity": "Q043",
+                "role": "angle"
+              }
+            }
+          }
+        }
+      },
+      "rhs": {
+        "structure_ref": "A2",
+        "bindings": {
+          "O2": {
+            "quantity": "Q015",
+            "role": "refractive_index"
+          },
+          "O3": {
+            "structure_ref": "AU_sin",
+            "bindings": {
+              "O2": {
+                "quantity": "Q043",
+                "role": "refracted_angle"
+              }
+            }
+          }
+        }
+      },
+      "bindings": {}
+    },
+    {
+      "law_id": "P032",
+      "name": "Дифракционная решётка / щель",
+      "kind": "equation",
+      "structure_ref": "EQ",
+      "description": "d * sin(alpha) = k * lambda",
+      "lhs": {
+        "structure_ref": "A2",
+        "bindings": {
+          "O2": {
+            "quantity": "Q008",
+            "role": "distance"
+          },
+          "O3": {
+            "structure_ref": "AU_sin",
+            "bindings": {
+              "O2": {
+                "quantity": "Q043",
+                "role": "angle"
+              }
+            }
+          }
+        }
+      },
+      "rhs": {
+        "law": "P033"
+      },
+      "bindings": {}
     }
   ],
-  "deferred_equations": [
-    "P012",
-    "P022",
-    "P031",
-    "P032"
-  ]
+  "deferred_equations": []
 }
