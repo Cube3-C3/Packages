@@ -259,6 +259,52 @@
    * Convert an occurrence into an addressable key. Useful for later graph
    * construction and UI selection without imposing a graph implementation.
    */
+  /**
+   * Resolve a law against a construction by quantity identity.
+   * No formula is recalculated here: this only creates addressable links.
+   * If a law binding points to the same quantity more than once, every
+   * construction occurrence is returned; count/role filtering stays explicit.
+   */
+  function linkLawToConstruction(law, construction) {
+    if (!law || !law.law_id) {
+      return fail("LAW_ID", "law_id is required.");
+    }
+    if (!construction || !construction.id) {
+      return fail("CONSTRUCTION_ID", "construction.id is required.");
+    }
+
+    const bindings = law.bindings && typeof law.bindings === "object"
+      ? law.bindings
+      : {};
+    const links = [];
+
+    Object.keys(bindings).forEach((operandId) => {
+      const binding = bindings[operandId];
+      if (!binding || !binding.quantity) return;
+
+      const occurrences = findQuantityOccurrences(
+        construction,
+        String(binding.quantity)
+      );
+
+      occurrences.forEach((occurrence) => {
+        links.push({
+          law_id: String(law.law_id),
+          operand_id: operandId,
+          quantity_id: String(binding.quantity),
+          role: binding.role || occurrence.role || null,
+          indexes: clone(occurrence.indexes || [])
+        });
+      });
+    });
+
+    return ok({
+      construction_id: String(construction.id),
+      law_id: String(law.law_id),
+      links: links
+    });
+  }
+
   function occurrenceKey(occurrence) {
     if (!occurrence || !occurrence.quantity_id) return null;
     const parts = [String(occurrence.quantity_id)];
@@ -289,6 +335,7 @@
     bindMembership: bindMembership,
     linkQuantityToLawAndConstruction: linkQuantityToLawAndConstruction,
     findQuantityOccurrences: findQuantityOccurrences,
+    linkLawToConstruction: linkLawToConstruction,
     occurrenceKey: occurrenceKey
   };
 
