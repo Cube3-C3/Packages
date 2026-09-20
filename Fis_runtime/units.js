@@ -1442,6 +1442,7 @@
       div: 3,
       pow: 4,
       neg: 5,
+      inv: 5,
       sin: 6,
       cos: 6,
       tan: 6,
@@ -1451,9 +1452,7 @@
       sqrt: 6,
       root: 6,
       abs: 6,
-      delta: 6,
-      log: 6,
-      ln: 6
+      delta: 6
     };
 
     function render(node, parentP) {
@@ -1624,6 +1623,14 @@
           );
         }
         return wrap((index ? index : "") + "√(" + radicand + ")", prec < parent);
+      }
+
+      // inv(x) → 1/x (взаимообратная)
+      if (op === "inv") {
+        const inner = render(args[0], 0);
+        if (!inner) return "";
+        // same visual language as div(1, x)
+        return wrap(renderFrac("1", isAtomicText(inner) ? inner : "(" + inner + ")"), prec < parent);
       }
 
       // ln(x) — натуральный
@@ -2380,6 +2387,53 @@
   }
 
   /**
+   * После сборки EQ: одинаковые (ref, role) на обеих сторонах → индексы 1,2…
+   * (expand каждой стороны сам по себе не видит повторов).
+   */
+  function reindexAstSymbols(ast) {
+    if (!ast || typeof ast !== "object") return ast;
+    const leaves = [];
+    function walk(n) {
+      if (!n || typeof n !== "object") return;
+      if (n.ref != null && !n.op) leaves.push(n);
+      if (n.lhs) walk(n.lhs);
+      if (n.rhs) walk(n.rhs);
+      if (n.arg) walk(n.arg);
+      const args = n.args;
+      if (Array.isArray(args)) {
+        for (let i = 0; i < args.length; i++) walk(args[i]);
+      }
+    }
+    walk(ast);
+    const groups = Object.create(null);
+    const order = [];
+    for (let i = 0; i < leaves.length; i++) {
+      const L = leaves[i];
+      const gkey = String(L.ref) + "\0" + String(L.role || "");
+      if (!groups[gkey]) {
+        groups[gkey] = [];
+        order.push(gkey);
+      }
+      groups[gkey].push(L);
+    }
+    for (let gi = 0; gi < order.length; gi++) {
+      const arr = groups[order[gi]];
+      if (arr.length <= 1) continue;
+      for (let i = 0; i < arr.length; i++) {
+        const L = arr[i];
+        let base = L.base != null ? String(L.base) : String(L.symbol || L.ref || "");
+        base = base.replace(/[₀₁₂₃₄₅₆₇₈₉]+$/u, "");
+        if (!base) base = String(L.ref || "?");
+        const idx = i + 1;
+        L.base = base;
+        L.index = idx;
+        L.symbol = base + toSubscript(idx);
+      }
+    }
+    return ast;
+  }
+
+  /**
    * Side of equation: {law}|{structure_ref,bindings}. Definition assemblies → RHS expr only.
    */
   function expandSideExpr(side, structuresData, usagesData, formulasData, stack) {
@@ -2458,6 +2512,7 @@
     if (law.kind === "equation" || law.structure_ref === "EQ") {
       const L = expandSideExpr(law.lhs, structuresData, usagesData, formulasData, nextStack);
       const R = expandSideExpr(law.rhs, structuresData, usagesData, formulasData, nextStack);
+      const eqAst = reindexAstSymbols({ op: "eq", lhs: L, rhs: R });
       return {
         id: law.law_id || law.id,
         name: law.name,
@@ -2471,7 +2526,7 @@
         lhs: law.lhs || null,
         rhs: law.rhs || null,
         nested: true,
-        ast: { op: "eq", lhs: L, rhs: R }
+        ast: eqAst
       };
     }
 
