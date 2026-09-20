@@ -1,5 +1,5 @@
 {
-  "schema_version": "4.0",
+  "schema_version": "4.1",
   "id": "AST",
   "description": "Однооператорные схемы + aliases. Без списка structures: дерево строится buildSchemeAst(scheme, arity).",
   "schemes": {
@@ -104,6 +104,27 @@
       "operand_count": 2,
       "unary": true,
       "op": "inv"
+    },
+    "square": {
+      "name": [
+        "square",
+        "квадрат"
+      ],
+      "description": "O1 = O2²",
+      "fixed_arity": 1,
+      "operand_count": 2,
+      "op": "pow",
+      "exponent": 2
+    },
+    "power": {
+      "name": [
+        "power",
+        "степень"
+      ],
+      "description": "O1 = O2 ^ O3  (показатель — num или величина)",
+      "fixed_arity": 2,
+      "operand_count": 3,
+      "op": "pow"
     }
   },
   "aliases": {
@@ -149,6 +170,14 @@
     "AU_inv": {
       "scheme": "unary_inv",
       "arity": 1
+    },
+    "AU_sq": {
+      "scheme": "square",
+      "arity": 1
+    },
+    "A_pow": {
+      "scheme": "power",
+      "arity": 2
     }
   }
 }
