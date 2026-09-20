@@ -366,6 +366,11 @@
   function getLawsList(formulasData) {
     return window.FisUnits ? window.FisUnits.getLawsList(formulasData) : [];
   }
+  function getVisibleLawsList(formulasData) {
+    return window.FisUnits && window.FisUnits.getVisibleLawsList
+      ? window.FisUnits.getVisibleLawsList(formulasData)
+      : getLawsList(formulasData);
+  }
   function bindingToLeaf(binding) {
     return window.FisUnits ? window.FisUnits.bindingToLeaf(binding) : binding;
   }
@@ -1287,6 +1292,7 @@
     },
 
     getLawsList,
+    getVisibleLawsList,
     getStructuresList,
     instantiateLaw,
     resolveAst,

@@ -36,8 +36,11 @@
     else if (json.usages) pack.usages = json;
     else if (json.domains && !json.quantities) pack.domains = json;
     else if (json.structures) pack.structures = json;
-    else if (Array.isArray(json) || Array.isArray(json.formulas) || Array.isArray(json.laws)) {
-      pack.formulas = Array.isArray(json) ? json : json.formulas || json.laws;
+    else if (Array.isArray(json)) {
+      pack.formulas = json;
+    } else if (Array.isArray(json.formulas) || Array.isArray(json.laws)) {
+      // keep denotations / meta on the object
+      pack.formulas = json;
     } else if (
       json.tree &&
       (name.indexOf("filter") >= 0 ||
@@ -178,6 +181,9 @@
 
   function entitiesForCardType(data, cardType) {
     if (cardType === "formulas") {
+      if (global.FisUnits && global.FisUnits.getVisibleLawsList) {
+        return global.FisUnits.getVisibleLawsList(data.formulas);
+      }
       return global.Projection && global.Projection.getLawsList
         ? global.Projection.getLawsList(data.formulas)
         : [];
@@ -1008,12 +1014,13 @@
 
           if (cardType === "formulas") {
             const nm = item.name || item.law_id || item.id || "—";
+            const isEq = item.kind === "equation" || item.structure_ref === "EQ";
             return {
               id: id,
               sort_key: String(nm).toLowerCase(),
-              symbol: item.structure_ref || item.law_id || id,
+              symbol: isEq ? "Eq" : item.structure_ref || item.law_id || id,
               name: String(nm),
-              kind: "law",
+              kind: isEq ? "equation" : "law",
               extra: (formulaDomains(data, item) || []).slice(0, 3).join(", ")
             };
           }

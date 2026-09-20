@@ -2130,6 +2130,24 @@
     return [];
   }
 
+  /** Именованная сборка (есть в denotations) или уравнение EQ. */
+  function isVisibleLaw(law, formulasData) {
+    if (!law) return false;
+    if (law.kind === "equation" || law.structure_ref === "EQ") return true;
+    const lid = law.law_id || law.id;
+    return denotationForLaw(formulasData, lid) != null;
+  }
+
+  /** Список для UI: только denotations (→ Q*) и уравнения. */
+  function getVisibleLawsList(formulasData) {
+    const all = getLawsList(formulasData);
+    const out = [];
+    for (let i = 0; i < all.length; i++) {
+      if (isVisibleLaw(all[i], formulasData)) out.push(all[i]);
+    }
+    return out;
+  }
+
   /**
    * denotations: quantity → [{law_id, role}] → reverse law_id → {quantity, role}
    */
@@ -2239,6 +2257,24 @@
       };
     }
 
+    // Square: O1 = O2²
+    if (schemeId === "square") {
+      return {
+        op: "eq",
+        lhs: leafOperand(1),
+        rhs: { op: "pow", args: [leafOperand(2), { num: 2 }] }
+      };
+    }
+
+    // Power: O1 = O2 ^ O3 (exponent: num or quantity)
+    if (schemeId === "power") {
+      return {
+        op: "eq",
+        lhs: leafOperand(1),
+        rhs: { op: "pow", args: [leafOperand(2), leafOperand(3)] }
+      };
+    }
+
     return null;
   }
 
@@ -2257,9 +2293,13 @@
       schemeId === "unary_sin" ||
       schemeId === "unary_cos" ||
       schemeId === "unary_sqrt" ||
-      schemeId === "unary_inv"
+      schemeId === "unary_inv" ||
+      schemeId === "square"
     ) {
       return 1;
+    }
+    if (schemeId === "power") {
+      return 2;
     }
     if (max < 2) return null;
     if (schemeId === "ratio") return 2;
@@ -2482,7 +2522,8 @@
   }
 
   function formulasUsing(formulasData, qid, structuresData, usagesData) {
-    const laws = getLawsList(formulasData);
+    // UI: только именованные сборки и Eq
+    const laws = getVisibleLawsList(formulasData);
     const result = [];
     function walkRefs(node, acc) {
       if (!node || typeof node !== "object") return;
@@ -3013,6 +3054,8 @@
     buildSchemeAst: buildSchemeAst,
     resolveLawStructure: resolveLawStructure,
     getLawsList: getLawsList,
+    isVisibleLaw: isVisibleLaw,
+    getVisibleLawsList: getVisibleLawsList,
     denotationForLaw: denotationForLaw,
     bindingsWithDefines: bindingsWithDefines,
     expandSideExpr: expandSideExpr,
