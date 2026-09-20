@@ -150,10 +150,24 @@
           </select>
         </div>
         <div class="row">
-          <label>масштаб</label>
-          <input id="scalePx" type="range" min="120" max="600" step="20" value="360" />
-          <span class="val" id="scaleVal">360 px/m</span>
-          <span class="meta">фиксированный</span>
+          <label>СО (базис)</label>
+          <select id="refFrame">
+            <option value="lab">лаб. / E0 (начало)</option>
+            <option value="mass">груз (сопутствующая)</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>шкала H</label>
+          <select id="scaleH"></select>
+          <label style="min-width:auto">V</label>
+          <select id="scaleV"></select>
+          <span class="meta">из units [L]</span>
+        </div>
+        <div class="row">
+          <label>px / m</label>
+          <input id="scalePx" type="range" min="40" max="600" step="10" value="320" />
+          <span class="val" id="scaleVal">320 px/m</span>
+          <span class="meta">графика SI; шкала — подписи</span>
         </div>
         <div class="row">
           <label>k (жёсткость)</label>
@@ -570,11 +584,121 @@
     loopTime: true,
     coords: "cartesian", // cartesian | polar — среда
     projection: "xy", // xy | yz | zx
-    scalePx: 360, // фиксированный px/m
+    refFrame: "lab", // lab (E0) | mass
+    scaleH: "U004", // scale_id из units.json [L]
+    scaleV: "U004",
+    scalePx: 320, // CSS-px на 1 SI-метр; шкала units меняет только подписи
     graphScaleMode: "auto", // auto | fixed
     graphYMax: 50,
     graphCoords: "cartesian" // cartesian | polar
   };
+
+  // ── срез units.json (базис пакета) ─────────────────────────
+  // prefixes + scales[dim] как в Fis_data/units.json; assembleScaleLabel — та же схема.
+  const UnitsSlice = {
+    prefixes: [
+      { symbol: ["k", "к"], name: ["kilo", "кило"], factor: 1000 },
+      { symbol: ["h", "г"], name: ["hecto", "гекто"], factor: 100 },
+      { symbol: ["da", "да"], name: ["deca", "дека"], factor: 10 },
+      { symbol: ["d", "д"], name: ["deci", "деци"], factor: 0.1 },
+      { symbol: ["c", "с"], name: ["centi", "санти"], factor: 0.01 },
+      { symbol: ["m", "м"], name: ["milli", "милли"], factor: 0.001 }
+    ],
+    // dim [L] — корень U004 m + composed cm/mm/km (как в units.json)
+    scalesByDim: {
+      "[L]": [
+        { id: "U004", symbol: ["m", "м"], name: ["metre", "метр"], factor: 1, dimension: "[L]" },
+        {
+          id: "U028",
+          factor: 0.01,
+          dimension: "[L]",
+          composed: { prefix_factor: 0.01, scale_id: "U004" }
+        },
+        {
+          id: "U032",
+          factor: 0.001,
+          dimension: "[L]",
+          composed: { prefix_factor: 0.001, scale_id: "U004" }
+        },
+        {
+          id: "U031",
+          factor: 1000,
+          dimension: "[L]",
+          composed: { prefix_factor: 1000, scale_id: "U004" }
+        }
+      ]
+    }
+  };
+
+  function scaleById(id) {
+    const list = UnitsSlice.scalesByDim["[L]"] || [];
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return list[0];
+  }
+
+  function findPrefixByFactor(factor) {
+    const list = UnitsSlice.prefixes;
+    for (let i = 0; i < list.length; i++) {
+      if (Math.abs(list[i].factor - factor) < 1e-15 * Math.max(1, Math.abs(factor))) return list[i];
+    }
+    return null;
+  }
+
+  /** Как FisUnits.assembleScaleLabel: prefix × root → symbol/name. */
+  function assembleScaleLabel(scale, lang) {
+    lang = lang || "ru";
+    const li = lang === "en" ? 0 : 1;
+    if (!scale) return { symbol: "?", name: "?", factor: 1 };
+    if (scale.composed && scale.composed.scale_id) {
+      const root = scaleById(scale.composed.scale_id);
+      const pref = findPrefixByFactor(scale.composed.prefix_factor);
+      const rootSym = root && root.symbol ? root.symbol[li] || root.symbol[0] : "?";
+      const rootName = root && root.name ? root.name[li] || root.name[0] : "?";
+      const pSym = pref ? pref.symbol[li] || pref.symbol[0] : "";
+      const pName = pref ? pref.name[li] || pref.name[0] : "";
+      return {
+        symbol: pSym + rootSym,
+        name: (pName ? pName + " " : "") + rootName,
+        factor: scale.factor != null ? scale.factor : (pref ? pref.factor : 1) * (root ? root.factor : 1),
+        scale_id: scale.id
+      };
+    }
+    return {
+      symbol: scale.symbol ? scale.symbol[li] || scale.symbol[0] : "?",
+      name: scale.name ? scale.name[li] || scale.name[0] : "?",
+      factor: scale.factor != null ? scale.factor : 1,
+      scale_id: scale.id
+    };
+  }
+
+  /** SI-метры → число в шкале (value_si / factor). */
+  function toScale(valueSi, scaleId) {
+    const lab = assembleScaleLabel(scaleById(scaleId), "ru");
+    const f = lab.factor || 1;
+    return valueSi / f;
+  }
+
+  function fromScale(valueDisplay, scaleId) {
+    const lab = assembleScaleLabel(scaleById(scaleId), "ru");
+    return valueDisplay * (lab.factor || 1);
+  }
+
+  function fillScaleSelects() {
+    const list = UnitsSlice.scalesByDim["[L]"];
+    ["scaleH", "scaleV"].forEach(function (id) {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = "";
+      list.forEach(function (s) {
+        const lab = assembleScaleLabel(s, "ru");
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = lab.symbol + " (" + lab.name + ")";
+        sel.appendChild(opt);
+      });
+      sel.value = id === "scaleH" ? state.scaleH : state.scaleV;
+    });
+  }
 
   /**
    * Почему «мыло»: CSS width:100% растягивает bitmap canvas.
@@ -701,8 +825,15 @@
     if (opts.yMin != null) yMin = opts.yMin;
     if (opts.yMax != null) yMax = opts.yMax;
 
-    const stepX = niceStep(xMin, xMax, opts.targetTicksX || 8);
-    const stepY = niceStep(yMin, yMax, opts.targetTicksY || 6);
+    // unitFactor: м на 1 ед. подписи (1 для m, 0.01 для cm).
+    // Геометрия Frame всегда SI; подписи = value_SI / factor («1 m → 100 cm» на том же отрезке).
+    const ufx = opts.unitFactorX != null && opts.unitFactorX > 0 ? opts.unitFactorX : 1;
+    const ufy = opts.unitFactorY != null && opts.unitFactorY > 0 ? opts.unitFactorY : 1;
+    // nice-step в единицах подписи, затем × factor → шаг в SI
+    const stepXdisp = niceStep(xMin / ufx, xMax / ufx, opts.targetTicksX || 8);
+    const stepYdisp = niceStep(yMin / ufy, yMax / ufy, opts.targetTicksY || 6);
+    const stepX = stepXdisp * ufx;
+    const stepY = stepYdisp * ufy;
     const minorX = stepX / 5;
     const minorY = stepY / 5;
     const majorsX = ticksInRange(xMin, xMax, stepX);
@@ -812,7 +943,8 @@
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       const ty = Math.min(H - 2, p.y + tickMajor + 3);
-      ctx.fillText(formatTick(xv, stepX), p.x, ty);
+      // подпись в ед. шкалы: SI / factor
+      ctx.fillText(formatTick(xv / ufx, stepXdisp), p.x, ty);
     });
     majorsY.forEach(function (yv) {
       const p = GC.toScreen(frame, { x: 0, y: yv });
@@ -822,9 +954,8 @@
       if (Math.abs(yv) < stepY * 1e-9) return;
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      // подпись слева от оси; не прижимать к краю холста
       const tx = Math.max(28, p.x - tickMajor - 6);
-      ctx.fillText(formatTick(yv, stepY), tx, p.y);
+      ctx.fillText(formatTick(yv / ufy, stepYdisp), tx, p.y);
     });
     ctx.stroke();
 
@@ -934,7 +1065,8 @@
       ctx.fill();
     }
 
-    // r labels on +x
+    // r labels on +x (подпись в ед. шкалы, геометрия SI)
+    const ufR = opts.unitFactor != null && opts.unitFactor > 0 ? opts.unitFactor : 1;
     ctx.fillStyle = "#c5c9d1";
     ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.textAlign = "left";
@@ -942,7 +1074,7 @@
     for (let r = rStep; r <= rMax + 1e-9; r += rStep) {
       const p = GC.toScreen(frame, { x: r, y: 0 });
       if (!p) continue;
-      ctx.fillText(formatTick(r, rStep), p.x + 4, p.y - 10);
+      ctx.fillText(formatTick(r / ufR, rStep / ufR), p.x + 4, p.y - 10);
     }
 
     // angle labels
@@ -1033,31 +1165,55 @@
     const H = fitted.H;
     clear(ctx, W, H);
 
-    // фиксированный масштаб: state.scalePx CSS-px на 1 m (независим от dpr)
-    const scale = state.scalePx;
+    const proj = state.projection;
+    // шкалы units: только подписи. Геометрия Frame всегда SI (м).
+    const scaleIdH = state.scaleH;
+    const scaleIdV = state.coords === "polar" ? state.scaleH : state.scaleV;
+    const labH = assembleScaleLabel(scaleById(scaleIdH), "ru");
+    const labV = assembleScaleLabel(scaleById(scaleIdV), "ru");
+    const factorH = labH.factor || 1; // м на 1 ед. шкалы
+    const factorV = labV.factor || 1;
+
+    // scalePx = CSS-px на 1 SI-метр (не меняется при m↔cm)
+    const sx = state.scalePx;
+    const sy = state.scalePx;
     const frame = GC.createFrame({
-      origin: [-W / (2 * scale), -H / (2 * scale)],
+      origin: [-W / (2 * sx), -H / (2 * sy)],
       axes: { x: "right", y: "up" },
-      scale_x: scale,
-      scale_y: scale,
+      scale_x: sx,
+      scale_y: sy,
       viewportW: W,
       viewportH: H
     });
 
-    const halfX = W / (2 * scale);
-    const halfY = H / (2 * scale);
+    const halfX = W / (2 * sx); // полуширина в метрах SI
+    const halfY = H / (2 * sy);
     const rMax = Math.min(halfX, halfY) * 0.92;
-    const proj = state.projection;
-    const axisMeta = project3({ x: 0, y: 0, z: 0 }, proj);
+
+    // мир SI → СО → проекция (остаёмся в метрах)
+    function worldToPlot(p3, origin3) {
+      const w = {
+        x: (p3.x || 0) - (origin3.x || 0),
+        y: (p3.y || 0) - (origin3.y || 0),
+        z: (p3.z || 0) - (origin3.z || 0)
+      };
+      return project3(w, proj);
+    }
+
+    const hName =
+      (proj === "yz" ? "y" : proj === "zx" ? "z" : "x") + " / " + labH.symbol;
+    const vName =
+      (proj === "yz" ? "z" : proj === "zx" ? "x" : "y") + " / " + labV.symbol;
 
     if (state.coords === "polar") {
-      // полярная сетка в плоскости текущей проекции
+      const rStepDisp = niceStep(0, rMax / factorH, 5);
       drawPolarAxes(ctx, frame, {
         rMax: rMax,
-        rStep: niceStep(0, rMax, 5),
+        rStep: rStepDisp * factorH,
         nRays: 12,
-        rLabel: "r / m",
-        thetaLabel: "θ · " + proj
+        rLabel: "r / " + labH.symbol,
+        thetaLabel: "θ · " + proj,
+        unitFactor: factorH
       });
     } else {
       drawAxes(ctx, frame, {
@@ -1065,20 +1221,20 @@
         xMax: halfX,
         yMin: -halfY,
         yMax: halfY,
-        xLabel: axisMeta.hLabel,
-        yLabel: axisMeta.vLabel,
+        xLabel: hName,
+        yLabel: vName,
         targetTicksX: 8,
         targetTicksY: 6,
-        grid: true
+        grid: true,
+        unitFactorX: factorH,
+        unitFactorY: factorV
       });
     }
 
-    // положение «массы» из слайдера x + сценария t (если play — x(t) из осциллятора)
     const omega = Math.sqrt(state.k / state.m);
     const A = Math.max(Math.abs(state.x), 0.2);
     let pos3;
     if (state.playTime || state.showTraj) {
-      // кинематика: x = A cos(ωt), y = 0.12 sin(ωt), z = 0
       pos3 = {
         x: A * Math.cos(omega * state.t),
         y: 0.12 * Math.sin(omega * state.t),
@@ -1087,34 +1243,33 @@
     } else {
       pos3 = { x: state.x, y: 0, z: 0 };
     }
-    const F3 = { x: -state.k * pos3.x, y: 0, z: 0 };
-    const forceScale = 0.004;
+    // начало СО: лаб. (0) или груз
+    const origin3 =
+      state.refFrame === "mass" ? { x: pos3.x, y: pos3.y, z: pos3.z } : { x: 0, y: 0, z: 0 };
 
-    const o2 = project3({ x: 0, y: 0, z: 0 }, proj);
-    const p2 = project3(pos3, proj);
-    const fTip = project3(
+    const F3 = { x: -state.k * pos3.x, y: 0, z: 0 };
+    // длина стрелки силы: 0.004 m/N в SI → в ед. шкалы
+    const forceLenSi = 0.004;
+
+    const o2 = worldToPlot({ x: 0, y: 0, z: 0 }, origin3);
+    const p2 = worldToPlot(pos3, origin3);
+    const fTip = worldToPlot(
       {
-        x: pos3.x + F3.x * forceScale,
-        y: pos3.y + F3.y * forceScale,
-        z: pos3.z + F3.z * forceScale
+        x: pos3.x + F3.x * forceLenSi,
+        y: pos3.y,
+        z: pos3.z
       },
-      proj
+      origin3
     );
 
-    drawPoint(ctx, frame, o2, "#c5c9d1", 5);
+    // якорь лаб. начала (если СО = mass, якорь уходит)
+    drawPoint(ctx, frame, o2, state.refFrame === "mass" ? "#5a6170" : "#c5c9d1", 5);
     drawPoint(ctx, frame, p2, "#7cffb2", 6);
-
-    if (state.coords === "polar") {
-      drawArrow(ctx, frame, o2, p2, "#7cffb2", "r");
-      drawArrow(ctx, frame, p2, fTip, "#ff7c7c", "F");
-    } else {
-      drawArrow(ctx, frame, o2, p2, "#7cffb2", "r");
-      drawArrow(ctx, frame, p2, fTip, "#ff7c7c", "F");
-    }
+    drawArrow(ctx, frame, o2, p2, "#7cffb2", state.refFrame === "mass" ? "0'" : "r");
+    drawArrow(ctx, frame, p2, fTip, "#ff7c7c", "F");
 
     if (state.showTraj) {
       const n = 96;
-      // рисуем за период 2π/ω, но сценарий длится tDuration
       const period = (2 * Math.PI) / omega;
       ctx.strokeStyle = "rgba(255,210,124,0.85)";
       ctx.lineWidth = 1.5;
@@ -1135,7 +1290,9 @@
             z: 0
           };
         }
-        const q = project3(p3, proj);
+        // траектория в выбранной СО: для mass-frame origin движется с текущим pos3
+        // (мгновенная сопутствующая — траектория относит. текущего груза)
+        const q = worldToPlot(p3, origin3);
         const p = GC.toScreen(frame, q);
         if (!p) continue;
         if (!started) {
@@ -1144,28 +1301,24 @@
         } else ctx.lineTo(p.x, p.y);
       }
       ctx.stroke();
-      // текущая точка на траектории
-      let cur3;
-      if (state.coords === "polar") {
-        const xi1d = A * Math.cos(omega * state.t);
-        const rr = Math.abs(xi1d);
-        const th = omega * state.t;
-        cur3 = { x: rr * Math.cos(th), y: rr * Math.sin(th), z: 0 };
-      } else {
-        cur3 = pos3;
-      }
-      drawPoint(ctx, frame, project3(cur3, proj), "#ffd27c", 4);
+      drawPoint(ctx, frame, p2, "#ffd27c", 4);
     }
 
     const r = Math.sqrt(pos3.x * pos3.x + pos3.y * pos3.y + pos3.z * pos3.z);
     document.getElementById("envStatus").textContent =
-      "СК: " +
+      "СО: " +
+      (state.refFrame === "mass" ? "груз (сопутств.)" : "лаб. E0") +
+      " · " +
       (state.coords === "polar" ? "полярная" : "декартовая") +
       " · проекция " +
       proj +
-      " · масштаб " +
-      scale +
-      " px/m (фикс.) · dpr=" +
+      " · шкалы H=" +
+      labH.symbol +
+      " V=" +
+      labV.symbol +
+      " · " +
+      state.scalePx +
+      " px/m SI · dpr=" +
       fitted.dpr.toFixed(2) +
       "\n" +
       "t = " +
@@ -1174,7 +1327,7 @@
       state.tDuration.toFixed(1) +
       " с" +
       (state.loopTime ? " · loop" : " · once") +
-      " · x,y,z = (" +
+      " · x,y,z[m] = (" +
       pos3.x.toFixed(3) +
       ", " +
       pos3.y.toFixed(3) +
@@ -1182,7 +1335,7 @@
       pos3.z.toFixed(3) +
       ") · r = " +
       r.toFixed(3) +
-      " · F_x = " +
+      " m · F_x = " +
       F3.x.toFixed(2) +
       " N";
   }
@@ -1207,19 +1360,26 @@
       return;
     }
 
+    // текущее состояние сценария (то же, что среда): x(t)=A cos(ωt)
+    const Aosc = Math.max(Math.abs(state.x), 0.2);
+    const omegaG = Math.sqrt(state.k / state.m);
+    const phaseG = omegaG * state.t;
+    const xNow = Aosc * Math.cos(phaseG);
+
     let domain, values, inputId, markerX, xLabel, yLabel;
     if (lawKey === "newton") {
       domain = [-4, 4];
       values = { O2: state.m };
       inputId = "O3";
-      markerX = (-state.k * state.x) / state.m;
+      // a = F/m = −k x / m
+      markerX = (-state.k * xNow) / state.m;
       xLabel = "a";
       yLabel = "F";
     } else {
       domain = [-0.4, 0.4];
       values = { O2: state.k };
       inputId = "O3";
-      markerX = state.x;
+      markerX = xNow; // бегущая точка по x(t), не статичный слайдер
       xLabel = "x";
       yLabel = lawKey === "energy" ? "U" : "F";
     }
@@ -1291,9 +1451,8 @@
         rLabel: "r",
         thetaLabel: "θ"
       });
-      // фаза: r = |x(t)| или |f|, θ = ωt — здесь демонстрация: θ по индексу, r = |y|
-      const A = Math.max(Math.abs(domain[0]), Math.abs(domain[1]), 0.2);
-      const omega = Math.sqrt(state.k / state.m);
+      // кривая: θ ∈ [0,2π], x=A cos θ, r = |f(x)| — маркер на той же кривой при θ=ωt
+      const A = Aosc;
       const n = 120;
       ctx.strokeStyle = "#7c9cff";
       ctx.lineWidth = 2.5;
@@ -1308,7 +1467,6 @@
         } catch (e) {
           rr = Math.abs(xi);
         }
-        // нормируем r в видимый диапазон полярной сетки
         const rDraw = (rr / (Math.abs(yMax) || 1)) * rMax * 0.85;
         const p = GC.toScreen(frameP, {
           x: rDraw * Math.cos(ti),
@@ -1322,10 +1480,15 @@
       }
       ctx.closePath();
       ctx.stroke();
-      // маркер текущей фазы
-      const thNow = state.t * omega;
+      // маркер: та же формула, что точка кривой при θ = phaseG
+      const thNow = phaseG;
       const xiNow = A * Math.cos(thNow);
-      let rrNow = yMark != null && isFinite(yMark) ? Math.abs(yMark) : Math.abs(xiNow);
+      let rrNow;
+      try {
+        rrNow = Math.abs(built.curve.f(xiNow));
+      } catch (e) {
+        rrNow = Math.abs(xiNow);
+      }
       const rDrawNow = (rrNow / (Math.abs(yMax) || 1)) * rMax * 0.85;
       drawPoint(
         ctx,
@@ -1336,16 +1499,17 @@
       );
       statusEl.textContent =
         (resolved.id || lawKey) +
-        " · полярный вид r(θ) · фаза осциллятора\n" +
-        "r ∝ |" +
+        " · полярный r(θ)=|" +
         yLabel +
-        "| · θ = ωt · scale фикс. " +
-        scale.toFixed(0) +
-        " px/ед · " +
-        xLabel +
-        "=" +
-        markerX.toFixed(3) +
-        (yMark != null && isFinite(yMark) ? " → " + yLabel + "=" + yMark.toFixed(3) : "");
+        "(A cos θ)| · θ=ωt\n" +
+        "θ=" +
+        ((thNow % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)).toFixed(2) +
+        " rad · x=" +
+        xiNow.toFixed(3) +
+        " · r=|" +
+        yLabel +
+        "|=" +
+        rrNow.toFixed(3);
       return;
     }
 
@@ -1475,6 +1639,19 @@
     state.projection = e.target.value;
     redraw();
   });
+  document.getElementById("refFrame").addEventListener("change", function (e) {
+    state.refFrame = e.target.value;
+    redraw();
+  });
+  // смена шкалы units — только подписи; геометрический px/m не трогаем
+  document.getElementById("scaleH").addEventListener("change", function (e) {
+    state.scaleH = e.target.value;
+    redraw();
+  });
+  document.getElementById("scaleV").addEventListener("change", function (e) {
+    state.scaleV = e.target.value;
+    redraw();
+  });
   document.getElementById("scalePx").addEventListener("input", function (e) {
     state.scalePx = Number(e.target.value);
     redraw();
@@ -1524,12 +1701,11 @@
       }
       syncLabels();
       paintEnv();
-      if (state.graphCoords === "polar") paintGraph();
-    } else if (state.showTraj && !state.playTime) {
-      // только перерисовка траектории без сдвига t
+      paintGraph(); // маркер и в декартовом, и в полярном следует x(t)
     }
     requestAnimationFrame(tick);
   }
+  fillScaleSelects();
   requestAnimationFrame(tick);
   redraw();
 })();
