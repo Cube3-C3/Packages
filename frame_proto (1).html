@@ -64,6 +64,9 @@
       height: 320px;
       background: #12151c;
       cursor: crosshair;
+      /* не сглаживать при CSS-масштабе; реальный DPI чинится в JS */
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
     .controls {
       padding: 10px 12px 12px;
@@ -137,8 +140,13 @@
         <div class="row">
           <label>система</label>
           <select id="coords">
-            <option value="cartesian">декартовая (x, y)</option>
+            <option value="cartesian">декартовая</option>
             <option value="polar">полярная (r, θ)</option>
+          </select>
+          <select id="projection" title="проекция">
+            <option value="xy">проекция y(x)</option>
+            <option value="yz">проекция y(z)</option>
+            <option value="zx">проекция z(x)</option>
           </select>
         </div>
         <div class="row">
@@ -158,9 +166,22 @@
           <span class="val" id="xVal">0.15 m</span>
         </div>
         <div class="row">
+          <label>время t</label>
+          <input id="timeT" type="range" min="0" max="5" step="0.01" value="0" />
+          <span class="val" id="timeVal">0.00 / 5.0 с</span>
+        </div>
+        <div class="row">
+          <label>сценарий</label>
+          <input id="playTime" type="checkbox" checked />
+          <span class="meta">играть</span>
+          <input id="loopTime" type="checkbox" checked />
+          <span class="meta">зациклить</span>
+          <span class="meta">T = 5 с</span>
+        </div>
+        <div class="row">
           <label>траектория</label>
           <input id="showTraj" type="checkbox" checked />
-          <span class="meta">x(t)=A cos(ωt) · в полярной — фазовая (r,θ)</span>
+          <span class="meta">x(t)=A cos(ωt), y≈0.12 sin · z=0</span>
         </div>
         <div class="legend">
           <span class="x">Δx / смещение</span>
@@ -544,16 +565,50 @@
     showTraj: true,
     law: "hooke",
     t: 0,
+    tDuration: 5, // сек, дефолт
+    playTime: true,
+    loopTime: true,
     coords: "cartesian", // cartesian | polar — среда
+    projection: "xy", // xy | yz | zx
     scalePx: 360, // фиксированный px/m
     graphScaleMode: "auto", // auto | fixed
     graphYMax: 50,
     graphCoords: "cartesian" // cartesian | polar
   };
 
+  /**
+   * Почему «мыло»: CSS width:100% растягивает bitmap canvas.
+   * Лечение: внутренняя матрица = CSS-размер × devicePixelRatio, ctx.scale(dpr).
+   */
+  function fitCanvas(canvas) {
+    const dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    const cssW = Math.max(1, Math.round(rect.width));
+    const cssH = Math.max(1, Math.round(rect.height));
+    const bw = Math.round(cssW * dpr);
+    const bh = Math.round(cssH * dpr);
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw;
+      canvas.height = bh;
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx: ctx, W: cssW, H: cssH, dpr: dpr };
+  }
+
   function clear(ctx, W, H) {
     ctx.fillStyle = "#12151c";
     ctx.fillRect(0, 0, W, H);
+  }
+
+  /** 3D → 2D по выбранной проекции. */
+  function project3(p3, proj) {
+    const x = p3.x || 0;
+    const y = p3.y || 0;
+    const z = p3.z || 0;
+    if (proj === "yz") return { x: y, y: z, hLabel: "y / m", vLabel: "z / m" };
+    if (proj === "zx") return { x: z, y: x, hLabel: "z / m", vLabel: "x / m" };
+    return { x: x, y: y, hLabel: "x / m", vLabel: "y / m" };
   }
 
   /** Nice step: 1 / 2 / 5 × 10^n for ~targetTicks major ticks on [min,max]. */
@@ -972,12 +1027,13 @@
 
   function paintEnv() {
     const canvas = document.getElementById("envCanvas");
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width;
-    const H = canvas.height;
+    const fitted = fitCanvas(canvas);
+    const ctx = fitted.ctx;
+    const W = fitted.W;
+    const H = fitted.H;
     clear(ctx, W, H);
 
-    // фиксированный масштаб: state.scalePx px на 1 m
+    // фиксированный масштаб: state.scalePx CSS-px на 1 m (независим от dpr)
     const scale = state.scalePx;
     const frame = GC.createFrame({
       origin: [-W / (2 * scale), -H / (2 * scale)],
@@ -988,18 +1044,20 @@
       viewportH: H
     });
 
-    // видимый math half-extent по осям при данном scale
     const halfX = W / (2 * scale);
     const halfY = H / (2 * scale);
     const rMax = Math.min(halfX, halfY) * 0.92;
+    const proj = state.projection;
+    const axisMeta = project3({ x: 0, y: 0, z: 0 }, proj);
 
     if (state.coords === "polar") {
+      // полярная сетка в плоскости текущей проекции
       drawPolarAxes(ctx, frame, {
         rMax: rMax,
         rStep: niceStep(0, rMax, 5),
         nRays: 12,
         rLabel: "r / m",
-        thetaLabel: "θ"
+        thetaLabel: "θ · " + proj
       });
     } else {
       drawAxes(ctx, frame, {
@@ -1007,72 +1065,78 @@
         xMax: halfX,
         yMin: -halfY,
         yMax: halfY,
-        xLabel: "x / m",
-        yLabel: "y / m",
+        xLabel: axisMeta.hLabel,
+        yLabel: axisMeta.vLabel,
         targetTicksX: 8,
         targetTicksY: 6,
         grid: true
       });
     }
 
-    const x = state.x;
-    const F = -state.k * x;
-    // длина стрелки силы в math-метрах: фиксированный визуальный масштаб 0.004 m на 1 N
+    // положение «массы» из слайдера x + сценария t (если play — x(t) из осциллятора)
+    const omega = Math.sqrt(state.k / state.m);
+    const A = Math.max(Math.abs(state.x), 0.2);
+    let pos3;
+    if (state.playTime || state.showTraj) {
+      // кинематика: x = A cos(ωt), y = 0.12 sin(ωt), z = 0
+      pos3 = {
+        x: A * Math.cos(omega * state.t),
+        y: 0.12 * Math.sin(omega * state.t),
+        z: 0
+      };
+    } else {
+      pos3 = { x: state.x, y: 0, z: 0 };
+    }
+    const F3 = { x: -state.k * pos3.x, y: 0, z: 0 };
     const forceScale = 0.004;
-    const r = Math.abs(x);
-    const theta = x >= 0 ? 0 : Math.PI; // вдоль оси x
 
-    drawPoint(ctx, frame, { x: 0, y: 0 }, "#c5c9d1", 5);
-    drawPoint(ctx, frame, { x: x, y: 0 }, "#7cffb2", 6);
+    const o2 = project3({ x: 0, y: 0, z: 0 }, proj);
+    const p2 = project3(pos3, proj);
+    const fTip = project3(
+      {
+        x: pos3.x + F3.x * forceScale,
+        y: pos3.y + F3.y * forceScale,
+        z: pos3.z + F3.z * forceScale
+      },
+      proj
+    );
+
+    drawPoint(ctx, frame, o2, "#c5c9d1", 5);
+    drawPoint(ctx, frame, p2, "#7cffb2", 6);
 
     if (state.coords === "polar") {
-      // радиус-вектор r̂
-      drawArrow(ctx, frame, { x: 0, y: 0 }, { x: x, y: 0 }, "#7cffb2", "r");
-      // сила вдоль −r̂
-      drawArrow(
-        ctx,
-        frame,
-        { x: x, y: 0 },
-        { x: x + F * forceScale, y: 0 },
-        "#ff7c7c",
-        "F"
-      );
+      drawArrow(ctx, frame, o2, p2, "#7cffb2", "r");
+      drawArrow(ctx, frame, p2, fTip, "#ff7c7c", "F");
     } else {
-      drawArrow(ctx, frame, { x: 0, y: 0.02 }, { x: x, y: 0.02 }, "#7cffb2", "x");
-      drawArrow(
-        ctx,
-        frame,
-        { x: x, y: -0.02 },
-        { x: x + F * forceScale, y: -0.02 },
-        "#ff7c7c",
-        "F"
-      );
+      drawArrow(ctx, frame, o2, p2, "#7cffb2", "r");
+      drawArrow(ctx, frame, p2, fTip, "#ff7c7c", "F");
     }
 
     if (state.showTraj) {
-      const A = Math.max(Math.abs(state.x), 0.2);
-      const omega = Math.sqrt(state.k / state.m);
       const n = 96;
-      const T = (2 * Math.PI) / omega;
+      // рисуем за период 2π/ω, но сценарий длится tDuration
+      const period = (2 * Math.PI) / omega;
       ctx.strokeStyle = "rgba(255,210,124,0.85)";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       let started = false;
       for (let i = 0; i <= n; i++) {
-        const ti = (i / n) * T;
-        let xi, yi;
+        const ti = (i / n) * period;
+        let p3;
         if (state.coords === "polar") {
-          // фазовая картинка: r = |A cos|, θ = ωt (демонстрация полярных координат)
           const xi1d = A * Math.cos(omega * ti);
           const rr = Math.abs(xi1d);
           const th = omega * ti;
-          xi = rr * Math.cos(th);
-          yi = rr * Math.sin(th);
+          p3 = { x: rr * Math.cos(th), y: rr * Math.sin(th), z: 0 };
         } else {
-          xi = A * Math.cos(omega * ti);
-          yi = 0.12 * Math.sin(omega * ti);
+          p3 = {
+            x: A * Math.cos(omega * ti),
+            y: 0.12 * Math.sin(omega * ti),
+            z: 0
+          };
         }
-        const p = GC.toScreen(frame, { x: xi, y: yi });
+        const q = project3(p3, proj);
+        const p = GC.toScreen(frame, q);
         if (!p) continue;
         if (!started) {
           ctx.moveTo(p.x, p.y);
@@ -1080,38 +1144,47 @@
         } else ctx.lineTo(p.x, p.y);
       }
       ctx.stroke();
-      // текущая точка
-      let cxi, cyi;
+      // текущая точка на траектории
+      let cur3;
       if (state.coords === "polar") {
         const xi1d = A * Math.cos(omega * state.t);
         const rr = Math.abs(xi1d);
         const th = omega * state.t;
-        cxi = rr * Math.cos(th);
-        cyi = rr * Math.sin(th);
+        cur3 = { x: rr * Math.cos(th), y: rr * Math.sin(th), z: 0 };
       } else {
-        cxi = A * Math.cos(omega * state.t);
-        cyi = 0.12 * Math.sin(omega * state.t);
+        cur3 = pos3;
       }
-      drawPoint(ctx, frame, { x: cxi, y: cyi }, "#ffd27c", 4);
+      drawPoint(ctx, frame, project3(cur3, proj), "#ffd27c", 4);
     }
 
+    const r = Math.sqrt(pos3.x * pos3.x + pos3.y * pos3.y + pos3.z * pos3.z);
     document.getElementById("envStatus").textContent =
       "СК: " +
-      (state.coords === "polar" ? "полярная (r, θ)" : "декартовая (x, y)") +
+      (state.coords === "polar" ? "полярная" : "декартовая") +
+      " · проекция " +
+      proj +
       " · масштаб " +
       scale +
-      " px/m (фикс.) · origin → center\n" +
-      "x = " +
-      x.toFixed(3) +
-      " m · r = " +
+      " px/m (фикс.) · dpr=" +
+      fitted.dpr.toFixed(2) +
+      "\n" +
+      "t = " +
+      state.t.toFixed(2) +
+      " / " +
+      state.tDuration.toFixed(1) +
+      " с" +
+      (state.loopTime ? " · loop" : " · once") +
+      " · x,y,z = (" +
+      pos3.x.toFixed(3) +
+      ", " +
+      pos3.y.toFixed(3) +
+      ", " +
+      pos3.z.toFixed(3) +
+      ") · r = " +
       r.toFixed(3) +
-      " m · θ = " +
-      (theta === 0 ? "0°" : "180°") +
-      " · F = −k·x = " +
-      F.toFixed(2) +
-      " N · ω = " +
-      Math.sqrt(state.k / state.m).toFixed(2) +
-      " rad/s";
+      " · F_x = " +
+      F3.x.toFixed(2) +
+      " N";
   }
 
   function resolveAst(lawKey) {
@@ -1120,9 +1193,10 @@
 
   function paintGraph() {
     const canvas = document.getElementById("graphCanvas");
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width;
-    const H = canvas.height;
+    const fitted = fitCanvas(canvas);
+    const ctx = fitted.ctx;
+    const W = fitted.W;
+    const H = fitted.H;
     clear(ctx, W, H);
 
     const lawKey = state.law;
@@ -1362,6 +1436,13 @@
     document.getElementById("xVal").textContent = Number(state.x).toFixed(2) + " m";
     document.getElementById("scaleVal").textContent = state.scalePx + " px/m";
     document.getElementById("graphYMaxVal").textContent = "±" + state.graphYMax;
+    document.getElementById("timeVal").textContent =
+      state.t.toFixed(2) + " / " + state.tDuration.toFixed(1) + " с";
+    const timeEl = document.getElementById("timeT");
+    if (timeEl) {
+      timeEl.max = String(state.tDuration);
+      if (document.activeElement !== timeEl) timeEl.value = String(state.t);
+    }
   }
 
   function redraw() {
@@ -1390,6 +1471,10 @@
     state.coords = e.target.value;
     redraw();
   });
+  document.getElementById("projection").addEventListener("change", function (e) {
+    state.projection = e.target.value;
+    redraw();
+  });
   document.getElementById("scalePx").addEventListener("input", function (e) {
     state.scalePx = Number(e.target.value);
     redraw();
@@ -1406,18 +1491,42 @@
     state.graphCoords = e.target.value;
     redraw();
   });
+  document.getElementById("timeT").addEventListener("input", function (e) {
+    state.t = Number(e.target.value);
+    state.playTime = false;
+    document.getElementById("playTime").checked = false;
+    redraw();
+  });
+  document.getElementById("playTime").addEventListener("change", function (e) {
+    state.playTime = !!e.target.checked;
+  });
+  document.getElementById("loopTime").addEventListener("change", function (e) {
+    state.loopTime = !!e.target.checked;
+  });
+
+  window.addEventListener("resize", function () {
+    redraw();
+  });
 
   let last = performance.now();
   function tick(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    if (state.showTraj) {
-      const omega = Math.sqrt(state.k / state.m);
+    if (state.playTime) {
       state.t += dt;
-      const T = (2 * Math.PI) / omega;
-      if (state.t > T) state.t -= T;
+      if (state.t >= state.tDuration) {
+        if (state.loopTime) state.t = state.t - state.tDuration;
+        else {
+          state.t = state.tDuration;
+          state.playTime = false;
+          document.getElementById("playTime").checked = false;
+        }
+      }
+      syncLabels();
       paintEnv();
       if (state.graphCoords === "polar") paintGraph();
+    } else if (state.showTraj && !state.playTime) {
+      // только перерисовка траектории без сдвига t
     }
     requestAnimationFrame(tick);
   }
