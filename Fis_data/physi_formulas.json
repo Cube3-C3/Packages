@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.2.0",
+  "schema_version": "1.3.0",
   "id": "physi_formulas",
   "description": "Сборки P* (structure_ref + bindings, {law}); denotations; уравнения kind=equation structure_ref=EQ с lhs/rhs.",
   "denotations": {
@@ -260,14 +260,10 @@
     {
       "law_id": "P210",
       "name": "Квадрат времени",
-      "structure_ref": "A2",
-      "description": "t * t",
+      "structure_ref": "AU_sq",
+      "description": "t^2",
       "bindings": {
         "O2": {
-          "quantity": "Q007",
-          "role": "time"
-        },
-        "O3": {
           "quantity": "Q007",
           "role": "time"
         }
@@ -305,14 +301,10 @@
     {
       "law_id": "P212",
       "name": "Квадрат скорости",
-      "structure_ref": "A2",
-      "description": "v * v",
+      "structure_ref": "AU_sq",
+      "description": "v^2",
       "bindings": {
         "O2": {
-          "quantity": "Q005",
-          "role": "velocity"
-        },
-        "O3": {
           "quantity": "Q005",
           "role": "velocity"
         }
@@ -350,14 +342,10 @@
     {
       "law_id": "P214",
       "name": "Квадрат координаты",
-      "structure_ref": "A2",
-      "description": "x * x",
+      "structure_ref": "AU_sq",
+      "description": "x^2",
       "bindings": {
         "O2": {
-          "quantity": "Q008",
-          "role": "coordinate"
-        },
-        "O3": {
           "quantity": "Q008",
           "role": "coordinate"
         }
@@ -686,14 +674,10 @@
     {
       "law_id": "P220",
       "name": "Квадрат радиус-вектора",
-      "structure_ref": "A2",
-      "description": "r * r",
+      "structure_ref": "AU_sq",
+      "description": "r^2",
       "bindings": {
         "O2": {
-          "quantity": "Q008",
-          "role": "radius_vector"
-        },
-        "O3": {
           "quantity": "Q008",
           "role": "radius_vector"
         }
@@ -1084,18 +1068,6 @@
       }
     },
     {
-      "law_id": "P275",
-      "name": "sin α (Лоренц)",
-      "structure_ref": "AU_sin",
-      "description": "sin(alpha)",
-      "bindings": {
-        "O2": {
-          "quantity": "Q043",
-          "role": "angle"
-        }
-      }
-    },
-    {
       "law_id": "P024",
       "name": "Сила Лоренца",
       "structure_ref": "A2",
@@ -1105,7 +1077,7 @@
           "law": "P274"
         },
         "O3": {
-          "law": "P275"
+          "law": "P272"
         }
       }
     },
@@ -1306,7 +1278,7 @@
       "name": "Закон преломления Снеллиуса",
       "kind": "equation",
       "structure_ref": "EQ",
-      "description": "n1 * sin(alpha) = n2 * sin(beta)",
+      "description": "n1 * sin(alpha) = n2 * sin(alpha)",
       "lhs": {
         "structure_ref": "A2",
         "bindings": {
@@ -1315,13 +1287,7 @@
             "role": "refractive_index"
           },
           "O3": {
-            "structure_ref": "AU_sin",
-            "bindings": {
-              "O2": {
-                "quantity": "Q043",
-                "role": "angle"
-              }
-            }
+            "law": "P272"
           }
         }
       },
@@ -1333,13 +1299,7 @@
             "role": "refractive_index"
           },
           "O3": {
-            "structure_ref": "AU_sin",
-            "bindings": {
-              "O2": {
-                "quantity": "Q043",
-                "role": "refracted_angle"
-              }
-            }
+            "law": "P272"
           }
         }
       },
@@ -1359,13 +1319,7 @@
             "role": "distance"
           },
           "O3": {
-            "structure_ref": "AU_sin",
-            "bindings": {
-              "O2": {
-                "quantity": "Q043",
-                "role": "angle"
-              }
-            }
+            "law": "P272"
           }
         }
       },
