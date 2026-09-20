@@ -49,6 +49,7 @@
       pack.filter_ontology = json;
     } else if (json.style_kinds || (json.tree && json.fields)) pack.presentation_ontology = json;
     else if (json.manifests) pack.card_manifests = json;
+    else if (json.arity && json.indexes && json.operators) pack.mechanics = json;
     else if (json.operators || json.math_kinds) pack.math_ops = json;
     else if (name.indexOf("units") >= 0) pack.units = json;
     else if (name.indexOf("physi_quant") >= 0 || name.indexOf("quant") >= 0) pack.physi_quant = json;
@@ -1172,6 +1173,7 @@
           "presentation_ontology",
           "card_manifests",
           "math_ops",
+          "mechanics",
           "constructs",
           "components",
           "relation_types",
