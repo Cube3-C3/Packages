@@ -1,0 +1,123 @@
+{
+  "schema_version": "0.1.0",
+  "id": "mechanics",
+  "description": "Атомарная механика связности: операторы, арность, векторные компоненты и индексы адресации величин внутри конструкции.",
+  "meta": {
+    "principle": "quantity occurrence = value + operator/arity context + indexes",
+    "index_kinds": ["event", "membership", "coordinate"]
+  },
+  "arity": {
+    "scalar": { "kind": "fixed", "value": 0 },
+    "unary": { "kind": "fixed", "value": 1 },
+    "binary": { "kind": "fixed", "value": 2 },
+    "variadic": { "kind": "variadic", "min": 2 },
+    "vector": {
+      "kind": "parametric",
+      "parameter": "components",
+      "min": 1,
+      "component_role": "coordinate"
+    }
+  },
+  "operators": {
+    "neg": {
+      "arity": 1,
+      "args_mode": "unary",
+      "input": "Scalar|Vector",
+      "result": "same",
+      "connects": "value_to_transformed_value"
+    },
+    "delta": {
+      "arity": 1,
+      "args_mode": "unary",
+      "input": "Scalar|Vector",
+      "result": "same",
+      "indexes": ["event"],
+      "connects": "state_to_change"
+    },
+    "abs": {
+      "arity": 1,
+      "args_mode": "unary",
+      "input": "Scalar",
+      "result": "Scalar"
+    },
+    "magnitude": {
+      "arity": 1,
+      "args_mode": "unary",
+      "input": "Vector",
+      "result": "Scalar",
+      "connects": "vector_to_scalar"
+    },
+    "unit": {
+      "arity": 1,
+      "args_mode": "unary",
+      "input": "Vector",
+      "result": "Vector",
+      "connects": "vector_to_direction"
+    },
+    "component": {
+      "arity": 2,
+      "args_mode": "value_index",
+      "input": "Vector + coordinate_index",
+      "result": "Scalar",
+      "indexes": ["coordinate"]
+    }
+  },
+  "vector": {
+    "kind": "n_ary_value",
+    "arity_source": "components.length",
+    "component_index": {
+      "kind": "coordinate",
+      "domain": "integer",
+      "starts_at": 0
+    },
+    "construct": {
+      "operator": "vector",
+      "arity": "components.length"
+    }
+  },
+  "indexes": {
+    "event": {
+      "id": "event",
+      "purpose": "Адресует величину к состоянию/моменту/переходу.",
+      "fields": [
+        { "id": "event_id", "required": true },
+        { "id": "role", "required": false },
+        { "id": "phase", "required": false }
+      ]
+    },
+    "membership": {
+      "id": "membership",
+      "purpose": "Связывает величину с элементом, портом, отношением или конструкцией.",
+      "fields": [
+        { "id": "construction_id", "required": true },
+        { "id": "element_id", "required": false },
+        { "id": "relation_id", "required": false },
+        { "id": "port", "required": false },
+        { "id": "role", "required": false }
+      ]
+    },
+    "coordinate": {
+      "id": "coordinate",
+      "purpose": "Адресует компонент/ось величины в координатной системе.",
+      "fields": [
+        { "id": "frame_id", "required": false },
+        { "id": "axis", "required": true },
+        { "id": "component", "required": false }
+      ]
+    }
+  },
+  "links": {
+    "quantity_occurrence": {
+      "required": ["quantity_id"],
+      "optional": ["role", "indexes", "arity", "operator"]
+    },
+    "law_occurrence": {
+      "required": ["law_id"],
+      "optional": ["operand_id", "indexes", "role"]
+    },
+    "construction_occurrence": {
+      "required": ["construction_id"],
+      "optional": ["element_id", "relation_id", "port", "quantity_id", "indexes"]
+    }
+  }
+}
