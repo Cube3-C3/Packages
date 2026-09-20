@@ -2335,19 +2335,45 @@
     }
 
     const schemes = getSchemesMap(structuresData);
-    const aliases = getAliasesMap(structuresData);
+    const aliases = Object.assign(
+      {
+        // builtins: work even if AST.json in host is stale
+        A1: { scheme: "ratio" },
+        A2: { scheme: "product", arity: 2 },
+        A3: { scheme: "product", arity: 3 },
+        A5: { scheme: "sum", arity: 2 },
+        A18: { scheme: "reciprocal_sum", arity: 2 },
+        AU_delta: { scheme: "unary_delta", arity: 1 },
+        AU_neg: { scheme: "unary_neg", arity: 1 },
+        AU_sin: { scheme: "unary_sin", arity: 1 },
+        AU_cos: { scheme: "unary_cos", arity: 1 },
+        AU_sqrt: { scheme: "unary_sqrt", arity: 1 },
+        AU_inv: { scheme: "unary_inv", arity: 1 },
+        AU_sq: { scheme: "square", arity: 1 },
+        A_pow: { scheme: "power", arity: 2 }
+      },
+      getAliasesMap(structuresData)
+    );
 
     function fromScheme(schemeId, arityHint, id, source) {
-      if (!schemeId || !schemes[schemeId]) return null;
+      if (!schemeId) return null;
+      // buildSchemeAst knows schemes even when JSON map is incomplete
+      const astTry = buildSchemeAst(
+        schemeId,
+        arityHint != null
+          ? Number(arityHint)
+          : arityFromBindings(law.bindings, schemeId) || 2
+      );
+      if (!astTry && !schemes[schemeId]) return null;
       let arity = arityHint != null ? Number(arityHint) : null;
       if (arity == null) arity = arityFromBindings(law.bindings, schemeId);
-      if (arity == null && schemes[schemeId].fixed_arity != null) {
+      if (arity == null && schemes[schemeId] && schemes[schemeId].fixed_arity != null) {
         arity = schemes[schemeId].fixed_arity;
       }
       if (arity == null) arity = 2;
       const ast = buildSchemeAst(schemeId, arity);
       if (!ast) return null;
-      const meta = schemes[schemeId];
+      const meta = schemes[schemeId] || {};
       const sname = Array.isArray(meta.name) ? meta.name[0] : meta.name || schemeId;
       return {
         id: id || schemeId,
