@@ -39,11 +39,7 @@
       {
         "law_id": "P110",
         "role": "path_length"
-      },
-      {
-        "law_id": "P111",
-        "role": "path_length"
-      },
+      },      
       {
         "law_id": "P112",
         "role": "path_length"
@@ -240,23 +236,7 @@
           "role": "time"
         }
       }
-    },
-    {
-      "law_id": "P111",
-      "name": "Произведение начальной скорости и времени",
-      "structure_ref": "A2",
-      "description": "s = v_0 * t",
-      "bindings": {
-        "O2": {
-          "quantity": "Q005",
-          "role": "initial_velocity"
-        },
-        "O3": {
-          "quantity": "Q007",
-          "role": "time"
-        }
-      }
-    },
+    },    
     {
       "law_id": "P210",
       "name": "Квадрат времени",
