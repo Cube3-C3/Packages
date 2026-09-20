@@ -32,6 +32,7 @@
       "input": "Scalar|Vector",
       "result": "same",
       "indexes": ["event"],
+      "required_indexes": ["event"],
       "connects": "state_to_change"
     },
     "abs": {
@@ -59,7 +60,8 @@
       "args_mode": "value_index",
       "input": "Vector + coordinate_index",
       "result": "Scalar",
-      "indexes": ["coordinate"]
+      "indexes": ["coordinate"],
+      "required_indexes": ["coordinate"]
     }
   },
   "vector": {
