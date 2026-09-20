@@ -115,11 +115,24 @@
     const indexResult = normalizeIndexes(application.indexes);
     if (!indexResult.ok) return indexResult;
 
+    const indexes = indexResult.value;
+    const requiredIndexes = Array.isArray(op.required_indexes)
+      ? op.required_indexes
+      : [];
+    for (let i = 0; i < requiredIndexes.length; i++) {
+      if (!indexes.some((index) => index && index.kind === requiredIndexes[i])) {
+        return fail(
+          "INDEX_REQUIRED",
+          application.operator + ": required index kind is missing: " + requiredIndexes[i]
+        );
+      }
+    }
+
     const out = {
       operator: application.operator,
       arity: operands.length,
       operands: clone(operands),
-      indexes: indexResult.value
+      indexes: indexes
     };
 
     if (application.result != null) out.result = clone(application.result);
@@ -255,10 +268,6 @@
     return out;
   }
 
-  /**
-   * Convert an occurrence into an addressable key. Useful for later graph
-   * construction and UI selection without imposing a graph implementation.
-   */
   /**
    * Resolve a law against a construction by quantity identity.
    * No formula is recalculated here: this only creates addressable links.
