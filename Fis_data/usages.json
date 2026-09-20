@@ -82,20 +82,6 @@
         ],
         "role": "momentum",
         "notes": "Импульс"
-      },
-      {
-        "name_id": "S004",
-        "symbol": "P",
-        "name": [
-          "system momentum",
-          "импульс системы"
-        ],
-        "domains": [
-          "continuum_mechanics",
-          "fluid_mechanics"
-        ],
-        "role": "system_momentum",
-        "notes": "Импульс системы"
       }
     ],
     "Q003": [
@@ -112,19 +98,6 @@
         ],
         "role": "mass",
         "notes": "Масса"
-      },
-      {
-        "name_id": "S006",
-        "symbol": "M",
-        "name": [
-          "system / celestial mass",
-          "масса системы / небесного тела"
-        ],
-        "domains": [
-          "astronomy_astrophysics"
-        ],
-        "role": "celestial_mass",
-        "notes": "Масса системы"
       }
     ],
     "Q004": [
