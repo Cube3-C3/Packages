@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Frame proto — векторы + графики (механика)</title>
+  <style>
+    :root {
+      --bg: #0f1218;
+      --panel: #171a21;
+      --line: #2a3140;
+      --text: #e6e8ee;
+      --muted: #8b93a7;
+      --accent: #7c9cff;
+      --force: #ff7c7c;
+      --disp: #7cffb2;
+      --traj: #ffd27c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+      align-items: baseline;
+    }
+    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+    header .meta { color: var(--muted); font-size: 12px; }
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 12px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    @media (max-width: 860px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .panel h2 {
+      margin: 0;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 320px;
+      background: #12151c;
+      cursor: crosshair;
+    }
+    .controls {
+      padding: 10px 12px 12px;
+      display: grid;
+      gap: 8px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    label { color: var(--muted); min-width: 88px; }
+    input[type="range"] { flex: 1; min-width: 120px; }
+    .val {
+      font-family: ui-monospace, monospace;
+      min-width: 72px;
+      color: var(--accent);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 6px;
+      vertical-align: -1px;
+    }
+    .legend .f::before { background: var(--force); }
+    .legend .x::before { background: var(--disp); }
+    .legend .g::before { background: var(--accent); }
+    .legend .t::before { background: var(--traj); }
+    .status {
+      padding: 8px 12px;
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      white-space: pre-wrap;
+    }
+    footer {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 4px 16px 20px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    code { color: #a8b3c9; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Frame proto</h1>
+    <span class="meta">self-contained · Frame + векторы + графики · срез механики (Гук / Ньютон) · без SVG</span>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Среда — векторы в Frame</h2>
+      <canvas id="envCanvas" width="560" height="320"></canvas>
+      <div class="controls">
+        <div class="row">
+          <label>система</label>
+          <select id="coords">
+            <option value="cartesian">декартовая (x, y)</option>
+            <option value="polar">полярная (r, θ)</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>масштаб</label>
+          <input id="scalePx" type="range" min="120" max="600" step="20" value="360" />
+          <span class="val" id="scaleVal">360 px/m</span>
+          <span class="meta">фиксированный</span>
+        </div>
+        <div class="row">
+          <label>k (жёсткость)</label>
+          <input id="k" type="range" min="20" max="200" step="5" value="100" />
+          <span class="val" id="kVal">100 N/m</span>
+        </div>
+        <div class="row">
+          <label>x (удлинение)</label>
+          <input id="x" type="range" min="-0.40" max="0.40" step="0.01" value="0.15" />
+          <span class="val" id="xVal">0.15 m</span>
+        </div>
+        <div class="row">
+          <label>траектория</label>
+          <input id="showTraj" type="checkbox" checked />
+          <span class="meta">x(t)=A cos(ωt) · в полярной — фазовая (r,θ)</span>
+        </div>
+        <div class="legend">
+          <span class="x">Δx / смещение</span>
+          <span class="f">F = −k·x</span>
+          <span class="t">траектория</span>
+        </div>
+      </div>
+      <div class="status" id="envStatus"></div>
+    </section>
+
+    <section class="panel">
+      <h2>График функции — Frame API</h2>
+      <canvas id="graphCanvas" width="560" height="320"></canvas>
+      <div class="controls">
+        <div class="row">
+          <label>закон</label>
+          <select id="law">
+            <option value="hooke">P014 Гук · F(x) = k·x</option>
+            <option value="energy">P008 · U(x) = ½ k x²</option>
+            <option value="newton">P005 · F(a) = m·a (m=0.5)</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>масштаб Y</label>
+          <select id="graphScaleMode">
+            <option value="auto">авто по данным</option>
+            <option value="fixed">фиксированный</option>
+          </select>
+          <input id="graphYMax" type="range" min="5" max="200" step="5" value="50" />
+          <span class="val" id="graphYMaxVal">±50</span>
+        </div>
+        <div class="row">
+          <label>вид</label>
+          <select id="graphCoords">
+            <option value="cartesian">декартовый y(x)</option>
+            <option value="polar">полярный r(θ) — фаза осциллятора</option>
+          </select>
+        </div>
+        <div class="legend">
+          <span class="g">кривая / фаза</span>
+          <span class="x">маркер текущего состояния</span>
+        </div>
+      </div>
+      <div class="status" id="graphStatus"></div>
+    </section>
+  </main>
+
+  <footer>
+    Файл: <code>artifacts/frame_proto.html</code> — логика Frame / AST / curve встроена (срез из
+    <code>Fis_runtime/geo_compute.js</code> + <code>units.js</code>). SVG ConstructLayout не используется.
+  </footer>
+
+  <script>
+(function () {
+  "use strict";
+
+  // ═══════════════════════════════════════════════════════════
+  // Мини-runtime (перенос из Fis_runtime/geo_compute.js + units.js)
+  // ═══════════════════════════════════════════════════════════
+
+  function domainOf(curve) {
+    const d = curve.domain;
+    if (!Array.isArray(d) || d.length < 2) {
+      return curve.form === "explicit" ? [0, 4] : [0, 1];
+    }
+    return [Number(d[0]), Number(d[1])];
+  }
+
+  function evalCurve(curve, u) {
+    if (!curve || typeof u !== "number" || !isFinite(u)) return null;
+    if (curve.form === "explicit") {
+      const f = typeof curve.f === "function" ? curve.f : null;
+      if (!f) return null;
+      const y = f(u);
+      if (!isFinite(y)) return null;
+      return { x: u, y: y };
+    }
+    return null;
+  }
+
+  function sample(curve, opts) {
+    opts = opts || {};
+    const n = Math.max(2, opts.n | 0 || 64);
+    const [d0, d1] = domainOf(curve);
+    const a = opts.min != null ? opts.min : d0;
+    const b = opts.max != null ? opts.max : d1;
+    if (!(b > a)) return [];
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+      const u = a + (b - a) * (i / n);
+      const p = evalCurve(curve, u);
+      if (p) out.push(p);
+    }
+    return out;
+  }
+
+  function collectOperandIds(ast) {
+    const ids = new Set();
+    function visit(node) {
+      if (!node || typeof node !== "object") return;
+      if (typeof node.operand_id === "string") ids.add(node.operand_id);
+      if (Array.isArray(node)) {
+        node.forEach(visit);
+        return;
+      }
+      Object.values(node).forEach(visit);
+    }
+    visit(ast);
+    return [...ids].sort(function (a, b) {
+      return Number(a.slice(1)) - Number(b.slice(1));
+    });
+  }
+
+  function remapOperands(ast, mapping) {
+    if (Array.isArray(ast)) return ast.map(function (n) { return remapOperands(n, mapping); });
+    if (!ast || typeof ast !== "object") return ast;
+    if (typeof ast.operand_id === "string") {
+      return { operand_id: mapping.get(ast.operand_id) || ast.operand_id };
+    }
+    const out = {};
+    Object.keys(ast).forEach(function (k) {
+      out[k] = remapOperands(ast[k], mapping);
+    });
+    return out;
+  }
+
+  function buildOperandMapping(operandIds, inputOperandId, outputOperandId) {
+    if (!operandIds.includes(inputOperandId)) throw new Error("Unknown input: " + inputOperandId);
+    if (!operandIds.includes(outputOperandId)) throw new Error("Unknown output: " + outputOperandId);
+    const n = operandIds.length;
+    const mapping = new Map();
+    mapping.set(outputOperandId, "O1");
+    mapping.set(inputOperandId, "O" + n);
+    const middle = [];
+    for (let i = 2; i < n; i++) middle.push("O" + i);
+    operandIds
+      .filter(function (id) { return id !== inputOperandId && id !== outputOperandId; })
+      .forEach(function (src, i) { mapping.set(src, middle[i]); });
+    return mapping;
+  }
+
+  function rebuildAst(canonicalAst, selection) {
+    const operandIds = collectOperandIds(canonicalAst);
+    if (operandIds.length < 2) throw new Error("AST must contain ≥2 operands");
+    const mapping = buildOperandMapping(operandIds, selection.inputOperandId, selection.outputOperandId);
+    return {
+      ast: remapOperands(canonicalAst, mapping),
+      mapping: Object.fromEntries(mapping),
+      rebuilt: selection.outputOperandId !== "O1",
+      lastOperandId: "O" + operandIds.length
+    };
+  }
+
+  function evalAstNode(node, env) {
+    if (node == null) return NaN;
+    if (typeof node.operand_id === "string") {
+      const v = env[node.operand_id];
+      return typeof v === "number" ? v : NaN;
+    }
+    if (typeof node.num === "number") return node.num;
+    if (!node.op) return NaN;
+    if (node.op === "eq") return evalAstNode(node.rhs, env);
+    if (node.op === "delta") {
+      return evalAstNode(node.arg != null ? node.arg : (node.args && node.args[0]), env);
+    }
+    const args = node.args || (node.arg != null ? [node.arg] : []);
+    const vals = args.map(function (a) { return evalAstNode(a, env); });
+    switch (node.op) {
+      case "add": return vals.reduce(function (s, v) { return s + v; }, 0);
+      case "sub": return vals.length === 2 ? vals[0] - vals[1] : NaN;
+      case "mul": return vals.reduce(function (p, v) { return p * v; }, 1);
+      case "div": return vals.length === 2 && vals[1] !== 0 ? vals[0] / vals[1] : NaN;
+      case "pow": return vals.length === 2 ? Math.pow(vals[0], vals[1]) : NaN;
+      case "sin": return vals.length === 1 ? Math.sin(vals[0]) : NaN;
+      case "cos": return vals.length === 1 ? Math.cos(vals[0]) : NaN;
+      case "neg": return vals.length === 1 ? -vals[0] : NaN;
+      default: return NaN;
+    }
+  }
+
+  function buildEnv(operandIds, lastOperandId, argValue, explicitValues) {
+    const env = Object.create(null);
+    for (let i = 0; i < operandIds.length; i++) env[operandIds[i]] = 1;
+    if (explicitValues) {
+      Object.keys(explicitValues).forEach(function (k) {
+        if (typeof explicitValues[k] === "number") env[k] = explicitValues[k];
+      });
+    }
+    env[lastOperandId] = argValue;
+    return env;
+  }
+
+  function curveFromAst(canonicalAst, opts) {
+    opts = opts || {};
+    const inputOperandId = opts.inputOperandId;
+    const outputOperandId = opts.outputOperandId;
+    if (!inputOperandId || !outputOperandId) throw new Error("input/output operand required");
+    const domain =
+      Array.isArray(opts.domain) && opts.domain.length >= 2
+        ? [Number(opts.domain[0]), Number(opts.domain[1])]
+        : [0, 4];
+    const rebuilt = rebuildAst(canonicalAst, {
+      inputOperandId: inputOperandId,
+      outputOperandId: outputOperandId
+    });
+    const operandIds = collectOperandIds(rebuilt.ast);
+    const lastOperandId = rebuilt.lastOperandId;
+    const fixedValues = Object.create(null);
+    for (let i = 0; i < operandIds.length; i++) {
+      const id = operandIds[i];
+      if (id === lastOperandId || id === "O1") continue;
+      fixedValues[id] = 1;
+    }
+    if (opts.values) {
+      Object.keys(opts.values).forEach(function (k) {
+        if (typeof opts.values[k] === "number") fixedValues[k] = opts.values[k];
+      });
+    }
+    const rhs = rebuilt.ast.op === "eq" ? rebuilt.ast.rhs : rebuilt.ast;
+    function f(u) {
+      return evalAstNode(rhs, buildEnv(operandIds, lastOperandId, u, fixedValues));
+    }
+    const curve = { form: "explicit", f: f, domain: domain };
+    return {
+      curve: curve,
+      domain: domain,
+      values: fixedValues,
+      sample: function (n) { return sample(curve, { n: n || 64 }); }
+    };
+  }
+
+  function createFrame(opts) {
+    opts = opts || {};
+    const origin = Array.isArray(opts.origin)
+      ? [Number(opts.origin[0]) || 0, Number(opts.origin[1]) || 0]
+      : [0, 0];
+    const axes = opts.axes || { x: "right", y: "up" };
+    const scale_x = opts.scale_x != null ? Number(opts.scale_x) : 1;
+    const scale_y = opts.scale_y != null ? Number(opts.scale_y) : 1;
+    return {
+      sort: "Frame",
+      origin: origin,
+      axes: { x: axes.x || "right", y: axes.y || "up" },
+      scale_x: isFinite(scale_x) && scale_x !== 0 ? scale_x : 1,
+      scale_y: isFinite(scale_y) && scale_y !== 0 ? scale_y : 1,
+      viewportW: opts.viewportW != null ? Number(opts.viewportW) : null,
+      viewportH: opts.viewportH != null ? Number(opts.viewportH) : null
+    };
+  }
+
+  function toScreen(frame, p) {
+    if (!frame || !p) return null;
+    const mx = Number(p.x != null ? p.x : p[0]);
+    const my = Number(p.y != null ? p.y : p[1]);
+    if (!isFinite(mx) || !isFinite(my)) return null;
+    const sx = (mx - frame.origin[0]) * frame.scale_x;
+    let sy = (my - frame.origin[1]) * frame.scale_y;
+    if (frame.axes && frame.axes.y === "up") {
+      if (frame.viewportH != null && isFinite(frame.viewportH)) sy = frame.viewportH - sy;
+      else sy = -sy;
+    }
+    return { x: sx, y: sy };
+  }
+
+  function leafOperand(n) {
+    return { operand_id: "O" + n };
+  }
+
+  function buildSchemeAst(schemeId, arity) {
+    const n = arity != null ? Number(arity) : 2;
+    if (!schemeId) return null;
+    if (schemeId === "ratio") {
+      return { op: "eq", lhs: leafOperand(1), rhs: { op: "div", args: [leafOperand(2), leafOperand(3)] } };
+    }
+    if (schemeId === "product" || schemeId === "sum") {
+      if (!(n >= 2)) return null;
+      const args = [];
+      for (let i = 2; i <= n + 1; i++) args.push(leafOperand(i));
+      return {
+        op: "eq",
+        lhs: leafOperand(1),
+        rhs: { op: schemeId === "product" ? "mul" : "add", args: args }
+      };
+    }
+    if (schemeId === "square") {
+      return {
+        op: "eq",
+        lhs: leafOperand(1),
+        rhs: { op: "pow", args: [leafOperand(2), { num: 2 }] }
+      };
+    }
+    return null;
+  }
+
+  var ALIASES = {
+    A1: { scheme: "ratio" },
+    A2: { scheme: "product", arity: 2 },
+    A3: { scheme: "product", arity: 3 },
+    A5: { scheme: "sum", arity: 2 },
+    AU_sq: { scheme: "square", arity: 1 }
+  };
+
+  function resolveLawStructure(law) {
+    if (!law) return null;
+    if (law.ast && typeof law.ast === "object") {
+      return { id: law.structure_ref || law.law_id || null, ast: law.ast, source: "law.ast" };
+    }
+    const ref = law.structure_ref;
+    if (ref && ALIASES[ref]) {
+      const a = ALIASES[ref];
+      const ast = buildSchemeAst(a.scheme, a.arity != null ? a.arity : 2);
+      if (!ast) return null;
+      return { id: ref, scheme: a.scheme, arity: a.arity, ast: ast, source: "alias" };
+    }
+    return null;
+  }
+
+  const GC = {
+    createFrame: createFrame,
+    toScreen: toScreen,
+    curveFromAst: curveFromAst,
+    sample: sample
+  };
+  const FU = { resolveLawStructure: resolveLawStructure, buildSchemeAst: buildSchemeAst };
+
+  // ═══════════════════════════════════════════════════════════
+  // UI / сцена
+  // ═══════════════════════════════════════════════════════════
+
+  const LAWS = {
+    hooke: {
+      law_id: "P014",
+      name: "Закон Гука",
+      structure_ref: "A2",
+      bindings: {
+        O2: { quantity: "Q013", role: "spring_constant" },
+        O3: { quantity: "Q008", role: "extension" }
+      }
+    },
+    energy: {
+      law_id: "P008",
+      name: "Упругая энергия",
+      // O1 = (O2 * O3^2) / 2  — operand_id формат как в runtime
+      ast: {
+        op: "eq",
+        lhs: { operand_id: "O1" },
+        rhs: {
+          op: "div",
+          args: [
+            {
+              op: "mul",
+              args: [
+                { operand_id: "O2" },
+                { op: "pow", args: [{ operand_id: "O3" }, { num: 2 }] }
+              ]
+            },
+            { num: 2 }
+          ]
+        }
+      },
+      bindings: {
+        O2: { quantity: "Q013", role: "spring_constant" },
+        O3: { quantity: "Q008", role: "extension" }
+      }
+    },
+    newton: {
+      law_id: "P005",
+      name: "Второй закон Ньютона",
+      structure_ref: "A2",
+      bindings: {
+        O2: { quantity: "Q003", role: "mass" },
+        O3: { quantity: "Q006", role: "acceleration" }
+      }
+    }
+  };
+
+  const state = {
+    k: 100,
+    x: 0.15,
+    m: 0.5,
+    showTraj: true,
+    law: "hooke",
+    t: 0,
+    coords: "cartesian", // cartesian | polar — среда
+    scalePx: 360, // фиксированный px/m
+    graphScaleMode: "auto", // auto | fixed
+    graphYMax: 50,
+    graphCoords: "cartesian" // cartesian | polar
+  };
+
+  function clear(ctx, W, H) {
+    ctx.fillStyle = "#12151c";
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /** Nice step: 1 / 2 / 5 × 10^n for ~targetTicks major ticks on [min,max]. */
+  function niceStep(min, max, targetTicks) {
+    const span = Math.abs(max - min);
+    if (!(span > 0) || !isFinite(span)) return 1;
+    const raw = span / Math.max(2, targetTicks || 6);
+    const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    const n = raw / pow;
+    let step;
+    if (n <= 1.5) step = 1;
+    else if (n <= 3) step = 2;
+    else if (n <= 7) step = 5;
+    else step = 10;
+    return step * pow;
+  }
+
+  function formatTick(v, step) {
+    if (!isFinite(v)) return "—";
+    if (Math.abs(v) < 1e-12) return "0";
+    const a = Math.abs(v);
+    if (a >= 1e4 || (a > 0 && a < 1e-3)) return v.toExponential(1);
+    // число знаков по шагу шкалы
+    let d = 0;
+    if (step > 0 && isFinite(step)) {
+      const ls = Math.log10(step);
+      if (ls < 0) d = Math.min(4, Math.ceil(-ls));
+      // step 0.25 → иногда нужна 1 лишняя цифра
+      const mant = step / Math.pow(10, Math.floor(ls));
+      if (mant < 1.5 && ls < 0) d = Math.min(4, d + 1);
+    }
+    if (d === 0) return String(Math.round(v));
+    return v.toFixed(d).replace(/\.?0+$/, "") || "0";
+  }
+
+  function ticksInRange(min, max, step) {
+    const out = [];
+    if (!(step > 0)) return out;
+    const start = Math.ceil((min - 1e-12) / step) * step;
+    for (let v = start; v <= max + 1e-9; v += step) {
+      if (v >= min - 1e-9 && v <= max + 1e-9) out.push(Number(v.toPrecision(12)));
+    }
+    return out;
+  }
+
+  /**
+   * Полноценные оси: линии со стрелками, major/minor деления, подписи шкалы, имена осей.
+   * opts: {
+   *   xMin, xMax, yMin, yMax,
+   *   xLabel, yLabel,          // «x / m», «F / N»
+   *   targetTicksX, targetTicksY,
+   *   grid: boolean
+   * }
+   */
+  function drawAxes(ctx, frame, opts) {
+    opts = opts || {};
+    const W = frame.viewportW;
+    const H = frame.viewportH;
+    const o = GC.toScreen(frame, { x: 0, y: 0 });
+    if (!o) return;
+
+    // math extents visible in viewport (approx from corners)
+    const corners = [
+      { x: 0, y: 0 },
+      { x: W, y: 0 },
+      { x: 0, y: H },
+      { x: W, y: H }
+    ];
+    // invert via frame math: fromScreen inline
+    function fromS(px, py) {
+      let sy = py;
+      if (frame.axes && frame.axes.y === "up" && frame.viewportH != null) {
+        sy = frame.viewportH - py;
+      }
+      return {
+        x: frame.origin[0] + px / frame.scale_x,
+        y: frame.origin[1] + sy / frame.scale_y
+      };
+    }
+    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    corners.forEach(function (c) {
+      const m = fromS(c.x, c.y);
+      if (m.x < xMin) xMin = m.x;
+      if (m.x > xMax) xMax = m.x;
+      if (m.y < yMin) yMin = m.y;
+      if (m.y > yMax) yMax = m.y;
+    });
+    if (opts.xMin != null) xMin = opts.xMin;
+    if (opts.xMax != null) xMax = opts.xMax;
+    if (opts.yMin != null) yMin = opts.yMin;
+    if (opts.yMax != null) yMax = opts.yMax;
+
+    const stepX = niceStep(xMin, xMax, opts.targetTicksX || 8);
+    const stepY = niceStep(yMin, yMax, opts.targetTicksY || 6);
+    const minorX = stepX / 5;
+    const minorY = stepY / 5;
+    const majorsX = ticksInRange(xMin, xMax, stepX);
+    const majorsY = ticksInRange(yMin, yMax, stepY);
+    const minorsX = ticksInRange(xMin, xMax, minorX);
+    const minorsY = ticksInRange(yMin, yMax, minorY);
+
+    // grid
+    if (opts.grid !== false) {
+      ctx.strokeStyle = "rgba(46,53,69,0.55)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      majorsX.forEach(function (xv) {
+        if (Math.abs(xv) < stepX * 1e-9) return;
+        const a = GC.toScreen(frame, { x: xv, y: yMin });
+        const b = GC.toScreen(frame, { x: xv, y: yMax });
+        if (a && b) {
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+        }
+      });
+      majorsY.forEach(function (yv) {
+        if (Math.abs(yv) < stepY * 1e-9) return;
+        const a = GC.toScreen(frame, { x: xMin, y: yv });
+        const b = GC.toScreen(frame, { x: xMax, y: yv });
+        if (a && b) {
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+        }
+      });
+      ctx.stroke();
+    }
+
+    // axis lines through origin (clipped to plot)
+    const x0 = GC.toScreen(frame, { x: xMin, y: 0 });
+    const x1 = GC.toScreen(frame, { x: xMax, y: 0 });
+    const y0 = GC.toScreen(frame, { x: 0, y: yMin });
+    const y1 = GC.toScreen(frame, { x: 0, y: yMax });
+    ctx.strokeStyle = "#9aa3b5";
+    ctx.fillStyle = "#9aa3b5";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (x0 && x1) {
+      ctx.moveTo(x0.x, x0.y);
+      ctx.lineTo(x1.x, x1.y);
+    }
+    if (y0 && y1) {
+      ctx.moveTo(y0.x, y0.y);
+      ctx.lineTo(y1.x, y1.y);
+    }
+    ctx.stroke();
+
+    // arrow heads
+    function axisArrow(from, to) {
+      if (!from || !to) return;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 4) return;
+      const ux = dx / len;
+      const uy = dy / len;
+      const head = 9;
+      ctx.beginPath();
+      ctx.moveTo(to.x, to.y);
+      ctx.lineTo(to.x - head * ux + head * 0.4 * uy, to.y - head * uy - head * 0.4 * ux);
+      ctx.lineTo(to.x - head * ux - head * 0.4 * uy, to.y - head * uy + head * 0.4 * ux);
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (x0 && x1) axisArrow(x0, x1);
+    if (y0 && y1) axisArrow(y0, y1);
+
+    // minor ticks
+    ctx.strokeStyle = "#6b7385";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const tickMinor = 4;
+    const tickMajor = 8;
+    minorsX.forEach(function (xv) {
+      if (majorsX.some(function (m) { return Math.abs(m - xv) < minorX * 0.1; })) return;
+      const p = GC.toScreen(frame, { x: xv, y: 0 });
+      if (!p) return;
+      ctx.moveTo(p.x, p.y - tickMinor);
+      ctx.lineTo(p.x, p.y + tickMinor);
+    });
+    minorsY.forEach(function (yv) {
+      if (majorsY.some(function (m) { return Math.abs(m - yv) < minorY * 0.1; })) return;
+      const p = GC.toScreen(frame, { x: 0, y: yv });
+      if (!p) return;
+      ctx.moveTo(p.x - tickMinor, p.y);
+      ctx.lineTo(p.x + tickMinor, p.y);
+    });
+    ctx.stroke();
+
+    // major ticks + numeric labels
+    ctx.strokeStyle = "#c5c9d1";
+    ctx.fillStyle = "#c5c9d1";
+    ctx.lineWidth = 1.25;
+    ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.beginPath();
+    majorsX.forEach(function (xv) {
+      const p = GC.toScreen(frame, { x: xv, y: 0 });
+      if (!p) return;
+      ctx.moveTo(p.x, p.y - tickMajor);
+      ctx.lineTo(p.x, p.y + tickMajor);
+      if (Math.abs(xv) < stepX * 1e-9) return; // 0 signed by axis cross
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const ty = Math.min(H - 2, p.y + tickMajor + 3);
+      ctx.fillText(formatTick(xv, stepX), p.x, ty);
+    });
+    majorsY.forEach(function (yv) {
+      const p = GC.toScreen(frame, { x: 0, y: yv });
+      if (!p) return;
+      ctx.moveTo(p.x - tickMajor, p.y);
+      ctx.lineTo(p.x + tickMajor, p.y);
+      if (Math.abs(yv) < stepY * 1e-9) return;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      // подпись слева от оси; не прижимать к краю холста
+      const tx = Math.max(28, p.x - tickMajor - 6);
+      ctx.fillText(formatTick(yv, stepY), tx, p.y);
+    });
+    ctx.stroke();
+
+    // origin «0»
+    if (o) {
+      ctx.fillStyle = "#8b93a7";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "top";
+      ctx.fillText("0", Math.max(28, o.x - 6), o.y + 4);
+    }
+
+    // axis name labels (explicit)
+    ctx.fillStyle = "#e6e8ee";
+    ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+    if (opts.xLabel && x1) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(opts.xLabel, Math.min(W - 8, x1.x - 4), Math.max(14, x1.y - 10));
+    }
+    if (opts.yLabel && y1) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(opts.yLabel, Math.min(W - 8, y1.x + 10), Math.max(14, y1.y + 4));
+    }
+  }
+
+  /**
+   * Полярная сетка в том же Frame (math y-up → screen).
+   * r-кольца, лучи θ, подписи r и углов.
+   */
+  function drawPolarAxes(ctx, frame, opts) {
+    opts = opts || {};
+    const W = frame.viewportW;
+    const H = frame.viewportH;
+    const rMax = opts.rMax != null ? opts.rMax : 0.5;
+    const rStep = opts.rStep != null ? opts.rStep : niceStep(0, rMax, opts.targetRings || 5);
+    const nRays = opts.nRays || 12; // каждые 30°
+    const o = GC.toScreen(frame, { x: 0, y: 0 });
+    if (!o) return;
+
+    // rings
+    ctx.strokeStyle = "rgba(46,53,69,0.85)";
+    ctx.lineWidth = 1;
+    for (let r = rStep; r <= rMax + 1e-9; r += rStep) {
+      ctx.beginPath();
+      let first = true;
+      for (let i = 0; i <= 64; i++) {
+        const th = (i / 64) * Math.PI * 2;
+        const p = GC.toScreen(frame, { x: r * Math.cos(th), y: r * Math.sin(th) });
+        if (!p) continue;
+        if (first) {
+          ctx.moveTo(p.x, p.y);
+          first = false;
+        } else ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    // rays
+    ctx.strokeStyle = "rgba(46,53,69,0.65)";
+    for (let i = 0; i < nRays; i++) {
+      const th = (i / nRays) * Math.PI * 2;
+      const p = GC.toScreen(frame, {
+        x: rMax * Math.cos(th),
+        y: rMax * Math.sin(th)
+      });
+      if (!p || !o) continue;
+      ctx.beginPath();
+      ctx.moveTo(o.x, o.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+
+    // axis emphasis 0° and 90°
+    ctx.strokeStyle = "#9aa3b5";
+    ctx.lineWidth = 1.5;
+    const p0 = GC.toScreen(frame, { x: rMax, y: 0 });
+    const p90 = GC.toScreen(frame, { x: 0, y: rMax });
+    const p180 = GC.toScreen(frame, { x: -rMax, y: 0 });
+    const p270 = GC.toScreen(frame, { x: 0, y: -rMax });
+    ctx.beginPath();
+    if (p180 && p0) {
+      ctx.moveTo(p180.x, p180.y);
+      ctx.lineTo(p0.x, p0.y);
+    }
+    if (p270 && p90) {
+      ctx.moveTo(p270.x, p270.y);
+      ctx.lineTo(p90.x, p90.y);
+    }
+    ctx.stroke();
+
+    // arrow on θ=0
+    if (o && p0) {
+      ctx.fillStyle = "#9aa3b5";
+      const dx = p0.x - o.x;
+      const dy = p0.y - o.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+      const head = 9;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p0.x - head * ux + head * 0.4 * uy, p0.y - head * uy - head * 0.4 * ux);
+      ctx.lineTo(p0.x - head * ux - head * 0.4 * uy, p0.y - head * uy + head * 0.4 * ux);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // r labels on +x
+    ctx.fillStyle = "#c5c9d1";
+    ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    for (let r = rStep; r <= rMax + 1e-9; r += rStep) {
+      const p = GC.toScreen(frame, { x: r, y: 0 });
+      if (!p) continue;
+      ctx.fillText(formatTick(r, rStep), p.x + 4, p.y - 10);
+    }
+
+    // angle labels
+    ctx.fillStyle = "#8b93a7";
+    ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
+    const angleLabels = [
+      { th: 0, text: "0°" },
+      { th: Math.PI / 2, text: "90°" },
+      { th: Math.PI, text: "180°" },
+      { th: -Math.PI / 2, text: "270°" }
+    ];
+    angleLabels.forEach(function (a) {
+      const rr = rMax * 1.08;
+      const p = GC.toScreen(frame, { x: rr * Math.cos(a.th), y: rr * Math.sin(a.th) });
+      if (!p) return;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(a.text, p.x, p.y);
+    });
+
+    // axis names
+    ctx.fillStyle = "#e6e8ee";
+    ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+    if (p0) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(opts.rLabel || "r / m", Math.min(W - 8, p0.x - 4), Math.max(14, p0.y - 10));
+    }
+    if (p90) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(opts.thetaLabel || "θ", Math.min(W - 8, p90.x + 8), Math.max(14, p90.y + 4));
+    }
+
+    // origin
+    if (o) {
+      ctx.fillStyle = "#8b93a7";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "top";
+      ctx.fillText("O", o.x - 6, o.y + 4);
+    }
+  }
+
+  function drawArrow(ctx, frame, from, to, color, label) {
+    const a = GC.toScreen(frame, from);
+    const b = GC.toScreen(frame, to);
+    if (!a || !b) return;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 2) return;
+    const ux = dx / len;
+    const uy = dy / len;
+    const head = Math.min(12, len * 0.25);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x - head * ux + head * 0.4 * uy, b.y - head * uy - head * 0.4 * ux);
+    ctx.lineTo(b.x - head * ux - head * 0.4 * uy, b.y - head * uy + head * 0.4 * ux);
+    ctx.closePath();
+    ctx.fill();
+    if (label) {
+      ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText(label, b.x + 8, b.y - 8);
+    }
+  }
+
+  function drawPoint(ctx, frame, p, color, r) {
+    const s = GC.toScreen(frame, p);
+    if (!s) return;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r || 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function paintEnv() {
+    const canvas = document.getElementById("envCanvas");
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width;
+    const H = canvas.height;
+    clear(ctx, W, H);
+
+    // фиксированный масштаб: state.scalePx px на 1 m
+    const scale = state.scalePx;
+    const frame = GC.createFrame({
+      origin: [-W / (2 * scale), -H / (2 * scale)],
+      axes: { x: "right", y: "up" },
+      scale_x: scale,
+      scale_y: scale,
+      viewportW: W,
+      viewportH: H
+    });
+
+    // видимый math half-extent по осям при данном scale
+    const halfX = W / (2 * scale);
+    const halfY = H / (2 * scale);
+    const rMax = Math.min(halfX, halfY) * 0.92;
+
+    if (state.coords === "polar") {
+      drawPolarAxes(ctx, frame, {
+        rMax: rMax,
+        rStep: niceStep(0, rMax, 5),
+        nRays: 12,
+        rLabel: "r / m",
+        thetaLabel: "θ"
+      });
+    } else {
+      drawAxes(ctx, frame, {
+        xMin: -halfX,
+        xMax: halfX,
+        yMin: -halfY,
+        yMax: halfY,
+        xLabel: "x / m",
+        yLabel: "y / m",
+        targetTicksX: 8,
+        targetTicksY: 6,
+        grid: true
+      });
+    }
+
+    const x = state.x;
+    const F = -state.k * x;
+    // длина стрелки силы в math-метрах: фиксированный визуальный масштаб 0.004 m на 1 N
+    const forceScale = 0.004;
+    const r = Math.abs(x);
+    const theta = x >= 0 ? 0 : Math.PI; // вдоль оси x
+
+    drawPoint(ctx, frame, { x: 0, y: 0 }, "#c5c9d1", 5);
+    drawPoint(ctx, frame, { x: x, y: 0 }, "#7cffb2", 6);
+
+    if (state.coords === "polar") {
+      // радиус-вектор r̂
+      drawArrow(ctx, frame, { x: 0, y: 0 }, { x: x, y: 0 }, "#7cffb2", "r");
+      // сила вдоль −r̂
+      drawArrow(
+        ctx,
+        frame,
+        { x: x, y: 0 },
+        { x: x + F * forceScale, y: 0 },
+        "#ff7c7c",
+        "F"
+      );
+    } else {
+      drawArrow(ctx, frame, { x: 0, y: 0.02 }, { x: x, y: 0.02 }, "#7cffb2", "x");
+      drawArrow(
+        ctx,
+        frame,
+        { x: x, y: -0.02 },
+        { x: x + F * forceScale, y: -0.02 },
+        "#ff7c7c",
+        "F"
+      );
+    }
+
+    if (state.showTraj) {
+      const A = Math.max(Math.abs(state.x), 0.2);
+      const omega = Math.sqrt(state.k / state.m);
+      const n = 96;
+      const T = (2 * Math.PI) / omega;
+      ctx.strokeStyle = "rgba(255,210,124,0.85)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i <= n; i++) {
+        const ti = (i / n) * T;
+        let xi, yi;
+        if (state.coords === "polar") {
+          // фазовая картинка: r = |A cos|, θ = ωt (демонстрация полярных координат)
+          const xi1d = A * Math.cos(omega * ti);
+          const rr = Math.abs(xi1d);
+          const th = omega * ti;
+          xi = rr * Math.cos(th);
+          yi = rr * Math.sin(th);
+        } else {
+          xi = A * Math.cos(omega * ti);
+          yi = 0.12 * Math.sin(omega * ti);
+        }
+        const p = GC.toScreen(frame, { x: xi, y: yi });
+        if (!p) continue;
+        if (!started) {
+          ctx.moveTo(p.x, p.y);
+          started = true;
+        } else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      // текущая точка
+      let cxi, cyi;
+      if (state.coords === "polar") {
+        const xi1d = A * Math.cos(omega * state.t);
+        const rr = Math.abs(xi1d);
+        const th = omega * state.t;
+        cxi = rr * Math.cos(th);
+        cyi = rr * Math.sin(th);
+      } else {
+        cxi = A * Math.cos(omega * state.t);
+        cyi = 0.12 * Math.sin(omega * state.t);
+      }
+      drawPoint(ctx, frame, { x: cxi, y: cyi }, "#ffd27c", 4);
+    }
+
+    document.getElementById("envStatus").textContent =
+      "СК: " +
+      (state.coords === "polar" ? "полярная (r, θ)" : "декартовая (x, y)") +
+      " · масштаб " +
+      scale +
+      " px/m (фикс.) · origin → center\n" +
+      "x = " +
+      x.toFixed(3) +
+      " m · r = " +
+      r.toFixed(3) +
+      " m · θ = " +
+      (theta === 0 ? "0°" : "180°") +
+      " · F = −k·x = " +
+      F.toFixed(2) +
+      " N · ω = " +
+      Math.sqrt(state.k / state.m).toFixed(2) +
+      " rad/s";
+  }
+
+  function resolveAst(lawKey) {
+    return FU.resolveLawStructure(LAWS[lawKey]);
+  }
+
+  function paintGraph() {
+    const canvas = document.getElementById("graphCanvas");
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width;
+    const H = canvas.height;
+    clear(ctx, W, H);
+
+    const lawKey = state.law;
+    const resolved = resolveAst(lawKey);
+    const statusEl = document.getElementById("graphStatus");
+    if (!resolved) {
+      statusEl.textContent = "AST не собран";
+      return;
+    }
+
+    let domain, values, inputId, markerX, xLabel, yLabel;
+    if (lawKey === "newton") {
+      domain = [-4, 4];
+      values = { O2: state.m };
+      inputId = "O3";
+      markerX = (-state.k * state.x) / state.m;
+      xLabel = "a";
+      yLabel = "F";
+    } else {
+      domain = [-0.4, 0.4];
+      values = { O2: state.k };
+      inputId = "O3";
+      markerX = state.x;
+      xLabel = "x";
+      yLabel = lawKey === "energy" ? "U" : "F";
+    }
+
+    let built;
+    try {
+      built = GC.curveFromAst(resolved.ast, {
+        inputOperandId: inputId,
+        outputOperandId: "O1",
+        domain: domain,
+        values: values
+      });
+    } catch (e) {
+      statusEl.textContent = "curveFromAst: " + e.message;
+      return;
+    }
+
+    const pts = built.sample(96) || [];
+    let yMin;
+    let yMax;
+    if (state.graphScaleMode === "fixed") {
+      yMax = Math.abs(state.graphYMax) || 50;
+      yMin = -yMax;
+    } else {
+      yMin = Infinity;
+      yMax = -Infinity;
+      pts.forEach(function (p) {
+        if (p && isFinite(p.y)) {
+          if (p.y < yMin) yMin = p.y;
+          if (p.y > yMax) yMax = p.y;
+        }
+      });
+      if (!isFinite(yMin)) {
+        yMin = -1;
+        yMax = 1;
+      }
+      if (yMax - yMin < 1e-9) {
+        yMin -= 1;
+        yMax += 1;
+      }
+      const yPad = (yMax - yMin) * 0.15;
+      yMin -= yPad;
+      yMax += yPad;
+    }
+
+    let yMark = null;
+    try {
+      yMark = built.curve.f(markerX);
+    } catch (e) {
+      yMark = null;
+    }
+
+    // ── полярный вид графика: фаза осциллятора r(θ) ─────────
+    if (state.graphCoords === "polar") {
+      const scale = Math.min(W, H) * 0.42 / Math.max(0.25, Math.abs(domain[1]), Math.abs(domain[0]));
+      const frameP = GC.createFrame({
+        origin: [-W / (2 * scale), -H / (2 * scale)],
+        axes: { x: "right", y: "up" },
+        scale_x: scale,
+        scale_y: scale,
+        viewportW: W,
+        viewportH: H
+      });
+      const rMax = Math.min(W, H) / (2 * scale) * 0.9;
+      drawPolarAxes(ctx, frameP, {
+        rMax: rMax,
+        rStep: niceStep(0, rMax, 4),
+        nRays: 12,
+        rLabel: "r",
+        thetaLabel: "θ"
+      });
+      // фаза: r = |x(t)| или |f|, θ = ωt — здесь демонстрация: θ по индексу, r = |y|
+      const A = Math.max(Math.abs(domain[0]), Math.abs(domain[1]), 0.2);
+      const omega = Math.sqrt(state.k / state.m);
+      const n = 120;
+      ctx.strokeStyle = "#7c9cff";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i <= n; i++) {
+        const ti = (i / n) * (2 * Math.PI);
+        const xi = A * Math.cos(ti);
+        let rr;
+        try {
+          rr = Math.abs(built.curve.f(xi));
+        } catch (e) {
+          rr = Math.abs(xi);
+        }
+        // нормируем r в видимый диапазон полярной сетки
+        const rDraw = (rr / (Math.abs(yMax) || 1)) * rMax * 0.85;
+        const p = GC.toScreen(frameP, {
+          x: rDraw * Math.cos(ti),
+          y: rDraw * Math.sin(ti)
+        });
+        if (!p) continue;
+        if (!started) {
+          ctx.moveTo(p.x, p.y);
+          started = true;
+        } else ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      // маркер текущей фазы
+      const thNow = state.t * omega;
+      const xiNow = A * Math.cos(thNow);
+      let rrNow = yMark != null && isFinite(yMark) ? Math.abs(yMark) : Math.abs(xiNow);
+      const rDrawNow = (rrNow / (Math.abs(yMax) || 1)) * rMax * 0.85;
+      drawPoint(
+        ctx,
+        frameP,
+        { x: rDrawNow * Math.cos(thNow), y: rDrawNow * Math.sin(thNow) },
+        "#7cffb2",
+        5
+      );
+      statusEl.textContent =
+        (resolved.id || lawKey) +
+        " · полярный вид r(θ) · фаза осциллятора\n" +
+        "r ∝ |" +
+        yLabel +
+        "| · θ = ωt · scale фикс. " +
+        scale.toFixed(0) +
+        " px/ед · " +
+        xLabel +
+        "=" +
+        markerX.toFixed(3) +
+        (yMark != null && isFinite(yMark) ? " → " + yLabel + "=" + yMark.toFixed(3) : "");
+      return;
+    }
+
+    // ── декартовый график ────────────────────────────────────
+    const padL = 64;
+    const padR = 36;
+    const padT = 26;
+    const padB = 36;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const scaleX = plotW / (domain[1] - domain[0]);
+    const scaleY = plotH / (yMax - yMin);
+    const frame = GC.createFrame({
+      origin: [domain[0] - padL / scaleX, yMin - padB / scaleY],
+      axes: { x: "right", y: "up" },
+      scale_x: scaleX,
+      scale_y: scaleY,
+      viewportW: W,
+      viewportH: H
+    });
+
+    const unitX = lawKey === "newton" ? "m/s²" : "m";
+    const unitY = lawKey === "energy" ? "J" : "N";
+    drawAxes(ctx, frame, {
+      xMin: domain[0],
+      xMax: domain[1],
+      yMin: yMin,
+      yMax: yMax,
+      xLabel: xLabel + " / " + unitX,
+      yLabel: yLabel + " / " + unitY,
+      targetTicksX: 8,
+      targetTicksY: 6,
+      grid: true
+    });
+
+    ctx.strokeStyle = "#7c9cff";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
+      const s = GC.toScreen(frame, p);
+      if (!s) continue;
+      if (!started) {
+        ctx.moveTo(s.x, s.y);
+        started = true;
+      } else ctx.lineTo(s.x, s.y);
+    }
+    ctx.stroke();
+
+    if (yMark != null && isFinite(yMark)) {
+      drawPoint(ctx, frame, { x: markerX, y: yMark }, "#7cffb2", 5);
+      const a = GC.toScreen(frame, { x: markerX, y: yMin });
+      const b = GC.toScreen(frame, { x: markerX, y: yMark });
+      if (a && b) {
+        ctx.strokeStyle = "rgba(124,255,178,0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    }
+
+    statusEl.textContent =
+      (resolved.id || lawKey) +
+      " · source=" +
+      (resolved.source || "?") +
+      " · Y: " +
+      (state.graphScaleMode === "fixed" ? "фикс. ±" + state.graphYMax : "авто") +
+      "\n" +
+      "domain [" +
+      domain[0] +
+      ", " +
+      domain[1] +
+      "] · pts=" +
+      pts.length +
+      " · " +
+      xLabel +
+      "=" +
+      markerX.toFixed(3) +
+      (yMark != null && isFinite(yMark) ? " → " + yLabel + "=" + yMark.toFixed(3) : "");
+  }
+
+  function syncLabels() {
+    document.getElementById("kVal").textContent = state.k + " N/m";
+    document.getElementById("xVal").textContent = Number(state.x).toFixed(2) + " m";
+    document.getElementById("scaleVal").textContent = state.scalePx + " px/m";
+    document.getElementById("graphYMaxVal").textContent = "±" + state.graphYMax;
+  }
+
+  function redraw() {
+    syncLabels();
+    paintEnv();
+    paintGraph();
+  }
+
+  document.getElementById("k").addEventListener("input", function (e) {
+    state.k = Number(e.target.value);
+    redraw();
+  });
+  document.getElementById("x").addEventListener("input", function (e) {
+    state.x = Number(e.target.value);
+    redraw();
+  });
+  document.getElementById("showTraj").addEventListener("change", function (e) {
+    state.showTraj = !!e.target.checked;
+    redraw();
+  });
+  document.getElementById("law").addEventListener("change", function (e) {
+    state.law = e.target.value;
+    redraw();
+  });
+  document.getElementById("coords").addEventListener("change", function (e) {
+    state.coords = e.target.value;
+    redraw();
+  });
+  document.getElementById("scalePx").addEventListener("input", function (e) {
+    state.scalePx = Number(e.target.value);
+    redraw();
+  });
+  document.getElementById("graphScaleMode").addEventListener("change", function (e) {
+    state.graphScaleMode = e.target.value;
+    redraw();
+  });
+  document.getElementById("graphYMax").addEventListener("input", function (e) {
+    state.graphYMax = Number(e.target.value);
+    redraw();
+  });
+  document.getElementById("graphCoords").addEventListener("change", function (e) {
+    state.graphCoords = e.target.value;
+    redraw();
+  });
+
+  let last = performance.now();
+  function tick(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (state.showTraj) {
+      const omega = Math.sqrt(state.k / state.m);
+      state.t += dt;
+      const T = (2 * Math.PI) / omega;
+      if (state.t > T) state.t -= T;
+      paintEnv();
+      if (state.graphCoords === "polar") paintGraph();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  redraw();
+})();
+  </script>
+</body>
+</html>
