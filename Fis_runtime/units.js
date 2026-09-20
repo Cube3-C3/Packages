@@ -1554,17 +1554,20 @@
         if (expN === 1) return render(args[0], parent);
         if (expN === 0) return "1";
         const base = render(args[0], prec);
-        const exp = render(args[1], 0);
         if (!base) return "";
         const baseNeeds = !isAtomicText(base);
+        const baseOut = baseNeeds ? "(" + base + ")" : base;
+        // unicode superscripts for common integer exponents
+        const UNI = { 2: "²", 3: "³", 4: "⁴", "-1": "⁻¹", "-2": "⁻²", "-3": "⁻³" };
+        if (expN != null && UNI[expN] != null) {
+          return wrap(baseOut + UNI[expN], prec < parent);
+        }
+        const exp = render(args[1], 0);
         if (isHtml) {
-          return wrap(
-            (baseNeeds ? "(" + base + ")" : base) + "<sup>" + exp + "</sup>",
-            prec < parent
-          );
+          return wrap(baseOut + "<sup>" + exp + "</sup>", prec < parent);
         }
         return wrap(
-          (baseNeeds ? "(" + base + ")" : base) + "^" + (isAtomicText(exp) ? exp : "(" + exp + ")"),
+          baseOut + "^" + (isAtomicText(exp) ? exp : "(" + exp + ")"),
           prec < parent
         );
       }
@@ -2387,6 +2390,75 @@
   }
 
   /**
+   * Свернуть mul одинаковых атомов в степень: v·v → v², a·a·a → a³.
+   * Не трогает разные ref/role; только подряд идущие одинаковые листья в mul.
+   */
+  function coalesceMulToPow(node) {
+    if (!node || typeof node !== "object") return node;
+    if (Array.isArray(node)) {
+      return node.map(coalesceMulToPow);
+    }
+    function leafKey(n) {
+      if (!n || typeof n !== "object" || n.op) return null;
+      // indexed instances (m₁, m₂) are distinct factors — do not square-merge
+      if (n.index != null) return null;
+      if (n.ref != null) {
+        return "r:" + n.ref + "\0" + String(n.role || "");
+      }
+      const num = n.num != null ? n.num : n.value != null ? n.value : n.const;
+      if (num != null && !n.ref) return "n:" + num;
+      return null;
+    }
+    function walk(n) {
+      if (!n || typeof n !== "object") return n;
+      if (Array.isArray(n)) return n.map(walk);
+      const out = {};
+      for (const k of Object.keys(n)) {
+        if (k === "args" && Array.isArray(n.args)) {
+          out.args = n.args.map(walk);
+        } else if (k === "arg" || k === "lhs" || k === "rhs") {
+          out[k] = walk(n[k]);
+        } else {
+          out[k] = n[k];
+        }
+      }
+      if (out.op === "mul" && Array.isArray(out.args) && out.args.length >= 2) {
+        const flat = [];
+        function pushFlat(a) {
+          if (a && a.op === "mul" && Array.isArray(a.args)) {
+            a.args.forEach(pushFlat);
+          } else {
+            flat.push(a);
+          }
+        }
+        out.args.forEach(pushFlat);
+        const merged = [];
+        for (let i = 0; i < flat.length; ) {
+          const key = leafKey(flat[i]);
+          if (key == null) {
+            merged.push(flat[i]);
+            i++;
+            continue;
+          }
+          let j = i + 1;
+          while (j < flat.length && leafKey(flat[j]) === key) j++;
+          const count = j - i;
+          if (count >= 2) {
+            merged.push({ op: "pow", args: [flat[i], { num: count }] });
+          } else {
+            merged.push(flat[i]);
+          }
+          i = j;
+        }
+        if (merged.length === 1) return merged[0];
+        out.args = merged;
+      }
+      return out;
+    }
+    return walk(node);
+  }
+
+  /**
    * После сборки EQ: одинаковые (ref, role) на обеих сторонах → индексы 1,2…
    * (expand каждой стороны сам по себе не видит повторов).
    */
@@ -2512,7 +2584,9 @@
     if (law.kind === "equation" || law.structure_ref === "EQ") {
       const L = expandSideExpr(law.lhs, structuresData, usagesData, formulasData, nextStack);
       const R = expandSideExpr(law.rhs, structuresData, usagesData, formulasData, nextStack);
-      const eqAst = reindexAstSymbols({ op: "eq", lhs: L, rhs: R });
+      const eqAst = reindexAstSymbols(
+        coalesceMulToPow({ op: "eq", lhs: L, rhs: R })
+      );
       return {
         id: law.law_id || law.id,
         name: law.name,
@@ -2565,7 +2639,7 @@
       bindings: bindings,
       symbols: symbolMap,
       nested: hasLawBindings(bindings),
-      ast: resolveAst(resolved.ast, bindings, symbolMap, ctx)
+      ast: coalesceMulToPow(resolveAst(resolved.ast, bindings, symbolMap, ctx))
     };
   }
 
