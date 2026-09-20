@@ -261,20 +261,7 @@
         ],
         "role": "coordinate",
         "notes": "Координата"
-      },
-      {
-        "name_id": "S101",
-        "symbol": "x",
-        "name": [
-          "initial coordinate",
-          "начальная координата"
-        ],
-        "domains": [
-          "kinematics"
-        ],
-        "role": "initial_coordinate",
-        "notes": "Начальная координата в x = x₀ + v·t"
-      },
+      },      
       {
         "name_id": "S009",
         "symbol": "s",
@@ -344,20 +331,7 @@
         ],
         "role": "distance",
         "notes": "Расстояние"
-      },
-      {
-        "name_id": "S024",
-        "symbol": "S",
-        "name": [
-          "distance (alt)",
-          "расстояние (альт.)"
-        ],
-        "domains": [
-          "general"
-        ],
-        "role": "distance_alt",
-        "notes": "Расстояние"
-      },
+      },     
       {
         "name_id": "S025",
         "symbol": "A",
@@ -850,19 +824,6 @@
         ],
         "role": "pressure",
         "notes": "Давление"
-      },
-      {
-        "name_id": "S056",
-        "symbol": "P",
-        "name": [
-          "pressure (P)",
-          "давление (P)"
-        ],
-        "domains": [
-          "continuum_mechanics"
-        ],
-        "role": "pressure_alt",
-        "notes": "Иногда P"
       }
     ],
     "Q028": [
@@ -911,19 +872,6 @@
         ],
         "role": "electric_charge",
         "notes": "Заряд"
-      },
-      {
-        "name_id": "S060",
-        "symbol": "Q",
-        "name": [
-          "electric charge (Q)",
-          "электрический заряд (Q)"
-        ],
-        "domains": [
-          "electrostatics"
-        ],
-        "role": "electric_charge_alt",
-        "notes": "Иногда Q"
       }
     ],
     "Q031": [
@@ -1292,19 +1240,6 @@
         ],
         "role": "eulers_number",
         "notes": "Число Эйлера"
-      },
-      {
-        "name_id": "S085",
-        "symbol": "exp(1)",
-        "name": [
-          "exp(1)",
-          "exp(1)"
-        ],
-        "domains": [
-          "mathematics"
-        ],
-        "role": "exp1",
-        "notes": ""
       }
     ],
     "M003": [
@@ -1333,19 +1268,6 @@
         ],
         "role": "golden_ratio_alt",
         "notes": "Вариант написания"
-      },
-      {
-        "name_id": "S088",
-        "symbol": "τ",
-        "name": [
-          "golden ratio (rare τ)",
-          "золотое сечение (редко τ)"
-        ],
-        "domains": [
-          "mathematics"
-        ],
-        "role": "golden_ratio_tau",
-        "notes": "Редко; чаще τ = 2π"
       }
     ],
     "M004": [
@@ -1361,107 +1283,8 @@
         ],
         "role": "euler_mascheroni",
         "notes": "Постоянная Эйлера-Маскерони"
-      },
-      {
-        "name_id": "S090",
-        "symbol": "γ_E",
-        "name": [
-          "Euler-Mascheroni (γ_E)",
-          "постоянная Эйлера-Маскерони (γ_E)"
-        ],
-        "domains": [
-          "mathematics"
-        ],
-        "role": "euler_mascheroni_alt",
-        "notes": ""
       }
-    ],
-    "M005": [
-      {
-        "name_id": "S091",
-        "symbol": "√2",
-        "name": [
-          "square root of 2",
-          "корень из двух"
-        ],
-        "domains": [
-          "mathematics"
-        ],
-        "role": "sqrt2",
-        "notes": "Корень из 2"
-      },
-      {
-        "name_id": "S092",
-        "symbol": "sqrt(2)",
-        "name": [
-          "sqrt(2)",
-          "sqrt(2)"
-        ],
-        "domains": [
-          "mathematics"
-        ],
-        "role": "sqrt2_text",
-        "notes": ""
-      }
-    ],
-    "M006": [
-      {
-        "name_id": "S093",
-        "symbol": "√3",
-        "name": [
-          "square root of 3",
-          "корень из трёх"
-        ],
-        "domains": [
-          "mathematics"
-        ],
-        "role": "sqrt3",
-        "notes": "Корень из 3"
-      }
-    ],
-    "M007": [
-      {
-        "name_id": "S094",
-        "symbol": "ln 2",
-        "name": [
-          "ln 2",
-          "натуральный логарифм 2"
-        ],
-        "domains": [
-          "mathematics"
-        ],
-        "role": "ln2",
-        "notes": "Натуральный логарифм 2"
-      },
-      {
-        "name_id": "S095",
-        "symbol": "log(2)",
-        "name": [
-          "log(2)",
-          "log(2)"
-        ],
-        "domains": [
-          "mathematics"
-        ],
-        "role": "log2",
-        "notes": ""
-      }
-    ],
-    "M008": [
-      {
-        "name_id": "S096",
-        "symbol": "ln 10",
-        "name": [
-          "ln 10",
-          "натуральный логарифм 10"
-        ],
-        "domains": [
-          "mathematics"
-        ],
-        "role": "ln10",
-        "notes": "Натуральный логарифм 10"
-      }
-    ],
+    ],   
     "M009": [
       {
         "name_id": "S097",
