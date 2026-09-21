@@ -39,7 +39,11 @@
       {
         "law_id": "P110",
         "role": "path_length"
-      },      
+      },
+      {
+        "law_id": "P111",
+        "role": "path_length"
+      },
       {
         "law_id": "P112",
         "role": "path_length"
@@ -236,7 +240,23 @@
           "role": "time"
         }
       }
-    },    
+    },
+    {
+      "law_id": "P111",
+      "name": "Произведение начальной скорости и времени",
+      "structure_ref": "A2",
+      "description": "s = v_0 * t",
+      "bindings": {
+        "O2": {
+          "quantity": "Q005",
+          "role": "initial_velocity"
+        },
+        "O3": {
+          "quantity": "Q007",
+          "role": "time"
+        }
+      }
+    },
     {
       "law_id": "P210",
       "name": "Квадрат времени",
@@ -477,7 +497,8 @@
       "bindings": {
         "O2": {
           "quantity": "Q013",
-          "role": "spring_constant"
+          "role": "spring_constant",
+          "defines_unit": true
         },
         "O3": {
           "law": "P291"
@@ -540,7 +561,8 @@
       "bindings": {
         "O2": {
           "quantity": "Q017",
-          "role": "latent_heat_fusion"
+          "role": "latent_heat_fusion",
+          "defines_unit": true
         },
         "O3": {
           "quantity": "Q003",
@@ -556,7 +578,8 @@
       "bindings": {
         "O2": {
           "quantity": "Q018",
-          "role": "latent_heat_vaporization"
+          "role": "latent_heat_vaporization",
+          "defines_unit": true
         },
         "O3": {
           "quantity": "Q003",
@@ -608,7 +631,8 @@
       "bindings": {
         "O2": {
           "quantity": "Q016",
-          "role": "specific_heat"
+          "role": "specific_heat",
+          "defines_unit": true
         },
         "O3": {
           "quantity": "Q003",
