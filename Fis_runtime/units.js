@@ -928,17 +928,53 @@
   function findDefiningUnitLaw(qid, formulasData) {
     if (!qid) return null;
     const laws = getLawsList(formulasData);
-    for (let i = 0; i < laws.length; i++) {
-      const law = laws[i];
-      if (!law) continue;
-      // новая модель: O1 может отсутствовать в law.bindings и приходить из denotations
+
+    // «Замкнутый» закон: у него известен результат (O1 в bindings или через denotations)
+    // либо это уравнение. Частичная сборка вроде P222 (G·m1·m2) результата не имеет:
+    // единицу из неё не вывести (получится 1/кг² вместо Н·м²/кг²).
+    function hasResult(law) {
+      if (law.kind === "equation" || law.structure_ref === "EQ") return true;
+      return bindingsWithDefines(law, formulasData).O1 != null;
+    }
+
+    function ownDefiner(law) {
       const bindings = bindingsWithDefines(law, formulasData);
       for (const oid of Object.keys(bindings)) {
         const b = bindings[oid];
-        if (b && b.defines_unit === true && b.quantity === qid) {
-          return { law: law, operandId: oid };
-        }
+        if (b && b.defines_unit === true && b.quantity === qid) return oid;
       }
+      return null;
+    }
+
+    // defines_unit где-то во вложенных законах (по {law|law_id|formula})
+    function nestedDefiner(law, stack) {
+      const id = String(law.law_id || law.id || "");
+      if (id && stack.indexOf(id) >= 0) return false;
+      const next = id ? stack.concat([id]) : stack;
+      const bindings = law.bindings || {};
+      for (const oid of Object.keys(bindings)) {
+        const nid = lawIdFromBinding(bindings[oid]);
+        if (!nid) continue;
+        const nested = findLawById(formulasData, nid);
+        if (!nested) continue;
+        if (ownDefiner(nested) != null) return true;
+        if (nestedDefiner(nested, next)) return true;
+      }
+      return false;
+    }
+
+    // 1) сам закон определяет единицу и замкнут
+    for (let i = 0; i < laws.length; i++) {
+      const law = laws[i];
+      if (!law || !hasResult(law)) continue;
+      const oid = ownDefiner(law);
+      if (oid != null) return { law: law, operandId: oid };
+    }
+    // 2) defines_unit во вложенной сборке → берём замкнутый закон-родитель (P006 для P222)
+    for (let i = 0; i < laws.length; i++) {
+      const law = laws[i];
+      if (!law || !hasResult(law)) continue;
+      if (nestedDefiner(law, [])) return { law: law, operandId: null };
     }
     return null;
   }
