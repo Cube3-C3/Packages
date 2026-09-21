@@ -930,8 +930,9 @@
     const laws = getLawsList(formulasData);
     for (let i = 0; i < laws.length; i++) {
       const law = laws[i];
-      const bindings = law && law.bindings;
-      if (!bindings) continue;
+      if (!law) continue;
+      // новая модель: O1 может отсутствовать в law.bindings и приходить из denotations
+      const bindings = bindingsWithDefines(law, formulasData);
       for (const oid of Object.keys(bindings)) {
         const b = bindings[oid];
         if (b && b.defines_unit === true && b.quantity === qid) {
@@ -948,8 +949,19 @@
    */
   function collectMulDivFactors(node, sign, out, bindings) {
     if (!node || typeof node !== "object") return;
+    if (node.empty) return;
+    if (node.ref) {
+      out.push({ ref: String(node.ref), power: sign });
+      return;
+    }
     if (node.operand_id) {
       out.push({ operand_id: node.operand_id, power: sign });
+      return;
+    }
+    // Δx и -x имеют ту же размерность, что и x
+    if (node.op === "delta" || node.op === "neg") {
+      const a = node.arg !== undefined ? node.arg : (node.args || [])[0];
+      collectMulDivFactors(a, sign, out, bindings);
       return;
     }
     if (node.op === "mul") {
@@ -1079,37 +1091,41 @@
     const hit = findDefiningUnitLaw(qid, ctx.formulasData);
     if (!hit) return null;
     const law = hit.law;
-    const targetOid = hit.operandId;
-    const resolved = resolveLawStructure(law, ctx.structuresData);
-    if (!resolved || !resolved.ast || resolved.ast.op !== "eq") return null;
+
+    // instantiateLaw разворачивает вложенные {law:..}/{structure_ref,..} биндинги,
+    // так что в AST остаются только ref-листья (раньше такие операнды молча терялись).
+    const inst = instantiateLaw(
+      law,
+      ctx.structuresData,
+      ctx.usagesData,
+      ctx.formulasData
+    );
+    if (!inst || !inst.ast || inst.ast.op !== "eq") return null;
+    const resolved = { id: inst.structure_ref, scheme: inst.scheme, arity: inst.arity, ast: inst.ast };
 
     const factors = [];
-    const bindMap = law.bindings || {};
-    collectMulDivFactors(resolved.ast.lhs, +1, factors, bindMap);
-    collectMulDivFactors(resolved.ast.rhs, -1, factors, bindMap);
+    collectMulDivFactors(resolved.ast.lhs, +1, factors, law.bindings || {});
+    collectMulDivFactors(resolved.ast.rhs, -1, factors, law.bindings || {});
 
-    const byOid = Object.create(null);
+    const byRef = Object.create(null);
     for (let i = 0; i < factors.length; i++) {
       const f = factors[i];
-      if (!f.operand_id) continue;
-      byOid[f.operand_id] = (byOid[f.operand_id] || 0) + f.power;
+      if (!f.ref) continue;
+      byRef[f.ref] = (byRef[f.ref] || 0) + f.power;
     }
-    const tp = byOid[targetOid];
+    const tp = byRef[qid];
     if (!tp || Math.abs(tp) !== 1) return null;
 
     const quantById = indexQuantities(ctx.quantData);
     const lang = ctx.lang === "en" ? "en" : "ru";
     const unitsData = ctx.unitsData;
-    const bindings = law.bindings || {};
     const scaled = [];
 
-    for (const oid of Object.keys(byOid)) {
-      if (oid === targetOid) continue;
-      const pow = byOid[oid];
+    for (const rid of Object.keys(byRef)) {
+      if (rid === qid) continue;
+      const pow = byRef[rid];
       if (!pow) continue;
-      const b = bindings[oid];
-      if (!b || !b.quantity) continue;
-      const q = quantById[b.quantity];
+      const q = quantById[rid];
       if (!q || !q.dimension) continue;
       const scale = -pow / tp;
       const parts = unitPartsForDim(q.dimension, unitsData, lang);
@@ -3216,8 +3232,6 @@
     expandSideExpr: expandSideExpr,
     instantiateLaw: instantiateLaw,
     formulasUsing: formulasUsing,
-    collectConstructionNeeds: collectConstructionNeeds,
-    formulasForConstruction: formulasForConstruction,
     collectConstructionNeeds: collectConstructionNeeds,
     formulasForConstruction: formulasForConstruction,
     toSubscript: toSubscript,
