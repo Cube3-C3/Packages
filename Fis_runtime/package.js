@@ -49,7 +49,6 @@
       pack.filter_ontology = json;
     } else if (json.style_kinds || (json.tree && json.fields)) pack.presentation_ontology = json;
     else if (json.manifests) pack.card_manifests = json;
-    else if (json.arity && json.indexes && json.operators) pack.mechanics = json;
     else if (json.operators || json.math_kinds) pack.math_ops = json;
     else if (name.indexOf("units") >= 0) pack.units = json;
     else if (name.indexOf("physi_quant") >= 0 || name.indexOf("quant") >= 0) pack.physi_quant = json;
@@ -67,8 +66,8 @@
     ) {
       pack.constructs = json;
     } else if (
-      name.indexOf("physi_comp") >= 0 ||
-      name.indexOf("comps") >= 0 ||
+      name.indexOf("componovka") >= 0 ||
+      name.indexOf("components") >= 0 ||
       (json.components && typeof json.components === "object" && !json.constructions)
     ) {
       pack.components = json;
@@ -961,18 +960,28 @@
                     return usageMatchesSection(data, u, subjectId, sectionId);
                   }) || pick;
               }
-              const label = pick
-                ? String(pick.symbol || "") +
-                  (pick.name
-                    ? " · " +
-                      (Array.isArray(pick.name)
-                        ? lang === "ru"
-                          ? pick.name[1] || pick.name[0]
-                          : pick.name[0]
-                        : pick.name)
-                    : "")
-                : item.id;
-              html = '<span class="pres-title">' + String(label || "—") + "</span>";
+              let sym = pick ? String(pick.symbol || "") : "";
+              if (
+                sym &&
+                global.FisUnits &&
+                typeof global.FisUnits.formatVectorSymbol === "function" &&
+                typeof global.FisUnits.isVectorMathKind === "function" &&
+                global.FisUnits.isVectorMathKind(item)
+              ) {
+                sym = global.FisUnits.formatVectorSymbol(sym, item, {
+                  format: "html"
+                });
+              }
+              const namePart = pick && pick.name
+                ? " · " +
+                  (Array.isArray(pick.name)
+                    ? lang === "ru"
+                      ? pick.name[1] || pick.name[0]
+                      : pick.name[0]
+                    : pick.name)
+                : "";
+              const label = pick ? sym + namePart : item.id;
+              html = '<span class="pres-title">' + (label || "—") + "</span>";
             }
           }
           return { id: id, html: html };
@@ -1173,7 +1182,6 @@
           "presentation_ontology",
           "card_manifests",
           "math_ops",
-          "mechanics",
           "constructs",
           "components",
           "relation_types",

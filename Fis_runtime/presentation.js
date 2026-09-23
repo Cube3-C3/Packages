@@ -82,6 +82,19 @@
       if (!u) return null;
       let v = u[src.key];
       if (src.i18n) v = pickI18n(v, lang);
+      // Векторное отображение символа величины (math_kind vector|pseudovector)
+      if (
+        src.key === "symbol" &&
+        v != null &&
+        v !== "" &&
+        ctx.quantity &&
+        global.FisUnits &&
+        typeof global.FisUnits.formatVectorSymbol === "function" &&
+        typeof global.FisUnits.isVectorMathKind === "function" &&
+        global.FisUnits.isVectorMathKind(ctx.quantity)
+      ) {
+        v = global.FisUnits.formatVectorSymbol(v, ctx.quantity, { format: "html" });
+      }
       return v != null && v !== "" ? v : null;
     }
     if (src.from === "quantity") {

@@ -588,7 +588,20 @@
         derived.primary_usage = usagesView[0] || null;
       }
       if (!derived.primary_symbol && derived.primary_usage) {
-        derived.primary_symbol = derived.primary_usage.symbol || "";
+        const plain = derived.primary_usage.symbol || "";
+        if (
+          window.FisUnits &&
+          typeof window.FisUnits.formatVectorSymbol === "function" &&
+          typeof window.FisUnits.isVectorMathKind === "function" &&
+          window.FisUnits.isVectorMathKind(q)
+        ) {
+          // HTML for passport header (presentation detects <span and uses rawHtml)
+          derived.primary_symbol = window.FisUnits.formatVectorSymbol(plain, q, {
+            format: "html"
+          });
+        } else {
+          derived.primary_symbol = plain;
+        }
       }
       if (!derived.primary_name && derived.primary_usage) {
         derived.primary_name = pickName(derived.primary_usage.name, lang);
@@ -720,8 +733,18 @@
           const domains_html = (u.domains || [])
             .map((d) => `<span class="dom" title="${escapeHtml(d)}">${escapeHtml(domainName(data.domains, d, lang))}</span>`)
             .join("");
+          let sym = u.symbol || "";
+          if (
+            window.FisUnits &&
+            typeof window.FisUnits.formatVectorSymbol === "function" &&
+            typeof window.FisUnits.isVectorMathKind === "function" &&
+            window.FisUnits.isVectorMathKind(q)
+          ) {
+            // plain + combining arrow for table cell (escaped later in presentation)
+            sym = window.FisUnits.formatVectorSymbol(sym, q, { format: "text" });
+          }
           return {
-            symbol: u.symbol || "",
+            symbol: sym,
             name: pickName(u.name, lang),
             role: u.role || "",
             notes: u.notes || "",

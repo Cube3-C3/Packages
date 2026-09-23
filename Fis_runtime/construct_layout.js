@@ -2,8 +2,11 @@
  * construct_layout.js — 2D раскладка элементов конструкции по логическим связям.
  * Host: window.ConstructLayout
  *
- * Вход: construction (из Constructs.json) + пакет данных
- *   { relation_types, components (physi_comps), assets (registry), environment }
+ * Вход: construction (pack.constructs item) + пакет данных
+ *   { relation_types, components (Componovka/components.json), assets, environment }
+ *
+ * Канон компонентов — только Fis_data/Componovka/components.json (pack.components).
+ * Старый путь Constructions/physi_comps не используется и не зеркалится.
  *
  * Выход: layout model
  *   {
@@ -12,7 +15,7 @@
  *     edges: [{ id, structure_ref, from, to, x1,y1,x2,y2 }]
  *   }
  *
- * Координаты — math-space Frame (y-up). Environment (E0) только предоставляет Frame
+ * Координаты — math-space Frame (y-up, origin bottom-left). E0 предоставляет Frame
  * через GeoCompute.frameFromEnv; toSVG → GeoCompute.toScreen. Линии port→port, не хранятся.
  * Требует: window.GeoCompute (загружать geo_compute.js до этого модуля).
  */

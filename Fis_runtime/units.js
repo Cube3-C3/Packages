@@ -928,53 +928,16 @@
   function findDefiningUnitLaw(qid, formulasData) {
     if (!qid) return null;
     const laws = getLawsList(formulasData);
-
-    // «Замкнутый» закон: у него известен результат (O1 в bindings или через denotations)
-    // либо это уравнение. Частичная сборка вроде P222 (G·m1·m2) результата не имеет:
-    // единицу из неё не вывести (получится 1/кг² вместо Н·м²/кг²).
-    function hasResult(law) {
-      if (law.kind === "equation" || law.structure_ref === "EQ") return true;
-      return bindingsWithDefines(law, formulasData).O1 != null;
-    }
-
-    function ownDefiner(law) {
-      const bindings = bindingsWithDefines(law, formulasData);
+    for (let i = 0; i < laws.length; i++) {
+      const law = laws[i];
+      const bindings = law && law.bindings;
+      if (!bindings) continue;
       for (const oid of Object.keys(bindings)) {
         const b = bindings[oid];
-        if (b && b.defines_unit === true && b.quantity === qid) return oid;
+        if (b && b.defines_unit === true && b.quantity === qid) {
+          return { law: law, operandId: oid };
+        }
       }
-      return null;
-    }
-
-    // defines_unit где-то во вложенных законах (по {law|law_id|formula})
-    function nestedDefiner(law, stack) {
-      const id = String(law.law_id || law.id || "");
-      if (id && stack.indexOf(id) >= 0) return false;
-      const next = id ? stack.concat([id]) : stack;
-      const bindings = law.bindings || {};
-      for (const oid of Object.keys(bindings)) {
-        const nid = lawIdFromBinding(bindings[oid]);
-        if (!nid) continue;
-        const nested = findLawById(formulasData, nid);
-        if (!nested) continue;
-        if (ownDefiner(nested) != null) return true;
-        if (nestedDefiner(nested, next)) return true;
-      }
-      return false;
-    }
-
-    // 1) сам закон определяет единицу и замкнут
-    for (let i = 0; i < laws.length; i++) {
-      const law = laws[i];
-      if (!law || !hasResult(law)) continue;
-      const oid = ownDefiner(law);
-      if (oid != null) return { law: law, operandId: oid };
-    }
-    // 2) defines_unit во вложенной сборке → берём замкнутый закон-родитель (P006 для P222)
-    for (let i = 0; i < laws.length; i++) {
-      const law = laws[i];
-      if (!law || !hasResult(law)) continue;
-      if (nestedDefiner(law, [])) return { law: law, operandId: null };
     }
     return null;
   }
@@ -985,19 +948,8 @@
    */
   function collectMulDivFactors(node, sign, out, bindings) {
     if (!node || typeof node !== "object") return;
-    if (node.empty) return;
-    if (node.ref) {
-      out.push({ ref: String(node.ref), power: sign });
-      return;
-    }
     if (node.operand_id) {
       out.push({ operand_id: node.operand_id, power: sign });
-      return;
-    }
-    // Δx и -x имеют ту же размерность, что и x
-    if (node.op === "delta" || node.op === "neg") {
-      const a = node.arg !== undefined ? node.arg : (node.args || [])[0];
-      collectMulDivFactors(a, sign, out, bindings);
       return;
     }
     if (node.op === "mul") {
@@ -1127,41 +1079,37 @@
     const hit = findDefiningUnitLaw(qid, ctx.formulasData);
     if (!hit) return null;
     const law = hit.law;
-
-    // instantiateLaw разворачивает вложенные {law:..}/{structure_ref,..} биндинги,
-    // так что в AST остаются только ref-листья (раньше такие операнды молча терялись).
-    const inst = instantiateLaw(
-      law,
-      ctx.structuresData,
-      ctx.usagesData,
-      ctx.formulasData
-    );
-    if (!inst || !inst.ast || inst.ast.op !== "eq") return null;
-    const resolved = { id: inst.structure_ref, scheme: inst.scheme, arity: inst.arity, ast: inst.ast };
+    const targetOid = hit.operandId;
+    const resolved = resolveLawStructure(law, ctx.structuresData);
+    if (!resolved || !resolved.ast || resolved.ast.op !== "eq") return null;
 
     const factors = [];
-    collectMulDivFactors(resolved.ast.lhs, +1, factors, law.bindings || {});
-    collectMulDivFactors(resolved.ast.rhs, -1, factors, law.bindings || {});
+    const bindMap = law.bindings || {};
+    collectMulDivFactors(resolved.ast.lhs, +1, factors, bindMap);
+    collectMulDivFactors(resolved.ast.rhs, -1, factors, bindMap);
 
-    const byRef = Object.create(null);
+    const byOid = Object.create(null);
     for (let i = 0; i < factors.length; i++) {
       const f = factors[i];
-      if (!f.ref) continue;
-      byRef[f.ref] = (byRef[f.ref] || 0) + f.power;
+      if (!f.operand_id) continue;
+      byOid[f.operand_id] = (byOid[f.operand_id] || 0) + f.power;
     }
-    const tp = byRef[qid];
+    const tp = byOid[targetOid];
     if (!tp || Math.abs(tp) !== 1) return null;
 
     const quantById = indexQuantities(ctx.quantData);
     const lang = ctx.lang === "en" ? "en" : "ru";
     const unitsData = ctx.unitsData;
+    const bindings = law.bindings || {};
     const scaled = [];
 
-    for (const rid of Object.keys(byRef)) {
-      if (rid === qid) continue;
-      const pow = byRef[rid];
+    for (const oid of Object.keys(byOid)) {
+      if (oid === targetOid) continue;
+      const pow = byOid[oid];
       if (!pow) continue;
-      const q = quantById[rid];
+      const b = bindings[oid];
+      if (!b || !b.quantity) continue;
+      const q = quantById[b.quantity];
       if (!q || !q.dimension) continue;
       const scale = -pow / tp;
       const parts = unitPartsForDim(q.dimension, unitsData, lang);
@@ -1412,8 +1360,14 @@
       }
 
       if (n && typeof n === "object" && n.ref) {
-        const body = n.symbol != null ? String(n.symbol) : primarySymbol(n.ref, n.role);
-        const s = emitSym(n.ref, esc(body));
+        const plain =
+          n.symbol != null ? String(n.symbol) : primarySymbol(n.ref, n.role);
+        const meta = quantityMeta(n.ref, physiQuant, usagesData);
+        const body = formatVectorSymbol(plain, meta.math_kind || meta.mathKind, {
+          format: isHtml ? "html" : "text",
+          escape: esc
+        });
+        const s = emitSym(n.ref, body);
         return [{ html: s, isNum: false, isOne: false, isDiv: inverted }];
       }
 
@@ -1526,8 +1480,16 @@
       if (typeof node !== "object") return esc(String(node));
 
       if (node.ref) {
-        const body = node.symbol != null ? String(node.symbol) : primarySymbol(node.ref, node.role);
-        return emitSym(node.ref, esc(body));
+        const plain =
+          node.symbol != null
+            ? String(node.symbol)
+            : primarySymbol(node.ref, node.role);
+        const meta = quantityMeta(node.ref, physiQuant, usagesData);
+        const body = formatVectorSymbol(plain, meta.math_kind || meta.mathKind, {
+          format: isHtml ? "html" : "text",
+          escape: esc
+        });
+        return emitSym(node.ref, body);
       }
 
       if (!node.op && (node.value != null || node.const != null || node.num != null)) {
@@ -2908,10 +2870,85 @@
 
 
   /**
-   * Метаданные величины (символ, константа?).
+   * math_kind key: scalar | vector | pseudovector | complex
+   */
+  function mathKindKey(mathKindOrQ) {
+    if (!mathKindOrQ) return "scalar";
+    if (typeof mathKindOrQ === "object" && !Array.isArray(mathKindOrQ)) {
+      const mk = mathKindOrQ.math_kind;
+      return Array.isArray(mk) ? String(mk[0] || "scalar") : String(mk || "scalar");
+    }
+    if (Array.isArray(mathKindOrQ)) return String(mathKindOrQ[0] || "scalar");
+    return String(mathKindOrQ || "scalar");
+  }
+
+  function isVectorMathKind(mathKindOrQ) {
+    const k = mathKindKey(mathKindOrQ);
+    return k === "vector" || k === "pseudovector";
+  }
+
+  /**
+   * Векторное обозначение: стрелка над базой (COMBINING RIGHT ARROW ABOVE U+20D7).
+   * HTML: <span class="sym-vec" data-math-kind="…">base⃗</span>rest
+   * text: base⃗rest
+   * Индексы/штрихи остаются после стрелки: v⃗₀, F⃗′
+   *
+   * @param {string} symbol plain symbol from usages
+   * @param {string|array|object} mathKindOrQ math_kind or quantity object
+   * @param {{ format?: "html"|"text", escape?: function }} options
+   */
+  function formatVectorSymbol(symbol, mathKindOrQ, options) {
+    options = options || {};
+    const isHtml = options.format !== "text";
+    const escFn =
+      typeof options.escape === "function"
+        ? options.escape
+        : function (s) {
+            s = String(s);
+            if (!isHtml) return s;
+            return s
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;");
+          };
+    const plain = symbol == null ? "" : String(symbol);
+    if (!plain) return plain;
+    if (!isVectorMathKind(mathKindOrQ)) {
+      return escFn(plain);
+    }
+    const kind = mathKindKey(mathKindOrQ);
+    // base = leading Latin/Greek/Cyrillic letters; rest = indices, primes, digits…
+    const m = plain.match(/^([A-Za-zΑ-Ωα-ωЁёА-Яа-я]+)([\s\S]*)$/);
+    const ARROW = "\u20D7";
+    let body;
+    if (m) {
+      body = escFn(m[1]) + ARROW + escFn(m[2]);
+    } else {
+      body = escFn(plain) + ARROW;
+    }
+    if (!isHtml) return body;
+    return (
+      '<span class="sym-vec" data-math-kind="' +
+      escFn(kind) +
+      '">' +
+      body +
+      "</span>"
+    );
+  }
+
+  /**
+   * Метаданные величины (символ, константа?, math_kind).
    */
   function quantityMeta(qid, physiQuant, usagesData) {
-    const meta = { id: qid, symbol: qid, isConstant: false, value: null };
+    const meta = {
+      id: qid,
+      symbol: qid,
+      isConstant: false,
+      value: null,
+      math_kind: null,
+      mathKind: "scalar"
+    };
     if (!qid || typeof qid !== "string") return meta;
     const ulist = usagesData && usagesData.usages ? usagesData.usages[qid] : null;
     if (Array.isArray(ulist) && ulist[0] && ulist[0].symbol != null) {
@@ -2928,6 +2965,10 @@
         if (node.value != null) {
           meta.value = node.value;
           meta.isConstant = true;
+        }
+        if (node.math_kind != null) {
+          meta.math_kind = node.math_kind;
+          meta.mathKind = mathKindKey(node.math_kind);
         }
         return;
       }
@@ -3244,6 +3285,9 @@
     pick: pick,
     astToDisplay: astToDisplay,
     formatFormula: formatFormula,
+    formatVectorSymbol: formatVectorSymbol,
+    isVectorMathKind: isVectorMathKind,
+    mathKindKey: mathKindKey,
     canonicalToPretty: canonicalToPretty,
     astToMonomialVector: astToMonomialVector,
     quantityMeta: quantityMeta,
@@ -3268,6 +3312,8 @@
     expandSideExpr: expandSideExpr,
     instantiateLaw: instantiateLaw,
     formulasUsing: formulasUsing,
+    collectConstructionNeeds: collectConstructionNeeds,
+    formulasForConstruction: formulasForConstruction,
     collectConstructionNeeds: collectConstructionNeeds,
     formulasForConstruction: formulasForConstruction,
     toSubscript: toSubscript,

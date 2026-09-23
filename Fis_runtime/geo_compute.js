@@ -2,14 +2,19 @@
  * geo_compute.js — вычислительный слой геометрии (канон runtime).
  * Онтология сортов/ops: ../Geo_style/geo_core.json, geo_ops.json.
  *
- * Frame (единая координатная логика среда + график):
- *   createFrame / frameFromEnv / toScreen / fromScreen / setScale / setViewport
- *   E0 и др. kind=environment только предоставляют Frame; math y-up → screen через toScreen.
+ * ── Frame — единая основа (среда + график функций) ──────────────
+ *   createFrame / frameFromEnv / frameForPlot / toScreen / fromScreen
+ *   setScale / setViewport / plotInsets / mathToPlotScreen
+ *   E0 и др. kind=environment только предоставляют Frame (не особый случай).
+ *   origin = выбранная материальная точка однородной среды (сейчас [0,0]).
+ *   origin_corner default bottom_left → положительный квадрант (x→right, y→up).
+ *   Insets — отступы под шкалы/подписи; якоря осей позже наслоятся на тот же Frame.
+ *   Конструкции / реальные среды / оси — только поверх этого Frame, без параллельной СК.
  *
  * Кривые:
  *   eval / sample / nearest
  *   curveFromAst → { curve, mapping, rebuilt, domain, values }
- *   buildLawGraphPayload / attachLawGraph / drawPointsOnCanvas
+ *   buildLawGraphPayload / attachLawGraph / drawPointsOnCanvas (через Frame)
  *
  * Коэффициенты по умолчанию = 1 (пока).
  */
@@ -530,6 +535,10 @@
     );
   }
 
+  /**
+   * Рисует кривую на canvas через общий Frame (frameForPlot + mathToPlotScreen).
+   * Та же СК, что у среды: origin = нижний левый угол видимого окна, y-up, bottom_left.
+   */
   function drawPointsOnCanvas(canvas, points, domainX) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -537,12 +546,6 @@
     const H = canvas.height || 200;
     canvas.width = W;
     canvas.height = H;
-    const padL = 36;
-    const padR = 12;
-    const padT = 12;
-    const padB = 28;
-    const plotW = W - padL - padR;
-    const plotH = H - padT - padB;
 
     let yMin = Infinity;
     let yMax = -Infinity;
@@ -564,13 +567,29 @@
     yMax += yPad;
     if (yMin > 0 && yMin < (yMax - yMin) * 0.25) yMin = 0;
 
-    const x0 = domainX[0];
-    const x1 = domainX[1];
+    const x0 = Array.isArray(domainX) ? Number(domainX[0]) : 0;
+    const x1 = Array.isArray(domainX) ? Number(domainX[1]) : 1;
+
+    const plotCtx = frameForPlot({
+      domainX: [x0, x1],
+      yMin: yMin,
+      yMax: yMax,
+      W: W,
+      H: H
+    });
+    const ins = plotCtx.insets;
+    const padL = ins.left;
+    const padT = ins.top;
+    const plotW = plotCtx.plotW;
+    const plotH = plotCtx.plotH;
+
     function sx(x) {
-      return padL + ((x - x0) / (x1 - x0)) * plotW;
+      const s = mathToPlotScreen(plotCtx, { x: x, y: yMin });
+      return s ? s.x : padL;
     }
     function sy(y) {
-      return padT + (1 - (y - yMin) / (yMax - yMin)) * plotH;
+      const s = mathToPlotScreen(plotCtx, { x: x0, y: y });
+      return s ? s.y : padT;
     }
     function fmt(v) {
       if (!isFinite(v)) return "—";
@@ -610,13 +629,13 @@
     for (let i = 0; i < points.length; i++) {
       const p = points[i];
       if (!isFinite(p.x) || !isFinite(p.y)) continue;
-      const px = sx(p.x);
-      const py = sy(p.y);
+      const scr = mathToPlotScreen(plotCtx, p);
+      if (!scr) continue;
       if (!started) {
-        ctx.moveTo(px, py);
+        ctx.moveTo(scr.x, scr.y);
         started = true;
       } else {
-        ctx.lineTo(px, py);
+        ctx.lineTo(scr.x, scr.y);
       }
     }
     ctx.stroke();
@@ -839,8 +858,8 @@
    * @param {object|array} opts.formulas — formulas pack
    * @param {string} opts.lawId
    * @param {string} [opts.structureRef] — если уже известен
-   * @param {object} [opts.construction] — Constructs item → values из величин
-   * @param {object} [opts.components] — physi_comps
+   * @param {object} [opts.construction] — pack.constructs item → values из величин
+   * @param {object} [opts.components] — Componovka/components (pack.components)
    * @param {object} [opts.physiQuant] — physi_quant (константы)
    * @param {object} [opts.values] — явный override операндов
    * @param {number[]} [opts.domain]
@@ -907,14 +926,31 @@
     return payload;
   }
 
-  // ── Frame (единая координатная логика) ─────────────────
-  // Примитив: math-space (y-up) ↔ screen (y-down).
-  // E0 и плоскость графика — экземпляры одного сорта Frame.
-  // Масштабирование = изменение scale_x / scale_y.
+  // ── Frame — единая основа СК (среда + график функций) ──
+  // Math-space y-up ↔ screen y-down.
+  // origin = выбранная материальная точка однородной среды.
+  // origin_corner bottom_left → положительный квадрант.
+  // Дальнейшие наслоения (конструкции, реальные среды, оси/якоря) только поверх этого Frame.
+
+  /** Отступы plot-area под шкалы и подписи (screen px). Общие для среды и графиков. */
+  const DEFAULT_PLOT_INSETS = { left: 36, right: 12, top: 12, bottom: 28 };
+
+  function plotInsets(overrides) {
+    const d = DEFAULT_PLOT_INSETS;
+    if (!overrides) return { left: d.left, right: d.right, top: d.top, bottom: d.bottom };
+    return {
+      left: overrides.left != null ? Number(overrides.left) : d.left,
+      right: overrides.right != null ? Number(overrides.right) : d.right,
+      top: overrides.top != null ? Number(overrides.top) : d.top,
+      bottom: overrides.bottom != null ? Number(overrides.bottom) : d.bottom
+    };
+  }
 
   function createFrame(opts) {
     opts = opts || {};
-    const origin = Array.isArray(opts.origin) ? [Number(opts.origin[0]) || 0, Number(opts.origin[1]) || 0] : [0, 0];
+    const origin = Array.isArray(opts.origin)
+      ? [Number(opts.origin[0]) || 0, Number(opts.origin[1]) || 0]
+      : [0, 0];
     const axes = opts.axes || { x: "right", y: "up" };
     const scale_x = opts.scale_x != null ? Number(opts.scale_x) : 1;
     const scale_y = opts.scale_y != null ? Number(opts.scale_y) : 1;
@@ -934,7 +970,7 @@
     };
   }
 
-  /** Frame из данных environment-компонента (E0 и т.п.). Не особый случай — просто провайдер Frame. */
+  /** Frame из данных environment-компонента (E0 и т.п.). Не особый случай — провайдер Frame. */
   function frameFromEnv(env, opts) {
     opts = opts || {};
     const e = env || {};
@@ -952,9 +988,77 @@
   }
 
   /**
+   * Frame для plot-area (график функции или вид среды на canvas).
+   * origin math = нижний левый угол видимого окна (x0, yMin) — положительные значения вправо/вверх.
+   * scale подгоняется под W×H и insets. Тот же сорт Frame, что и у E0.
+   *
+   * opts: { domainX:[x0,x1], yMin, yMax, W, H, insets?, origin? }
+   *   origin — если задан, используется вместо [domainX[0], yMin] (смена материальной точки).
+   * returns { frame, insets, plotW, plotH, x0, x1, yMin, yMax }
+   */
+  function frameForPlot(opts) {
+    opts = opts || {};
+    const W = opts.W != null ? Number(opts.W) : 320;
+    const H = opts.H != null ? Number(opts.H) : 200;
+    const insets = plotInsets(opts.insets);
+    const plotW = Math.max(1, W - insets.left - insets.right);
+    const plotH = Math.max(1, H - insets.top - insets.bottom);
+
+    let x0 = 0;
+    let x1 = 1;
+    if (Array.isArray(opts.domainX) && opts.domainX.length >= 2) {
+      x0 = Number(opts.domainX[0]);
+      x1 = Number(opts.domainX[1]);
+      if (!isFinite(x0) || !isFinite(x1) || x1 === x0) {
+        x0 = 0;
+        x1 = 1;
+      }
+    }
+    let yMin = opts.yMin != null ? Number(opts.yMin) : 0;
+    let yMax = opts.yMax != null ? Number(opts.yMax) : 1;
+    if (!isFinite(yMin) || !isFinite(yMax) || yMax === yMin) {
+      yMin = 0;
+      yMax = 1;
+    }
+
+    const origin = Array.isArray(opts.origin)
+      ? [Number(opts.origin[0]) || 0, Number(opts.origin[1]) || 0]
+      : [x0, yMin];
+
+    const scale_x = plotW / (x1 - x0);
+    const scale_y = plotH / (yMax - yMin);
+
+    // viewport = plot-area size; toScreen даёт координаты относительно plot (0..plotW, plotH..0).
+    // mathToPlotScreen добавляет insets.left / insets.top.
+    const frame = createFrame({
+      origin: origin,
+      axes: { x: "right", y: "up" },
+      origin_corner: "bottom_left",
+      scale_x: scale_x,
+      scale_y: scale_y,
+      viewportW: plotW,
+      viewportH: plotH
+    });
+
+    return {
+      frame: frame,
+      insets: insets,
+      plotW: plotW,
+      plotH: plotH,
+      x0: x0,
+      x1: x1,
+      yMin: yMin,
+      yMax: yMax,
+      W: W,
+      H: H
+    };
+  }
+
+  /**
    * math Point → screen {x,y}.
-   * y-up frame + bottom_left origin → screen y = viewportH - (y - oy)*scale_y  (когда viewportH задан).
-   * Если viewportH нет — просто инверсия знака scale_y при axes.y=up (для относительных смещений).
+   * y-up + bottom_left + viewportH → sy = viewportH - (y - oy)*scale_y.
+   * Без viewportH — инверсия знака scale_y (относительные смещения).
+   * Insets не применяет — для plot используйте mathToPlotScreen.
    */
   function toScreen(frame, p) {
     if (!frame || !p) return null;
@@ -975,7 +1079,19 @@
     return { x: sx, y: sy };
   }
 
-  /** screen Point → math {x,y}. */
+  /**
+   * math → полный canvas screen с учётом insets (plot-area offset).
+   * plotCtx — результат frameForPlot (frame + insets).
+   */
+  function mathToPlotScreen(plotCtx, p) {
+    if (!plotCtx || !plotCtx.frame) return null;
+    const s = toScreen(plotCtx.frame, p);
+    if (!s) return null;
+    const ins = plotCtx.insets || DEFAULT_PLOT_INSETS;
+    return { x: s.x + ins.left, y: s.y + ins.top };
+  }
+
+  /** screen Point → math {x,y}. Insets не учитывает (plot-local screen). */
   function fromScreen(frame, px) {
     if (!frame || !px) return null;
     const ox = frame.origin[0];
@@ -1041,11 +1157,15 @@
     curveFromAst: curveFromAst,
     curveFromStructure: curveFromStructure,
 
-    // Frame — единая координатная логика (среда + график)
+    // Frame — единая основа СК (среда + график функций)
     createFrame: createFrame,
     frameFromEnv: frameFromEnv,
+    frameForPlot: frameForPlot,
+    plotInsets: plotInsets,
+    DEFAULT_PLOT_INSETS: DEFAULT_PLOT_INSETS,
     toScreen: toScreen,
     fromScreen: fromScreen,
+    mathToPlotScreen: mathToPlotScreen,
     setScale: setScale,
     setViewport: setViewport,
 
