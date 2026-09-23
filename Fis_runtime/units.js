@@ -928,16 +928,50 @@
   function findDefiningUnitLaw(qid, formulasData) {
     if (!qid) return null;
     const laws = getLawsList(formulasData);
-    for (let i = 0; i < laws.length; i++) {
-      const law = laws[i];
-      const bindings = law && law.bindings;
-      if (!bindings) continue;
+
+    // «Замкнутый» закон: у него известен результат (O1 в bindings или через denotations)
+    // либо это уравнение. Частичная сборка (напр. промежуточный product без результата)
+    // единицу не определяет: изолировать qid не получится.
+    function hasResult(law) {
+      if (law.kind === "equation" || law.structure_ref === "EQ") return true;
+      return bindingsWithDefines(law, formulasData).O1 != null;
+    }
+
+    function ownDefiner(law) {
+      const bindings = bindingsWithDefines(law, formulasData);
       for (const oid of Object.keys(bindings)) {
         const b = bindings[oid];
-        if (b && b.defines_unit === true && b.quantity === qid) {
-          return { law: law, operandId: oid };
-        }
+        if (b && b.defines_unit === true && b.quantity === qid) return oid;
       }
+      return null;
+    }
+
+    function nestedDefiner(law, stack) {
+      const id = String(law.law_id || law.id || "");
+      if (id && stack.indexOf(id) >= 0) return false;
+      const next = id ? stack.concat([id]) : stack;
+      const bindings = law.bindings || {};
+      for (const oid of Object.keys(bindings)) {
+        const nid = lawIdFromBinding(bindings[oid]);
+        if (!nid) continue;
+        const nested = findLawById(formulasData, nid);
+        if (!nested) continue;
+        if (ownDefiner(nested) != null) return true;
+        if (nestedDefiner(nested, next)) return true;
+      }
+      return false;
+    }
+
+    for (let i = 0; i < laws.length; i++) {
+      const law = laws[i];
+      if (!law || !hasResult(law)) continue;
+      const oid = ownDefiner(law);
+      if (oid != null) return { law: law, operandId: oid };
+    }
+    for (let i = 0; i < laws.length; i++) {
+      const law = laws[i];
+      if (!law || !hasResult(law)) continue;
+      if (nestedDefiner(law, [])) return { law: law, operandId: null };
     }
     return null;
   }
@@ -955,6 +989,15 @@
     if (node.op === "mul") {
       const args = node.args || [];
       for (let i = 0; i < args.length; i++) collectMulDivFactors(args[i], sign, out, bindings);
+      return;
+    }
+    if (node.ref) {
+      out.push({ ref: String(node.ref), power: sign });
+      return;
+    }
+    if (node.op === "delta" || node.op === "neg") {
+      const a = node.arg !== undefined ? node.arg : (node.args || [])[0];
+      collectMulDivFactors(a, sign, out, bindings);
       return;
     }
     if (node.op === "div") {
@@ -1079,37 +1122,34 @@
     const hit = findDefiningUnitLaw(qid, ctx.formulasData);
     if (!hit) return null;
     const law = hit.law;
-    const targetOid = hit.operandId;
-    const resolved = resolveLawStructure(law, ctx.structuresData);
-    if (!resolved || !resolved.ast || resolved.ast.op !== "eq") return null;
+
+    const inst = instantiateLaw(law, ctx.structuresData, ctx.usagesData, ctx.formulasData);
+    if (!inst || !inst.ast || inst.ast.op !== "eq") return null;
+    const resolved = { id: inst.structure_ref, scheme: inst.scheme, arity: inst.arity, ast: inst.ast };
 
     const factors = [];
-    const bindMap = law.bindings || {};
-    collectMulDivFactors(resolved.ast.lhs, +1, factors, bindMap);
-    collectMulDivFactors(resolved.ast.rhs, -1, factors, bindMap);
+    collectMulDivFactors(resolved.ast.lhs, +1, factors, law.bindings || {});
+    collectMulDivFactors(resolved.ast.rhs, -1, factors, law.bindings || {});
 
-    const byOid = Object.create(null);
+    const byRef = Object.create(null);
     for (let i = 0; i < factors.length; i++) {
       const f = factors[i];
-      if (!f.operand_id) continue;
-      byOid[f.operand_id] = (byOid[f.operand_id] || 0) + f.power;
+      if (!f.ref) continue;
+      byRef[f.ref] = (byRef[f.ref] || 0) + f.power;
     }
-    const tp = byOid[targetOid];
+    const tp = byRef[qid];
     if (!tp || Math.abs(tp) !== 1) return null;
 
     const quantById = indexQuantities(ctx.quantData);
     const lang = ctx.lang === "en" ? "en" : "ru";
     const unitsData = ctx.unitsData;
-    const bindings = law.bindings || {};
     const scaled = [];
 
-    for (const oid of Object.keys(byOid)) {
-      if (oid === targetOid) continue;
-      const pow = byOid[oid];
+    for (const rid of Object.keys(byRef)) {
+      if (rid === qid) continue;
+      const pow = byRef[rid];
       if (!pow) continue;
-      const b = bindings[oid];
-      if (!b || !b.quantity) continue;
-      const q = quantById[b.quantity];
+      const q = quantById[rid];
       if (!q || !q.dimension) continue;
       const scale = -pow / tp;
       const parts = unitPartsForDim(q.dimension, unitsData, lang);
