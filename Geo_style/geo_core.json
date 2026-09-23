@@ -1,202 +1,359 @@
 {
   "meta": {
-    "version": "0.2",
-    "description": "Ядро вычислимой геометрии. Сорты (Point, Vec2, Length, Angle, Frame…) и конструкторы. Фигуры не хранятся — из величин и ops (geo_ops.json). Runtime: Fis_runtime/geo_compute.js.",
-    "created": "2026-08-18",
-    "updated": "2026-09-07",
-    "language_order": ["en", "ru"],
-    "related": ["geo_ops.json", "../Fis_runtime/geo_compute.js"],
-    "notes": "Frame — единая СК для среды и графиков. Environment (E0) предоставляет Frame; не особый случай. Примитивы = конструкторы над сортами → проекция SVG/Canvas."
+    "version": "0.5",
+    "updated": "2026-09-22",
+    "related": [
+      "geo_ops.json",
+      "geo_aspects.json",
+      "../Fis_runtime/geo_compute.js"
+    ],
+    "role": "typed constructors + sorts for geo eval; no pedagogy. Aspects/compute in geo_aspects + geo_compute."
   },
-
   "sorts": {
     "Point": {
       "dim": 0,
-      "name": ["Point", "Точка"],
-      "math_kind": "vector",
-      "notes": "Позиция в аффинном пространстве. В 2D обычно (x, y)."
+      "space": 2
+    },
+    "Point3": {
+      "dim": 0,
+      "space": 3
     },
     "Vec2": {
       "dim": 1,
-      "name": ["Vector 2D", "Вектор 2D"],
-      "math_kind": "vector",
-      "notes": "Направленный отрезок. Имеет длину и направление."
+      "space": 2
+    },
+    "Vec3": {
+      "dim": 1,
+      "space": 3
     },
     "Length": {
       "dim": 1,
-      "name": ["Length", "Длина"],
-      "math_kind": "scalar",
-      "dimension": "[L]",
-      "notes": "Метрическая величина. Основа масштаба."
+      "dimension": "[L]"
     },
     "Angle": {
       "dim": 0,
-      "name": ["Angle", "Угол"],
-      "math_kind": "scalar",
-      "dimension": "1",
-      "notes": "Ориентация / поворот. Безразмерная (радианы как канон, градусы — отображение)."
+      "dimension": "1"
     },
     "Scalar": {
-      "dim": 0,
-      "name": ["Scalar", "Скаляр"],
-      "math_kind": "scalar",
-      "notes": "Число без геометрической интерпретации (коэффициент, параметр t)."
+      "dim": 0
     },
     "Path2": {
       "dim": 1,
-      "name": ["Path 2D", "Путь 2D"],
-      "math_kind": "vector",
-      "notes": "Параметризованная кривая или ломаная. Результат композиций."
+      "space": 2
     },
     "Shape2": {
       "dim": 2,
-      "name": ["Shape 2D", "Фигура 2D"],
-      "math_kind": "scalar",
-      "notes": "Замкнутая или заполняемая 2D-область (результат конструкторов)."
+      "space": 2
+    },
+    "Shape3": {
+      "dim": 3,
+      "space": 3
     },
     "Frame": {
       "dim": 2,
-      "name": ["Coordinate frame", "Система координат / фрейм"],
-      "math_kind": "vector",
-      "notes": "Аффинная 2D-система отсчёта. Math-space: origin + axes (по умолчанию x→right, y→up) + независимые scale_x / scale_y (math → screen). Не хранит точки — только отображение. Среда (E0) и плоскость графика — экземпляры одного сорта."
+      "space": 3,
+      "maps": "math→screen"
     }
   },
-
   "constructors": {
     "point": {
       "id": "G0.point",
-      "dim": 0,
-      "name": ["Point", "Точка"],
-      "result_sort": "Point",
+      "result": "Point",
       "params": [
-        { "name": "x", "sort": "Scalar", "role": "coord" },
-        { "name": "y", "sort": "Scalar", "role": "coord" }
-      ],
-      "notes": "Атомарная точка из координат. Альтернатива: origin + Vec2."
+        {
+          "name": "x",
+          "sort": "Scalar"
+        },
+        {
+          "name": "y",
+          "sort": "Scalar"
+        }
+      ]
+    },
+    "point3": {
+      "id": "G0.point3",
+      "result": "Point3",
+      "params": [
+        {
+          "name": "x",
+          "sort": "Scalar"
+        },
+        {
+          "name": "y",
+          "sort": "Scalar"
+        },
+        {
+          "name": "z",
+          "sort": "Scalar"
+        }
+      ]
     },
     "vec": {
       "id": "G1.vec",
-      "dim": 1,
-      "name": ["Vector", "Вектор"],
-      "result_sort": "Vec2",
+      "result": "Vec2",
       "params": [
-        { "name": "dx", "sort": "Scalar", "role": "component" },
-        { "name": "dy", "sort": "Scalar", "role": "component" }
-      ],
-      "notes": "Вектор из компонентов. Или: from Point A to Point B."
+        {
+          "name": "dx",
+          "sort": "Scalar"
+        },
+        {
+          "name": "dy",
+          "sort": "Scalar"
+        }
+      ]
+    },
+    "vec3": {
+      "id": "G1.vec3",
+      "result": "Vec3",
+      "params": [
+        {
+          "name": "dx",
+          "sort": "Scalar"
+        },
+        {
+          "name": "dy",
+          "sort": "Scalar"
+        },
+        {
+          "name": "dz",
+          "sort": "Scalar"
+        }
+      ]
     },
     "segment": {
       "id": "G1.segment",
-      "dim": 1,
-      "name": ["Segment", "Отрезок"],
-      "result_sort": "Path2",
+      "result": "Path2",
       "params": [
-        { "name": "a", "sort": "Point", "role": "start" },
-        { "name": "b", "sort": "Point", "role": "end" }
-      ],
-      "equivalent": "point + vec(b - a)",
-      "notes": "Простейший 1D-примитив. Длина = |b - a|."
+        {
+          "name": "a",
+          "sort": "Point"
+        },
+        {
+          "name": "b",
+          "sort": "Point"
+        }
+      ]
     },
     "ray": {
       "id": "G1.ray",
-      "dim": 1,
-      "name": ["Ray", "Луч"],
-      "result_sort": "Path2",
+      "result": "Path2",
       "params": [
-        { "name": "origin", "sort": "Point", "role": "start" },
-        { "name": "direction", "sort": "Vec2", "role": "dir" }
-      ],
-      "notes": "Начало + направление. Полубесконечный."
+        {
+          "name": "origin",
+          "sort": "Point"
+        },
+        {
+          "name": "direction",
+          "sort": "Vec2"
+        }
+      ]
     },
     "polyline": {
       "id": "G1.polyline",
-      "dim": 1,
-      "name": ["Polyline", "Ломаная"],
-      "result_sort": "Path2",
+      "result": "Path2",
       "params": [
-        { "name": "points", "sort": "Point", "role": "vertices", "variadic": true }
-      ],
-      "notes": "Последовательность точек, соединённых отрезками."
+        {
+          "name": "points",
+          "sort": "Point",
+          "variadic": true
+        }
+      ]
     },
     "circle": {
       "id": "G2.circle",
-      "dim": 2,
-      "name": ["Circle", "Окружность / круг"],
-      "result_sort": "Shape2",
+      "result": "Shape2",
       "params": [
-        { "name": "center", "sort": "Point", "role": "center" },
-        { "name": "radius", "sort": "Length", "role": "size" }
-      ],
-      "notes": "Центр + радиус. Замкнутая кривая или диск — решает стиль (fill/stroke)."
+        {
+          "name": "center",
+          "sort": "Point"
+        },
+        {
+          "name": "radius",
+          "sort": "Length"
+        }
+      ]
     },
     "rect": {
       "id": "G2.rect",
-      "dim": 2,
-      "name": ["Rectangle", "Прямоугольник"],
-      "result_sort": "Shape2",
+      "result": "Shape2",
       "params": [
-        { "name": "origin", "sort": "Point", "role": "origin" },
-        { "name": "width", "sort": "Length", "role": "size" },
-        { "name": "height", "sort": "Length", "role": "size" },
-        { "name": "rotation", "sort": "Angle", "role": "orient", "optional": true }
-      ],
-      "equivalent": "origin + rotate(vec(width,0), φ) + rotate(vec(0,height), φ)",
-      "notes": "Точка + два размера + опциональный угол. Не обязательно axis-aligned."
+        {
+          "name": "origin",
+          "sort": "Point"
+        },
+        {
+          "name": "width",
+          "sort": "Length"
+        },
+        {
+          "name": "height",
+          "sort": "Length"
+        },
+        {
+          "name": "rotation",
+          "sort": "Angle",
+          "optional": true
+        }
+      ]
     },
     "ellipse": {
       "id": "G2.ellipse",
-      "dim": 2,
-      "name": ["Ellipse", "Эллипс"],
-      "result_sort": "Shape2",
+      "result": "Shape2",
       "params": [
-        { "name": "center", "sort": "Point", "role": "center" },
-        { "name": "rx", "sort": "Length", "role": "size" },
-        { "name": "ry", "sort": "Length", "role": "size" },
-        { "name": "rotation", "sort": "Angle", "role": "orient", "optional": true }
-      ],
-      "notes": "Обобщение круга. rx/ry — полуоси."
+        {
+          "name": "center",
+          "sort": "Point"
+        },
+        {
+          "name": "rx",
+          "sort": "Length"
+        },
+        {
+          "name": "ry",
+          "sort": "Length"
+        },
+        {
+          "name": "rotation",
+          "sort": "Angle",
+          "optional": true
+        }
+      ]
     },
     "regular_polygon": {
       "id": "G2.regular_polygon",
-      "dim": 2,
-      "name": ["Regular polygon", "Правильный многоугольник"],
-      "result_sort": "Shape2",
+      "result": "Shape2",
       "params": [
-        { "name": "center", "sort": "Point", "role": "center" },
-        { "name": "radius", "sort": "Length", "role": "size" },
-        { "name": "n", "sort": "Scalar", "role": "count" },
-        { "name": "rotation", "sort": "Angle", "role": "orient", "optional": true }
-      ],
-      "notes": "n ≥ 3. Вершины = center + rotate(vec(radius,0), φ0 + 2πk/n)."
+        {
+          "name": "center",
+          "sort": "Point"
+        },
+        {
+          "name": "radius",
+          "sort": "Length"
+        },
+        {
+          "name": "n",
+          "sort": "Scalar"
+        },
+        {
+          "name": "rotation",
+          "sort": "Angle",
+          "optional": true
+        }
+      ]
     },
     "polygon": {
       "id": "G2.polygon",
-      "dim": 2,
-      "name": ["Polygon", "Многоугольник"],
-      "result_sort": "Shape2",
+      "result": "Shape2",
       "params": [
-        { "name": "points", "sort": "Point", "role": "vertices", "variadic": true }
-      ],
-      "notes": "Замкнутая ломаная. Ориентация (CW/CCW) влияет на fill."
+        {
+          "name": "points",
+          "sort": "Point",
+          "variadic": true
+        }
+      ]
     },
     "frame": {
       "id": "G0.frame",
-      "dim": 2,
-      "name": ["Frame", "Фрейм"],
-      "result_sort": "Frame",
+      "result": "Frame",
       "params": [
-        { "name": "origin", "sort": "Point", "role": "origin", "optional": true },
-        { "name": "scale_x", "sort": "Scalar", "role": "scale", "optional": true },
-        { "name": "scale_y", "sort": "Scalar", "role": "scale", "optional": true }
+        {
+          "name": "origin",
+          "sort": "Point",
+          "optional": true
+        },
+        {
+          "name": "scale_x",
+          "sort": "Scalar",
+          "optional": true
+        },
+        {
+          "name": "scale_y",
+          "sort": "Scalar",
+          "optional": true
+        }
       ],
-      "notes": "Примитивный конструктор. origin default [0,0]; scale_x/scale_y default 1 (math unit = screen unit). axes и angle_ref фиксированы на уровне сорта (y-up, ccw). Viewport (W×H) — параметр рендера, не сорта."
+      "defaults": {
+        "origin": [
+          0,
+          0
+        ],
+        "origin_corner": "bottom_left",
+        "axes": {
+          "x": "right",
+          "y": "up"
+        }
+      }
+    },
+    "sphere": {
+      "id": "G3.sphere",
+      "result": "Shape3",
+      "params": [
+        {
+          "name": "center",
+          "sort": "Point3"
+        },
+        {
+          "name": "radius",
+          "sort": "Length"
+        }
+      ],
+      "aspects": [
+        "GA_sphere_V",
+        "GA_sphere_S",
+        "GA_sphere_D"
+      ]
+    },
+    "parallelepiped": {
+      "id": "G3.parallelepiped",
+      "result": "Shape3",
+      "params": [
+        {
+          "name": "origin",
+          "sort": "Point3"
+        },
+        {
+          "name": "a",
+          "sort": "Length"
+        },
+        {
+          "name": "b",
+          "sort": "Length"
+        },
+        {
+          "name": "c",
+          "sort": "Length"
+        }
+      ],
+      "aspects": [
+        "GA_box_V",
+        "GA_box_S",
+        "GA_box_space_diag"
+      ]
+    },
+    "cylinder": {
+      "id": "G3.cylinder",
+      "result": "Shape3",
+      "params": [
+        {
+          "name": "center",
+          "sort": "Point3"
+        },
+        {
+          "name": "radius",
+          "sort": "Length"
+        },
+        {
+          "name": "height",
+          "sort": "Length"
+        }
+      ],
+      "aspects": [
+        "GA_cyl_V",
+        "GA_cyl_base",
+        "GA_cyl_lateral",
+        "GA_cyl_S"
+      ]
     }
-  },
-
-  "dim_groups": {
-    "0D": ["Point"],
-    "1D": ["Vec2", "Path2", "Length"],
-    "2D": ["Shape2", "Frame"],
-    "scalar": ["Angle", "Scalar"]
   }
 }
