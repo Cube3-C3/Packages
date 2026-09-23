@@ -31,6 +31,18 @@
   // независимо от реального L, что и приводило к наложениям/разрывам при explicit position.
   const DEFAULT_PX_PER_M = 300;
 
+  // Цвет стрелки вектора по роли величины (можно переопределить через edge.color).
+  const VECTOR_STYLE = {
+    force: "#dc2626",
+    velocity: "#2563eb",
+    acceleration: "#16a34a",
+    displacement: "#9333ea",
+    default: "#18181b"
+  };
+  function vectorColor(e) {
+    return e.color || VECTOR_STYLE[e.role] || VECTOR_STYLE.default;
+  }
+
   function pick(arr, lang) {
     if (!Array.isArray(arr)) return arr != null ? String(arr) : "";
     return lang === "en" ? arr[0] || arr[1] || "" : arr[1] || arr[0] || "";
@@ -844,6 +856,8 @@
     const jointR = 4;
     const labelFs = 10;
 
+    const hasVectors = (layoutModel.edges || []).some(function (e) { return e.kind === "vector"; });
+
     let parts = [];
     parts.push(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
@@ -860,6 +874,20 @@
         H +
         'px;max-width:100%;background:transparent;overflow:hidden">'
     );
+    if (hasVectors) {
+      parts.push(
+        '<defs>' +
+          Object.keys(VECTOR_STYLE).map(function (role) {
+            const id = "arrow-" + role;
+            const color = VECTOR_STYLE[role];
+            return (
+              '<marker id="' + id + '" markerWidth="8" markerHeight="8" refX="6" refY="3" ' +
+              'orient="auto-start-reverse"><path d="M0 0 L6 3 L0 6 Z" fill="' + color + '"/></marker>'
+            );
+          }).join("") +
+        '</defs>'
+      );
+    }
 
     // edges
     (layoutModel.edges || []).forEach(function (e) {
@@ -901,6 +929,35 @@
               '" r="' +
               jointR +
               '" fill="#2563eb"/>'
+          );
+        }
+      } else if (e.kind === "vector") {
+        const role = VECTOR_STYLE[e.role] ? e.role : "default";
+        const color = vectorColor(e);
+        const markerId = e.color ? null : "arrow-" + role;
+        parts.push(
+          '<line x1="' +
+            sx(e.x1) +
+            '" y1="' +
+            syPt(e.y1) +
+            '" x2="' +
+            sx(e.x2) +
+            '" y2="' +
+            syPt(e.y2) +
+            '" stroke="' +
+            color +
+            '" stroke-width="' +
+            strokeMain +
+            '"' +
+            (markerId ? ' marker-end="url(#' + markerId + ')"' : "") +
+            '/>'
+        );
+        if (showLabels && e.label) {
+          const mx = (sx(e.x1) + sx(e.x2)) / 2;
+          const my = (syPt(e.y1) + syPt(e.y2)) / 2 - 4;
+          parts.push(
+            '<text x="' + mx + '" y="' + my + '" text-anchor="middle" font-size="' +
+              labelFs + '" fill="' + color + '">' + String(e.label) + '</text>'
           );
         }
       } else {
