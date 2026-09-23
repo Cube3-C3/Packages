@@ -1,0 +1,64 @@
+{
+  "schema_version": "0.8.0",
+  "description": "Компонент E* — уникальный объект (среда, пружина, груз, наблюдатель…), который задаёт зависимость формул через свой набор величин. params: массив { quantity, default }; единицы не храним — всегда СИ. Положение r и прочие величины — просто элементы набора. Канон пакета; без physi_comps / Constructions/. Сборки C* — Componovka/constructs.json (набор E*).",
+  "meta": {
+    "language_order": ["en", "ru"],
+    "id_prefix": "E",
+    "iteration": 1,
+    "notes": [
+      "E* — уникальный тип объекта, не «точка ради точки».",
+      "params[] — входящие величины объекта: quantity (Q*) + default (начальное значение в СИ).",
+      "unit не пишем: все default в канонических СИ.",
+      "r (Q008) — положение центра / опорной точки в абсолютном Frame; [x,y,z], пока z=0.",
+      "Frame среды — у E0; формулы берут величины из instance params / defaults шаблона.",
+      "primitive оставлен material_point как представитель до 3D-контуров; смысл компонента — набор величин."
+    ]
+  },
+  "components": {
+    "E0": {
+      "id": "E0",
+      "name": ["environment", "среда"],
+      "primitive": "material_point",
+      "params": [
+        { "quantity": "Q008", "default": [0, 0, 0] },
+        { "quantity": "Q006", "default": 9.8 }
+      ],
+      "frame": {
+        "origin": [0, 0, 0],
+        "origin_corner": "bottom_left",
+        "axes": { "x": "right", "y": "up", "z": "out" }
+      },
+      "notes": "Среда + абсолютный Frame. Q008=r origin, Q006=g. Провайдер Frame для остальных."
+    },
+    "E001": {
+      "id": "E001",
+      "name": ["spring", "пружина"],
+      "primitive": "material_point",
+      "params": [
+        { "quantity": "Q008", "default": [0, 0, 0] },
+        { "quantity": "Q013", "default": 100 },
+        { "quantity": "Q008", "default": 0.2 }
+      ],
+      "notes": "Пружина: r, k (Q013), L0 (Q008). Два Q008 — r и natural length; различение role — следующая итерация при необходимости."
+    },
+    "E002": {
+      "id": "E002",
+      "name": ["block / mass", "брусок / груз"],
+      "primitive": "material_point",
+      "params": [
+        { "quantity": "Q008", "default": [0, 0, 0] },
+        { "quantity": "Q003", "default": 0.5 }
+      ],
+      "notes": "Груз: r, m (Q003)."
+    },
+    "E010": {
+      "id": "E010",
+      "name": ["observer", "наблюдатель"],
+      "primitive": "material_point",
+      "params": [
+        { "quantity": "Q008", "default": [0, 0, 0] }
+      ],
+      "notes": "Точка наблюдателя: только r. UI-метрики = p_abs - r_observer (позже)."
+    }
+  }
+}
