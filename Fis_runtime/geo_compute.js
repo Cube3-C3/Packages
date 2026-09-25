@@ -676,8 +676,45 @@
   }
 
   /**
-   * Собрать числовые величины конструкции (элементы + E0.g) → список {quantity, role, value}.
-   * componentsData опционален — подставляет default_value из шаблона E*.
+   * Раскрыть params[] шаблона E* + instance → [{ quantity, value, index }].
+   * Instance value перекрывает default; value может быть number или [x,y,z].
+   */
+  function resolveElementParams(el, componentTemplate) {
+    const tmpl = componentTemplate || {};
+    const base = Array.isArray(tmpl.params) ? tmpl.params : [];
+    const inst = Array.isArray(el && el.params) ? el.params : [];
+    const out = [];
+    const n = Math.max(base.length, inst.length);
+    for (let i = 0; i < n; i++) {
+      const b = base[i] || {};
+      const v = inst[i] || {};
+      const qid = v.quantity || b.quantity;
+      if (!qid) continue;
+      let val = v.value !== undefined ? v.value : b.default;
+      out.push({ quantity: String(qid), value: val, index: i });
+    }
+    return out;
+  }
+
+  function scalarFromParamValue(val) {
+    if (val == null) return null;
+    if (typeof val === "number" && isFinite(val)) return val;
+    if (Array.isArray(val) && val.length && isFinite(Number(val[0]))) return Number(val[0]);
+    return null;
+  }
+
+  function asVec3(val) {
+    if (Array.isArray(val) && val.length >= 3)
+      return [Number(val[0]) || 0, Number(val[1]) || 0, Number(val[2]) || 0];
+    if (Array.isArray(val) && val.length === 2)
+      return [Number(val[0]) || 0, Number(val[1]) || 0, 0];
+    if (typeof val === "number" && isFinite(val)) return [val, 0, 0];
+    return [0, 0, 0];
+  }
+
+  /**
+   * Собрать числовые величины конструкции (элементы + E0) → {quantity, role, value, element?}.
+   * Поддерживает Componovka params[] и legacy quantities{}.
    */
   function collectConstructionQuantityEntries(construction, componentsData) {
     const entries = [];
@@ -685,26 +722,47 @@
     const comps =
       (componentsData && (componentsData.components || componentsData)) || {};
 
-    // E0 / environment
     const envId = construction.environment || "E0";
     const envComp = comps[envId] || comps.E0 || {};
-    const gRaw = (envComp && envComp.g) || {};
-    const gVal =
-      gRaw.value != null
-        ? Number(gRaw.value)
-        : envComp.quantities && envComp.quantities.g && envComp.quantities.g.default_value != null
-          ? Number(envComp.quantities.g.default_value)
-          : 9.8;
+    // g from params (new) or legacy g/quantities
+    let gVal = 9.8;
+    const envParams = resolveElementParams({ params: envComp.params }, envComp);
+    envParams.forEach(function (p) {
+      if (p.quantity === "Q006") {
+        const s = scalarFromParamValue(p.value);
+        if (s != null) gVal = s;
+      }
+    });
+    if (envComp.g && envComp.g.value != null) gVal = Number(envComp.g.value);
     entries.push({
       key: "env.g",
-      quantity: String(gRaw.quantity || "Q006"),
-      role: gRaw.role || "free_fall_acceleration",
+      quantity: "Q006",
+      role: "free_fall_acceleration",
       value: gVal
     });
 
     (construction.elements || []).forEach(function (el) {
       if (!el) return;
       const comp = comps[el.component] || {};
+      // New Componovka path
+      if (Array.isArray(comp.params) || Array.isArray(el.params)) {
+        const resolved = resolveElementParams(el, comp);
+        resolved.forEach(function (p) {
+          const num = scalarFromParamValue(p.value);
+          if (num == null && !Array.isArray(p.value)) return;
+          entries.push({
+            key: (el.id || "?") + ".p" + p.index,
+            quantity: p.quantity,
+            role: p.quantity === "Q008" && Array.isArray(p.value) ? "radius_vector" : p.quantity,
+            value: num != null ? num : p.value,
+            element: el.id,
+            index: p.index,
+            raw: p.value
+          });
+        });
+        return;
+      }
+      // Legacy quantities path
       const defaults = (comp && comp.quantities) || {};
       const inst = el.quantities || {};
       const keys = Object.keys(defaults).concat(Object.keys(inst));
@@ -725,11 +783,196 @@
           key: (el.id || "?") + "." + k,
           quantity: String(qid),
           role: v.role || d.role || k,
-          value: num
+          value: num,
+          element: el.id
         });
       });
     });
     return entries;
+  }
+
+  /**
+   * S2: применить links конструкции после изменения param.
+   * change: { element: instanceId, quantity?, index?, value } | { element, delta_extension }
+   * Для Q008-links вдоль layout series (x) / parallel (сохраняем y): to.r = from.r + L0·ê + Δl·ê
+   * Если law=P014 и заданы F или Δl — считаем парную величину F=k·Δl.
+   * returns { construction, derived: [{link, F?, delta_l?, k?}] }
+   */
+  function applyConstructionLinks(construction, opts) {
+    opts = opts || {};
+    const comps =
+      (opts.components && (opts.components.components || opts.components)) || {};
+    const change = opts.change || null;
+    const outDerived = [];
+
+    // deep-ish clone elements params
+    const c = {
+      id: construction.id,
+      name: construction.name,
+      layout: construction.layout || "series",
+      environment: construction.environment || "E0",
+      observer: construction.observer,
+      elements: (construction.elements || []).map(function (el) {
+        return {
+          id: el.id,
+          component: el.component,
+          params: Array.isArray(el.params)
+            ? el.params.map(function (p) {
+                return {
+                  quantity: p.quantity,
+                  value: Array.isArray(p.value) ? p.value.slice() : p.value
+                };
+              })
+            : []
+        };
+      }),
+      links: construction.links || []
+    };
+
+    function findEl(id) {
+      for (let i = 0; i < c.elements.length; i++) {
+        if (c.elements[i].id === id) return c.elements[i];
+      }
+      return null;
+    }
+
+    function getParams(el) {
+      const tmpl = comps[el.component] || {};
+      return resolveElementParams(el, tmpl);
+    }
+
+    function setParamValue(el, index, value) {
+      if (!el.params[index]) {
+        el.params[index] = { quantity: null, value: value };
+      } else {
+        el.params[index] = {
+          quantity: el.params[index].quantity,
+          value: value
+        };
+      }
+    }
+
+    // apply direct change to element
+    if (change && change.element) {
+      const el = findEl(change.element);
+      if (el) {
+        const resolved = getParams(el);
+        if (change.delta_extension != null) {
+          // find L0 (second Q008 scalar) and keep r; extension is derived for links
+          el._delta_extension = Number(change.delta_extension);
+        } else if (change.index != null && change.value !== undefined) {
+          setParamValue(el, change.index, change.value);
+        } else if (change.quantity) {
+          for (let i = resolved.length - 1; i >= 0; i--) {
+            if (resolved[i].quantity === change.quantity) {
+              setParamValue(el, i, change.value);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    const axis = c.layout === "parallel" ? 1 : 0; // series → x, parallel → still link along x primarily
+
+    (c.links || []).forEach(function (link) {
+      if (!link) return;
+      const from = findEl(link.from);
+      const to = findEl(link.to);
+      if (!from || !to) return;
+
+      const fromP = getParams(from);
+      const toP = getParams(to);
+
+      // k from from-element Q013
+      let k = null;
+      let L0 = null;
+      let fromR = [0, 0, 0];
+      fromP.forEach(function (p) {
+        if (p.quantity === "Q013") {
+          const s = scalarFromParamValue(p.value);
+          if (s != null) k = s;
+        }
+        if (p.quantity === "Q008") {
+          if (Array.isArray(p.value) || (p.index === 0 && Array.isArray(p.raw))) {
+            fromR = asVec3(p.raw != null ? p.raw : p.value);
+          } else {
+            const s = scalarFromParamValue(p.value);
+            if (s != null) L0 = s;
+          }
+        }
+      });
+      // explicit pass: first Q008 array = r, later scalar Q008 = L0
+      fromP.forEach(function (p) {
+        if (p.quantity !== "Q008") return;
+        if (Array.isArray(p.value) || Array.isArray(p.raw)) {
+          fromR = asVec3(p.raw != null ? p.raw : p.value);
+        } else if (typeof p.value === "number") {
+          L0 = p.value;
+        }
+      });
+      if (L0 == null) L0 = 0.2;
+
+      let deltaL =
+        from._delta_extension != null
+          ? Number(from._delta_extension)
+          : opts.delta_extension != null
+            ? Number(opts.delta_extension)
+            : 0;
+
+      // F = k * Δl if law P014
+      let F = null;
+      if (link.law === "P014" && k != null && isFinite(deltaL)) {
+        F = k * deltaL;
+      }
+      if (opts.force != null && k != null && k !== 0 && link.law === "P014") {
+        F = Number(opts.force);
+        deltaL = F / k;
+        from._delta_extension = deltaL;
+      }
+
+      if (link.quantity === "Q008" || !link.quantity) {
+        const newR = fromR.slice();
+        newR[0] = fromR[0] + (L0 + deltaL); // along +x from spring center (series chain)
+        if (c.layout === "parallel") {
+          // keep to.y as-is from existing to r y if set
+          const toR0 = asVec3(
+            (toP.find(function (p) {
+              return p.quantity === "Q008" && Array.isArray(p.value);
+            }) || {}).value
+          );
+          newR[1] = toR0[1];
+        }
+        // write r into first Q008 slot of to
+        let rIndex = 0;
+        const toResolved = getParams(to);
+        for (let i = 0; i < toResolved.length; i++) {
+          if (toResolved[i].quantity === "Q008") {
+            rIndex = i;
+            break;
+          }
+        }
+        setParamValue(to, rIndex, newR);
+      }
+
+      outDerived.push({
+        link: link.id || link.from + "→" + link.to,
+        from: link.from,
+        to: link.to,
+        k: k,
+        L0: L0,
+        delta_l: deltaL,
+        F: F,
+        law: link.law || null
+      });
+    });
+
+    // strip temp
+    c.elements.forEach(function (el) {
+      delete el._delta_extension;
+    });
+
+    return { construction: c, derived: outDerived };
   }
 
   /**
@@ -1176,7 +1419,9 @@
     attachLawGraph: attachLawGraph,
     drawPointsOnCanvas: drawPointsOnCanvas,
     collectConstructionQuantityEntries: collectConstructionQuantityEntries,
-    valuesFromLawAndConstruction: valuesFromLawAndConstruction
+    valuesFromLawAndConstruction: valuesFromLawAndConstruction,
+    resolveElementParams: resolveElementParams,
+    applyConstructionLinks: applyConstructionLinks
   };
 
   global.GeoCompute = GeoCompute;
