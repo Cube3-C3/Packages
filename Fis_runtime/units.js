@@ -2784,16 +2784,26 @@
       }
     } else if (construction && Array.isArray(construction.elements)) {
       const tallies = Object.create(null);
+      function tally(qid, role) {
+        if (!qid) return;
+        if (!tallies[qid]) tallies[qid] = { count: 0, roles: [] };
+        tallies[qid].count += 1;
+        if (role && tallies[qid].roles.indexOf(role) < 0) tallies[qid].roles.push(role);
+      }
       for (let i = 0; i < construction.elements.length; i++) {
-        const qs = (construction.elements[i] && construction.elements[i].quantities) || {};
+        const el = construction.elements[i];
+        // Componovka (S2): elements[].params[{quantity, value}] — без role.
+        if (el && Array.isArray(el.params)) {
+          for (let j = 0; j < el.params.length; j++) {
+            if (el.params[j] && el.params[j].quantity) tally(el.params[j].quantity, null);
+          }
+          continue;
+        }
+        // legacy: elements[].quantities{role: {quantity, role}}
+        const qs = (el && el.quantities) || {};
         for (const k of Object.keys(qs)) {
           const q = qs[k];
-          if (!q || !q.quantity) continue;
-          if (!tallies[q.quantity]) tallies[q.quantity] = { count: 0, roles: [] };
-          tallies[q.quantity].count += 1;
-          if (q.role && tallies[q.quantity].roles.indexOf(q.role) < 0) {
-            tallies[q.quantity].roles.push(q.role);
-          }
+          if (q && q.quantity) tally(q.quantity, q.role || null);
         }
       }
       for (const qid of Object.keys(tallies)) {
