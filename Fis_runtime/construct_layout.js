@@ -191,31 +191,44 @@
   function envFrame(componentsMap, envId, viewportOpts) {
     const e = componentsMap[envId || "E0"] || {};
     const gRaw = e.g || {};
-    // g всегда адресуется к Q006 (free-fall acceleration); value — текущее для просмотра/симуляции
+    let gVal = gRaw.value != null ? Number(gRaw.value) : 9.8;
+    // Componovka E0: g in params as Q006
+    if (Array.isArray(e.params)) {
+      e.params.forEach(function (p) {
+        if (p && p.quantity === "Q006" && p.default != null) gVal = Number(p.default);
+      });
+    }
     const g = {
       quantity: gRaw.quantity || "Q006",
       role: gRaw.role || "free_fall_acceleration",
-      value: gRaw.value != null ? Number(gRaw.value) : 9.8,
+      value: gVal,
       unit: gRaw.unit || "m/s^2",
       direction: gRaw.direction || "down"
     };
-    // Frame из Geo-слоя: E0 — провайдер Frame, не особый случай координатной логики.
     let frame = null;
+    const frameSrc = e.frame
+      ? Object.assign({}, e, e.frame, {
+          origin: (e.frame.origin || e.origin || [0, 0]).slice(0, 2)
+        })
+      : e;
     if (global.GeoCompute && typeof global.GeoCompute.frameFromEnv === "function") {
-      frame = global.GeoCompute.frameFromEnv(e, viewportOpts || {});
+      frame = global.GeoCompute.frameFromEnv(frameSrc, viewportOpts || {});
     }
+    const origin = Array.isArray(e.frame && e.frame.origin)
+      ? e.frame.origin.slice(0, 2)
+      : Array.isArray(e.origin)
+        ? e.origin.slice(0, 2)
+        : [0, 0];
     return {
-      origin: Array.isArray(e.origin) ? e.origin.slice() : [0, 0],
-      origin_corner: e.origin_corner || "bottom_left",
-      axes: e.axes || { x: "right", y: "up" },
-      // опорный вектор углов: горизонталь вправо; все углы CCW от него
+      origin: origin,
+      origin_corner: (e.frame && e.frame.origin_corner) || e.origin_corner || "bottom_left",
+      axes: (e.frame && e.frame.axes) || e.axes || { x: "right", y: "up" },
       angle_ref: Array.isArray(e.angle_ref) ? e.angle_ref.slice() : [1, 0],
       angle_convention: e.angle_convention || "ccw_from_ref",
       g: g,
       quantities: e.quantities || { g: { quantity: g.quantity, role: g.role, value: g.value, unit: g.unit } },
       assumptions: e.assumptions || [],
       initial_conditions: e.initial_conditions || {},
-      // единый Frame (Geo). toScreen/fromScreen — через него.
       frame: frame
     };
   }
@@ -596,18 +609,68 @@
         minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y + n.h);
       });
     }
+    // geometry of links + force vectors (spring → mass chain line; F on mass toward spring)
+    const forceScale = options.forceScale != null ? options.forceScale : 0.004; // м/Н → px via pxPerMeter later; here already px
+    const forceLenPx = function (F) {
+      const L = Math.abs(F) * forceScale * pxPerMeter;
+      return Math.max(18, Math.min(L, 120));
+    };
     derived.forEach(function (d) {
       const p1 = posById[d.from], p2 = posById[d.to];
       if (!p1 || !p2) return;
-      if (d.F != null && Math.abs(d.F) > 1e-9) {
+      // spring body / link line
+      edgesOut.push({
+        id: d.link + "_link",
+        kind: "generic",
+        x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1]
+      });
+      if (d.F != null) {
+        // unit direction mass → spring (force of spring on mass)
+        const dx = p1[0] - p2[0];
+        const dy = p1[1] - p2[1];
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const ux = dx / len;
+        const uy = dy / len;
+        const fl = forceLenPx(d.F);
+        const sign = d.F >= 0 ? 1 : -1;
         edgesOut.push({
-          id: d.link, kind: "vector", role: "force",
-          x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1],
-          label: "F = " + d.F.toFixed(2) + " Н"
+          id: d.link + "_F",
+          kind: "vector",
+          role: "force",
+          x1: p2[0],
+          y1: p2[1],
+          x2: p2[0] + ux * fl * sign,
+          y2: p2[1] + uy * fl * sign,
+          label: "F = " + Number(d.F).toFixed(2) + " Н"
         });
-      } else {
-        edgesOut.push({ id: d.link, kind: "generic", x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1] });
       }
+    });
+    // weight mg on each mass-like node (E002)
+    const g = (env.g && env.g.value != null) ? Number(env.g.value) : 9.8;
+    elements.forEach(function (el) {
+      const comp = comps[el.component] || {};
+      if (String(el.component) !== "E002" && !(comp.name && String(comp.name[0]).indexOf("mass") >= 0)) return;
+      const p = posById[el.id];
+      if (!p) return;
+      let m = 0.5;
+      if (GC && typeof GC.resolveElementParams === "function") {
+        GC.resolveElementParams(el, comp).forEach(function (pr) {
+          if (pr.quantity === "Q003" && typeof pr.value === "number") m = pr.value;
+        });
+      }
+      const Wf = m * g;
+      const fl = forceLenPx(Wf);
+      edgesOut.push({
+        id: el.id + "_mg",
+        kind: "vector",
+        role: "force",
+        color: "#b45309",
+        x1: p[0],
+        y1: p[1],
+        x2: p[0],
+        y2: p[1] - fl,
+        label: "mg = " + Wf.toFixed(2) + " Н"
+      });
     });
 
     const model = {

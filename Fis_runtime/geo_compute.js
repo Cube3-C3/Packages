@@ -931,19 +931,42 @@
         from._delta_extension = deltaL;
       }
 
+      // axis: vertical (default series_vertical / vertical / parallel) → mass below spring (−y);
+      //      horizontal series → +x
+      const layout = String(c.layout || "series_vertical");
+      const vertical =
+        layout === "series_vertical" ||
+        layout === "vertical" ||
+        layout === "parallel" ||
+        layout.indexOf("vertical") >= 0;
+
       if (link.quantity === "Q008" || !link.quantity) {
         const newR = fromR.slice();
-        newR[0] = fromR[0] + (L0 + deltaL); // along +x from spring center (series chain)
-        if (c.layout === "parallel") {
-          // keep to.y as-is from existing to r y if set
-          const toR0 = asVec3(
-            (toP.find(function (p) {
-              return p.quantity === "Q008" && Array.isArray(p.value);
-            }) || {}).value
-          );
-          newR[1] = toR0[1];
+        if (vertical) {
+          // hanging: same x (or keep parallel offset), y decreases
+          if (layout === "parallel") {
+            const toR0 = asVec3(
+              (toP.find(function (p) {
+                return p.quantity === "Q008" && Array.isArray(p.value);
+              }) || {}).value
+            );
+            newR[0] = toR0[0] != null && isFinite(toR0[0]) ? toR0[0] : fromR[0];
+          } else {
+            newR[0] = fromR[0];
+          }
+          newR[1] = fromR[1] - (L0 + deltaL);
+          newR[2] = fromR[2] || 0;
+        } else {
+          newR[0] = fromR[0] + (L0 + deltaL);
+          if (layout === "parallel") {
+            const toR0 = asVec3(
+              (toP.find(function (p) {
+                return p.quantity === "Q008" && Array.isArray(p.value);
+              }) || {}).value
+            );
+            newR[1] = toR0[1];
+          }
         }
-        // write r into first Q008 slot of to
         let rIndex = 0;
         const toResolved = getParams(to);
         for (let i = 0; i < toResolved.length; i++) {
@@ -963,7 +986,8 @@
         L0: L0,
         delta_l: deltaL,
         F: F,
-        law: link.law || null
+        law: link.law || null,
+        axis: vertical ? "y" : "x"
       });
     });
 
