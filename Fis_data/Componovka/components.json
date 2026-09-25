@@ -1,17 +1,17 @@
 {
-  "schema_version": "0.8.0",
-  "description": "Компонент E* — уникальный объект (среда, пружина, груз, наблюдатель…), который задаёт зависимость формул через свой набор величин. params: массив { quantity, default }; единицы не храним — всегда СИ. Положение r и прочие величины — просто элементы набора. Канон пакета; без physi_comps / Constructions/. Сборки C* — Componovka/constructs.json (набор E*).",
+  "schema_version": "0.8.1",
+  "description": "E* = уникальный объект по набору изменяемых величин (dof выводится из params). params[{quantity, default}] в СИ. Представитель — материальная точка (центр); контуры later. Канон: Componovka only.",
   "meta": {
     "language_order": ["en", "ru"],
     "id_prefix": "E",
-    "iteration": 1,
+    "decision": "D1",
     "notes": [
-      "E* — уникальный тип объекта, не «точка ради точки».",
-      "params[] — входящие величины объекта: quantity (Q*) + default (начальное значение в СИ).",
-      "unit не пишем: все default в канонических СИ.",
-      "r (Q008) — положение центра / опорной точки в абсолютном Frame; [x,y,z], пока z=0.",
-      "Frame среды — у E0; формулы берут величины из instance params / defaults шаблона.",
-      "primitive оставлен material_point как представитель до 3D-контуров; смысл компонента — набор величин."
+      "D1: уникальность E* = набор params[] (какие Q* можно менять). Класс тела (упругое/жёсткое/…) — следствие набора, не отдельное поле.",
+      "params[]: { quantity: Q*, default } — только СИ, без unit.",
+      "Q008 в params = r центра (материальная точка) в абсолютном Frame; [x,y,z], z=0 пока.",
+      "Изменение param → формулы P* → пересчёт связанных величин (см. links в constructs).",
+      "primitive material_point — представитель до контуров (массивы точек later).",
+      "E0 даёт Frame; E010 — якорь наблюдателя (тот же формат params)."
     ]
   },
   "components": {
@@ -27,8 +27,7 @@
         "origin": [0, 0, 0],
         "origin_corner": "bottom_left",
         "axes": { "x": "right", "y": "up", "z": "out" }
-      },
-      "notes": "Среда + абсолютный Frame. Q008=r origin, Q006=g. Провайдер Frame для остальных."
+      }
     },
     "E001": {
       "id": "E001",
@@ -39,7 +38,7 @@
         { "quantity": "Q013", "default": 100 },
         { "quantity": "Q008", "default": 0.2 }
       ],
-      "notes": "Пружина: r, k (Q013), L0 (Q008). Два Q008 — r и natural length; различение role — следующая итерация при необходимости."
+      "notes": "dof: r, k, L0 (два Q008 — r и natural length; key/role later if needed)"
     },
     "E002": {
       "id": "E002",
@@ -49,7 +48,7 @@
         { "quantity": "Q008", "default": [0, 0, 0] },
         { "quantity": "Q003", "default": 0.5 }
       ],
-      "notes": "Груз: r, m (Q003)."
+      "notes": "dof: r, m"
     },
     "E010": {
       "id": "E010",
@@ -58,7 +57,7 @@
       "params": [
         { "quantity": "Q008", "default": [0, 0, 0] }
       ],
-      "notes": "Точка наблюдателя: только r. UI-метрики = p_abs - r_observer (позже)."
+      "notes": "dof: r only; UI metrics = p_abs − r later"
     }
   }
 }

@@ -1,17 +1,17 @@
 {
-  "schema_version": "0.1.0",
-  "description": "Реестр конструкций C*. Каждая C* — сборка из атомарных E* данного масштаба (деталь / среда / …). components_ref = Componovka/components.json. Две базовые раскладки: series (последовательно по x), parallel (параллельно по y).",
+  "schema_version": "0.2.0",
+  "description": "C* = набор instance E* + links по координатам (S2). Связность: { from, to, quantity, law? }. Изменение param → P* → согласованные r/Q. layout series|parallel — подсказка раскладки.",
   "meta": {
     "language_order": ["en", "ru"],
     "id_prefix": "C",
     "components_ref": "Componovka/components.json",
+    "decision": "S2",
     "notes": [
-      "elements[] — экземпляры E*: { id, component, params? }.",
+      "S2: links[] согласуют смещения/величины через quantity (обычно Q008) и опционально law (P*).",
+      "from/to = id instance в elements (или observer).",
+      "environment E0 — абсолютный Frame; observer — instance E010.",
       "params instance перекрывают default шаблона E*; только quantity + value (СИ).",
-      "environment — id шаблона E* kind/среды (обычно E0); даёт абсолютный Frame.",
-      "observer — опциональный instance E010 (якорь наблюдателя).",
-      "layout: series | parallel — порядок elements задаёт геометрию относительно Frame origin.",
-      "Relations/ports — следующая итерация; сейчас достаточно набора E* + layout."
+      "Полные relation_types не используем."
     ]
   },
   "constructions": [
@@ -46,7 +46,16 @@
           ]
         }
       ],
-      "notes": "Последовательная цепочка вдоль x: пружина → груз. Положения r от абсолютного Frame E0."
+      "links": [
+        {
+          "id": "L1",
+          "from": "spring",
+          "to": "mass",
+          "quantity": "Q008",
+          "law": "P014",
+          "notes": "согласованное смещение вдоль x; Гук (P014) связывает F/k/x с геометрией цепочки"
+        }
+      ]
     },
     {
       "id": "C002",
@@ -88,7 +97,22 @@
           ]
         }
       ],
-      "notes": "Две пружины параллельно по y, общий груз. Набор E*: 2×E001 + E002."
+      "links": [
+        {
+          "id": "L1",
+          "from": "spring_a",
+          "to": "mass",
+          "quantity": "Q008",
+          "law": "P014"
+        },
+        {
+          "id": "L2",
+          "from": "spring_b",
+          "to": "mass",
+          "quantity": "Q008",
+          "law": "P014"
+        }
+      ]
     }
   ]
 }
