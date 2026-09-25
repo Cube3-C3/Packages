@@ -497,9 +497,148 @@
   }
 
   /**
+   * Componovka (S2): новая схема без relations/quantities{} —
+   * elements[].params[] (материальная точка, Q008 = r в метрах) + links[{from,to,quantity,law}].
+   * Контуры элементов не рисуем (primitive: material_point) — только точка + подпись.
+   * Смещение → сила идёт через GeoCompute.applyConstructionLinks (единая физика, не дублируем здесь).
+   */
+  function isComponovka(construction) {
+    if (!construction) return false;
+    if (Array.isArray(construction.links)) return true;
+    return (construction.elements || []).some(function (el) {
+      return el && Array.isArray(el.params);
+    });
+  }
+
+  function componovkaNodeKind(comp) {
+    const id = comp && comp.id;
+    const name = ((comp && comp.name && (comp.name[1] || comp.name[0])) || "").toLowerCase();
+    if (id === "E001" || name.indexOf("пружин") >= 0 || name.indexOf("spring") >= 0) return "elastic_element";
+    if (id === "E002" || name.indexOf("груз") >= 0 || name.indexOf("брус") >= 0 ||
+        name.indexOf("mass") >= 0 || name.indexOf("block") >= 0) return "rigid_body";
+    return null;
+  }
+
+  function componovkaR(el, comp, GC) {
+    const params = GC && typeof GC.resolveElementParams === "function"
+      ? GC.resolveElementParams(el, comp)
+      : (el && el.params) || [];
+    for (let i = 0; i < params.length; i++) {
+      if (params[i].quantity === "Q008" && Array.isArray(params[i].value)) return params[i].value;
+    }
+    return [0, 0, 0];
+  }
+
+  function layoutComponovka(construction, pack, options) {
+    options = options || {};
+    const margin = options.margin != null ? options.margin : MARGIN;
+    const pxPerMeter = options.pxPerMeter != null ? options.pxPerMeter : DEFAULT_PX_PER_M;
+    const nodeSizeM = options.nodeSize != null ? options.nodeSize : 0.14; // м, иконка материальной точки
+    const comps = getComponentsMap(pack && pack.components);
+    const env = envFrame(comps, construction.environment || "E0");
+    const GC = global.GeoCompute;
+    const observerId = construction.observer && construction.observer.id;
+
+    const elements = (construction.elements || []).filter(function (el) {
+      return el && el.id !== observerId;
+    });
+
+    const posById = Object.create(null);
+    const nodesOut = [];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    elements.forEach(function (el) {
+      const comp = comps[el.component] || {};
+      const r = componovkaR(el, comp, GC);
+      const cx = (Number(r[0]) || 0) * pxPerMeter;
+      const cy = (Number(r[1]) || 0) * pxPerMeter;
+      posById[el.id] = [cx, cy];
+      const w = nodeSizeM * pxPerMeter, h = w;
+      const x = cx - w / 2, y = cy - h / 2;
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x + w);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y + h);
+      nodesOut.push({
+        id: el.id,
+        component: el.component,
+        role: null,
+        quantities: {},
+        kind: componovkaNodeKind(comp),
+        ports_def: null,
+        asset: null, src: null, anchor: [0, 0], opacity: 1, scale: 1,
+        position: [cx, cy],
+        rotation: 0,
+        x: x, y: y, w: w, h: h,
+        label: comp.name ? (comp.name[1] || comp.name[0]) : el.id
+      });
+    });
+
+    const edgesOut = [];
+    let derived = [];
+    if (GC && typeof GC.applyConstructionLinks === "function") {
+      const res = GC.applyConstructionLinks(construction, {
+        components: pack && pack.components,
+        change: options.change || null,
+        delta_extension: options.delta_extension,
+        force: options.force
+      });
+      derived = res.derived || [];
+      // change сдвигает "to" вдоль связи — подтягиваем позицию узла из результата
+      (res.construction.elements || []).forEach(function (el) {
+        if (!posById[el.id]) return;
+        const r = componovkaR(el, comps[el.component] || {}, GC);
+        posById[el.id] = [(Number(r[0]) || 0) * pxPerMeter, (Number(r[1]) || 0) * pxPerMeter];
+      });
+      nodesOut.forEach(function (n) {
+        const p = posById[n.id];
+        if (!p) return;
+        n.x = p[0] - n.w / 2; n.y = p[1] - n.h / 2; n.position = p;
+        minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x + n.w);
+        minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y + n.h);
+      });
+    }
+    derived.forEach(function (d) {
+      const p1 = posById[d.from], p2 = posById[d.to];
+      if (!p1 || !p2) return;
+      if (d.F != null && Math.abs(d.F) > 1e-9) {
+        edgesOut.push({
+          id: d.link, kind: "vector", role: "force",
+          x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1],
+          label: "F = " + d.F.toFixed(2) + " Н"
+        });
+      } else {
+        edgesOut.push({ id: d.link, kind: "generic", x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1] });
+      }
+    });
+
+    const model = {
+      id: construction.id,
+      environment: construction.environment || "E0",
+      origin: env.origin,
+      axes: env.axes,
+      g: env.g,
+      frame: env.frame || null,
+      symbols: {},
+      rotation_deg: 0,
+      bounds: {
+        x: Number.isFinite(minX) ? minX - margin : env.origin[0],
+        y: Number.isFinite(minY) ? minY - margin : env.origin[1],
+        w: (Number.isFinite(minX) ? maxX - minX : pxPerMeter) + margin * 2,
+        h: (Number.isFinite(minY) ? maxY - minY : pxPerMeter) + margin * 2
+      },
+      nodes: nodesOut,
+      edges: edgesOut,
+      derived: derived
+    };
+    model.center = centerOf(model);
+    return model;
+  }
+
+  /**
    * Main: construction → layout model (math coords, y up).
    */
   function layout(construction, pack, options) {
+    if (isComponovka(construction)) return layoutComponovka(construction, pack, options || {});
+
     options = options || {};
     const gapS = options.gapSeries != null ? options.gapSeries : GAP_SERIES;
     const gapP = options.gapParallel != null ? options.gapParallel : GAP_PARALLEL;
