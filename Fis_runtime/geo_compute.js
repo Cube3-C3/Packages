@@ -411,6 +411,20 @@
     return [];
   }
 
+  // AST.json (актуальная схема): без плоского списка structures — только
+  // schemes + aliases, дерево строится на лету через FisUnits.buildSchemeAst.
+  // units.js грузится раньше geo_compute.js (см. SCRIPTS в хосте), поэтому
+  // window.FisUnits тут уже доступен — переиспользуем его сборку, не дублируем.
+  function structFromAliases(raw, structureRef) {
+    const entry = raw && raw.aliases && raw.aliases[structureRef];
+    if (!entry) return null;
+    const FU = global.FisUnits;
+    if (!FU || typeof FU.buildSchemeAst !== "function") return null;
+    const ast = FU.buildSchemeAst(entry.scheme, entry.arity);
+    if (!ast) return null;
+    return { id: structureRef, scheme: entry.scheme, arity: entry.arity, ast: ast };
+  }
+
   /**
    * @returns {{ ok:boolean, status?:string, error?:string, points?:number[][], domain:number[] }}
    */
@@ -424,9 +438,10 @@
     }
 
     const structures = listStructures(structuresData);
-    const struct = structures.find(function (s) {
+    let struct = structures.find(function (s) {
       return s && s.id === structureRef;
     });
+    if (!struct) struct = structFromAliases(structuresData, structureRef);
     if (!struct || !struct.ast) {
       return {
         ok: false,
