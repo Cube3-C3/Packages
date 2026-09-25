@@ -1,38 +1,34 @@
 {
-  "schema_version": "0.2.0",
-  "description": "C* = набор instance E* + links по координатам (S2). Связность: { from, to, quantity, law? }. Изменение param → P* → согласованные r/Q. layout series|parallel — подсказка раскладки.",
+  "schema_version": "0.3.0",
+  "description": "C* вертикальные, центр Frame (x≈0.5 м при базовом масштабе). series_vertical: пружина сверху, груз снизу (−y). links S2 → P014. Векторы F/mg рисует ConstructLayout.",
   "meta": {
     "language_order": ["en", "ru"],
     "id_prefix": "C",
     "components_ref": "Componovka/components.json",
     "decision": "S2",
     "notes": [
-      "S2: links[] согласуют смещения/величины через quantity (обычно Q008) и опционально law (P*).",
-      "from/to = id instance в elements (или observer).",
-      "environment E0 — абсолютный Frame; observer — instance E010.",
-      "params instance перекрывают default шаблона E*; только quantity + value (СИ).",
-      "Полные relation_types не используем."
+      "layout series_vertical | parallel — ось −y (подвес), x = центр Frame ~0.5 м.",
+      "r в СИ [x,y,z]; z=0. observer в начале координат Frame.",
+      "links: from spring → to mass, quantity Q008, law P014."
     ]
   },
   "constructions": [
     {
       "id": "C001",
-      "name": ["series: spring–mass", "последовательно: пружина–груз"],
-      "layout": "series",
+      "name": ["vertical series: spring–mass", "вертикально: пружина–груз"],
+      "layout": "series_vertical",
       "environment": "E0",
       "observer": {
         "id": "obs",
         "component": "E010",
-        "params": [
-          { "quantity": "Q008", "value": [0, 0, 0] }
-        ]
+        "params": [{ "quantity": "Q008", "value": [0, 0, 0] }]
       },
       "elements": [
         {
           "id": "spring",
           "component": "E001",
           "params": [
-            { "quantity": "Q008", "value": [0.1, 0, 0] },
+            { "quantity": "Q008", "value": [0.5, 0.7, 0] },
             { "quantity": "Q013", "value": 100 },
             { "quantity": "Q008", "value": 0.2 }
           ]
@@ -41,7 +37,7 @@
           "id": "mass",
           "component": "E002",
           "params": [
-            { "quantity": "Q008", "value": [0.3, 0, 0] },
+            { "quantity": "Q008", "value": [0.5, 0.5, 0] },
             { "quantity": "Q003", "value": 0.5 }
           ]
         }
@@ -53,28 +49,26 @@
           "to": "mass",
           "quantity": "Q008",
           "law": "P014",
-          "notes": "согласованное смещение вдоль x; Гук (P014) связывает F/k/x с геометрией цепочки"
+          "notes": "подвес: mass.y = spring.y − (L0 + Δl); F = k·Δl"
         }
       ]
     },
     {
       "id": "C002",
-      "name": ["parallel: two springs–mass", "параллельно: две пружины–груз"],
+      "name": ["vertical parallel: two springs–mass", "вертикально параллельно: две пружины–груз"],
       "layout": "parallel",
       "environment": "E0",
       "observer": {
         "id": "obs",
         "component": "E010",
-        "params": [
-          { "quantity": "Q008", "value": [0, 0, 0] }
-        ]
+        "params": [{ "quantity": "Q008", "value": [0, 0, 0] }]
       },
       "elements": [
         {
           "id": "spring_a",
           "component": "E001",
           "params": [
-            { "quantity": "Q008", "value": [0.1, 0.05, 0] },
+            { "quantity": "Q008", "value": [0.42, 0.7, 0] },
             { "quantity": "Q013", "value": 80 },
             { "quantity": "Q008", "value": 0.2 }
           ]
@@ -83,7 +77,7 @@
           "id": "spring_b",
           "component": "E001",
           "params": [
-            { "quantity": "Q008", "value": [0.1, -0.05, 0] },
+            { "quantity": "Q008", "value": [0.58, 0.7, 0] },
             { "quantity": "Q013", "value": 120 },
             { "quantity": "Q008", "value": 0.2 }
           ]
@@ -92,7 +86,7 @@
           "id": "mass",
           "component": "E002",
           "params": [
-            { "quantity": "Q008", "value": [0.3, 0, 0] },
+            { "quantity": "Q008", "value": [0.5, 0.5, 0] },
             { "quantity": "Q003", "value": 0.5 }
           ]
         }
