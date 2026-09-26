@@ -1155,7 +1155,8 @@
           Cflat,
           data.formulas || data.physi_formulas,
           data.structures || data.AST,
-          data.usages
+          data.usages,
+          data.components
         ) || [];
     } else {
       const qids = Object.create(null);

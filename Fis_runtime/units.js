@@ -2756,10 +2756,15 @@
   }
 
   /**
-   * Свод needs конструкции: formula_needs или вывод из elements[].quantities.
+   * Свод needs конструкции: formula_needs или вывод из thin/legacy elements.
+   * Thin: overrides:{role:value} → GeoCompute.resolveElementParams(el, componentTemplate)
+   *   (quantity берётся из E*.params, не из overrides).
    * count ≥ 2 — явные общие узлы (k₁, k₂…).
+   *
+   * @param {object} construction
+   * @param {object} [componentsData] pack.components | { components: { E*: … } }
    */
-  function collectConstructionNeeds(construction) {
+  function collectConstructionNeeds(construction, componentsData) {
     const byQid = Object.create(null);
     function add(qid, role, count) {
       if (!qid) return;
@@ -2769,7 +2774,23 @@
       if (role && byQid[qid].roles.indexOf(role) < 0) byQid[qid].roles.push(role);
     }
 
-    const declared = construction && construction.formula_needs;
+    let C = construction;
+    const GC = typeof globalThis !== "undefined" ? globalThis.GeoCompute : null;
+    // recursive include / nested C*
+    if (C && GC && typeof GC.expandConstruction === "function") {
+      try {
+        C = GC.expandConstruction(C, {
+          constructions:
+            (componentsData && componentsData._constructions) || null,
+          constructs: componentsData && componentsData._constructs,
+          pack: componentsData && componentsData._pack
+        });
+      } catch (e) {
+        C = construction;
+      }
+    }
+
+    const declared = C && C.formula_needs;
     if (Array.isArray(declared) && declared.length) {
       for (let i = 0; i < declared.length; i++) {
         const d = declared[i];
@@ -2782,7 +2803,7 @@
           add(d.quantity, d.role, cnt);
         }
       }
-    } else if (construction && Array.isArray(construction.elements)) {
+    } else if (C && Array.isArray(C.elements)) {
       const tallies = Object.create(null);
       function tally(qid, role) {
         if (!qid) return;
@@ -2790,22 +2811,61 @@
         tallies[qid].count += 1;
         if (role && tallies[qid].roles.indexOf(role) < 0) tallies[qid].roles.push(role);
       }
-      for (let i = 0; i < construction.elements.length; i++) {
-        const el = construction.elements[i];
-        // Componovka (S2): elements[].params[{quantity, value}] — без role.
-        if (el && Array.isArray(el.params)) {
-          for (let j = 0; j < el.params.length; j++) {
-            if (el.params[j] && el.params[j].quantity) tally(el.params[j].quantity, null);
+
+      const comps =
+        (componentsData && (componentsData.components || componentsData)) || {};
+
+      for (let i = 0; i < C.elements.length; i++) {
+        const el = C.elements[i];
+        if (!el) continue;
+
+        // Thin / params: one path via GeoCompute.resolveElementParams (no duplicated merge)
+        const comp = comps[el.component] || {};
+        const useResolve =
+          GC &&
+          typeof GC.resolveElementParams === "function" &&
+          (el.overrides ||
+            Array.isArray(el.params) ||
+            Array.isArray(comp.params));
+
+        if (useResolve) {
+          const resolved = GC.resolveElementParams(el, comp) || [];
+          for (let j = 0; j < resolved.length; j++) {
+            const p = resolved[j];
+            if (p && p.quantity) tally(p.quantity, p.role || null);
           }
           continue;
         }
+
+        // Componovka params without GC
+        if (Array.isArray(el.params)) {
+          for (let j = 0; j < el.params.length; j++) {
+            if (el.params[j] && el.params[j].quantity) {
+              tally(el.params[j].quantity, el.params[j].role || null);
+            }
+          }
+          continue;
+        }
+
+        // Component defaults when only {id, component} or overrides without GC
+        if (Array.isArray(comp.params)) {
+          for (let j = 0; j < comp.params.length; j++) {
+            const p = comp.params[j];
+            if (p && p.quantity) tally(p.quantity, p.role || null);
+          }
+          continue;
+        }
+
         // legacy: elements[].quantities{role: {quantity, role}}
-        const qs = (el && el.quantities) || {};
+        const qs = el.quantities || {};
         for (const k of Object.keys(qs)) {
           const q = qs[k];
           if (q && q.quantity) tally(q.quantity, q.role || null);
         }
       }
+
+      // laws referenced on links (P*) — not quantities, skip here
+
       for (const qid of Object.keys(tallies)) {
         add(qid, null, tallies[qid].count);
         for (let r = 0; r < tallies[qid].roles.length; r++) {
@@ -2828,9 +2888,17 @@
    * Формулы для конструкции по formula_needs (quantity + role + count).
    * Закон: все quantity-binding ⊆ needs; score по совпадению role;
    * count≥2 — бонус за мульти-слоты / scheme sum|reciprocal_sum.
+   *
+   * @param {object} [componentsData] optional — нужен для thin overrides→quantity
    */
-  function formulasForConstruction(construction, formulasData, structuresData, usagesData) {
-    const needs = collectConstructionNeeds(construction);
+  function formulasForConstruction(
+    construction,
+    formulasData,
+    structuresData,
+    usagesData,
+    componentsData
+  ) {
+    const needs = collectConstructionNeeds(construction, componentsData);
     const needQ = needs.byQid;
     if (!Object.keys(needQ).length) return [];
 
