@@ -691,13 +691,14 @@
   }
 
   /**
-   * Раскрыть params[] шаблона E* + instance → [{ quantity, value, index }].
-   * Instance value перекрывает default; value может быть number или [x,y,z].
+   * params[] шаблона E* + instance → [{ id, quantity, role, value, index, element }].
+   * id: явный или {elementId}.{role}; value instance перекрывает default.
    */
   function resolveElementParams(el, componentTemplate) {
     const tmpl = componentTemplate || {};
     const base = Array.isArray(tmpl.params) ? tmpl.params : [];
     const inst = Array.isArray(el && el.params) ? el.params : [];
+    const elId = (el && el.id) || "el";
     const out = [];
     const n = Math.max(base.length, inst.length);
     for (let i = 0; i < n; i++) {
@@ -705,9 +706,138 @@
       const v = inst[i] || {};
       const qid = v.quantity || b.quantity;
       if (!qid) continue;
-      let val = v.value !== undefined ? v.value : b.default;
-      out.push({ quantity: String(qid), value: val, index: i });
+      const role = v.role || b.role || null;
+      const val = v.value !== undefined ? v.value : b.default;
+      const id =
+        v.id ||
+        b.id ||
+        (role ? elId + "." + role : elId + ".p" + i);
+      out.push({
+        id: String(id),
+        quantity: String(qid),
+        role: role ? String(role) : null,
+        value: val,
+        index: i,
+        element: elId
+      });
     }
+    return out;
+  }
+
+  /** Индекс всех слотов конструкции по id (elements + observer). */
+  function indexConstructionSlots(construction, componentsData) {
+    const comps =
+      (componentsData && (componentsData.components || componentsData)) || {};
+    const byId = Object.create(null);
+    function addEl(el) {
+      if (!el) return;
+      const list = resolveElementParams(el, comps[el.component] || {});
+      list.forEach(function (p) {
+        byId[p.id] = p;
+      });
+    }
+    (construction.elements || []).forEach(addEl);
+    if (construction.observer) addEl(construction.observer);
+    return byId;
+  }
+
+  /**
+   * Совпадение binding {quantity, role} со слотом из pool (по id link.params).
+   * role "length" принимает и "extension". Без role — первый quantity.
+   */
+  function matchSlot(binding, poolSlots, usedIds) {
+    if (!binding || typeof binding !== "object") return null;
+    const q = binding.quantity ? String(binding.quantity) : null;
+    if (!q) return null;
+    const wantRole = binding.role ? String(binding.role) : null;
+    const rolesOk = function (slotRole) {
+      if (!wantRole) return true;
+      if (slotRole === wantRole) return true;
+      if (wantRole === "length" && slotRole === "extension") return true;
+      if (wantRole === "extension" && slotRole === "length") return true;
+      return false;
+    };
+    // 1) exact quantity+role
+    for (let i = 0; i < poolSlots.length; i++) {
+      const s = poolSlots[i];
+      if (usedIds[s.id]) continue;
+      if (s.quantity === q && rolesOk(s.role)) return s;
+    }
+    // 2) quantity only if binding has no role
+    if (!wantRole) {
+      for (let i = 0; i < poolSlots.length; i++) {
+        const s = poolSlots[i];
+        if (usedIds[s.id]) continue;
+        if (s.quantity === q) return s;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * law.bindings → values по pool слотов (quantity+role). Вложенные {law} рекурсивно.
+   * returns { values: {O2: n, …}, meta, nested }
+   */
+  function matchLawToSlots(law, poolSlots, formulasById, usedIds) {
+    usedIds = usedIds || Object.create(null);
+    const out = { values: Object.create(null), meta: [], nested: [] };
+    if (!law || !law.bindings) return out;
+    const formulas = formulasById || {};
+
+    Object.keys(law.bindings)
+      .filter(function (k) {
+        return /^O\d+$/.test(k);
+      })
+      .sort(function (a, b) {
+        return Number(a.slice(1)) - Number(b.slice(1));
+      })
+      .forEach(function (oid) {
+        if (oid === "O1") return; // result
+        const b = law.bindings[oid];
+        if (!b || typeof b !== "object") return;
+        if (b.num != null && isFinite(Number(b.num))) {
+          out.values[oid] = Number(b.num);
+          out.meta.push({ operand: oid, source: "literal", value: out.values[oid] });
+          return;
+        }
+        if (b.law || b.law_id) {
+          const nestedId = b.law || b.law_id;
+          const nestedLaw = formulas[nestedId] || formulas[String(nestedId)];
+          if (nestedLaw) {
+            const nested = matchLawToSlots(nestedLaw, poolSlots, formulas, usedIds);
+            out.nested.push({ law: nestedId, result: nested });
+            // scalar from nested if single matched input used as Δl etc.
+            const keys = Object.keys(nested.values);
+            if (keys.length === 1) {
+              out.values[oid] = nested.values[keys[0]];
+              out.meta.push({
+                operand: oid,
+                source: "law:" + nestedId,
+                value: out.values[oid],
+                via: nested.meta
+              });
+            }
+          }
+          return;
+        }
+        if (b.quantity) {
+          const slot = matchSlot(b, poolSlots, usedIds);
+          if (slot) {
+            usedIds[slot.id] = true;
+            const num = scalarFromParamValue(slot.value);
+            if (num != null) {
+              out.values[oid] = num;
+              out.meta.push({
+                operand: oid,
+                source: "slot:" + slot.id,
+                quantity: slot.quantity,
+                role: slot.role,
+                value: num
+              });
+            }
+          }
+        }
+      });
     return out;
   }
 
@@ -766,12 +896,13 @@
           const num = scalarFromParamValue(p.value);
           if (num == null && !Array.isArray(p.value)) return;
           entries.push({
-            key: (el.id || "?") + ".p" + p.index,
+            key: p.id || ((el.id || "?") + ".p" + p.index),
             quantity: p.quantity,
-            role: p.quantity === "Q008" && Array.isArray(p.value) ? "radius_vector" : p.quantity,
+            role: p.role || (Array.isArray(p.value) ? "radius_vector" : p.quantity),
             value: num != null ? num : p.value,
             element: el.id,
             index: p.index,
+            id: p.id,
             raw: p.value
           });
         });
@@ -807,11 +938,10 @@
   }
 
   /**
-   * S2: применить links конструкции после изменения param.
-   * change: { element: instanceId, quantity?, index?, value } | { element, delta_extension }
-   * Для Q008-links вдоль layout series (x) / parallel (сохраняем y): to.r = from.r + L0·ê + Δl·ê
-   * Если law=P014 и заданы F или Δl — считаем парную величину F=k·Δl.
-   * returns { construction, derived: [{link, F?, delta_l?, k?}] }
+   * Links: { law, params: [slotId…] }. Runtime match (quantity,role) → law bindings.
+   * change: { slotId, value } | { role: "extension", value } | { force }
+   * Геометрия: radius_vector / natural_length / extension из тех же slot ids.
+   * returns { construction, derived, matched }
    */
   function applyConstructionLinks(construction, opts) {
     opts = opts || {};
@@ -819,30 +949,49 @@
       (opts.components && (opts.components.components || opts.components)) || {};
     const change = opts.change || null;
     const outDerived = [];
+    const formulasRaw = opts.formulas || opts.formulasData || null;
+    const formulasById = Object.create(null);
+    if (formulasRaw) {
+      const list = Array.isArray(formulasRaw)
+        ? formulasRaw
+        : formulasRaw.formulas || [];
+      list.forEach(function (law) {
+        if (!law) return;
+        const id = law.law_id || law.id;
+        if (id) formulasById[id] = law;
+      });
+    }
 
-    // deep-ish clone elements params
     const c = {
       id: construction.id,
       name: construction.name,
-      layout: construction.layout || "series",
+      layout: construction.layout || "series_vertical",
       environment: construction.environment || "E0",
-      observer: construction.observer,
+      observer: construction.observer
+        ? {
+            id: construction.observer.id,
+            component: construction.observer.component,
+            params: (construction.observer.params || []).map(cloneParam)
+          }
+        : null,
       elements: (construction.elements || []).map(function (el) {
         return {
           id: el.id,
           component: el.component,
-          params: Array.isArray(el.params)
-            ? el.params.map(function (p) {
-                return {
-                  quantity: p.quantity,
-                  value: Array.isArray(p.value) ? p.value.slice() : p.value
-                };
-              })
-            : []
+          params: Array.isArray(el.params) ? el.params.map(cloneParam) : []
         };
       }),
       links: construction.links || []
     };
+
+    function cloneParam(p) {
+      return {
+        id: p.id,
+        quantity: p.quantity,
+        role: p.role,
+        value: Array.isArray(p.value) ? p.value.slice() : p.value
+      };
+    }
 
     function findEl(id) {
       for (let i = 0; i < c.elements.length; i++) {
@@ -851,164 +1000,287 @@
       return null;
     }
 
-    function getParams(el) {
-      const tmpl = comps[el.component] || {};
-      return resolveElementParams(el, tmpl);
-    }
-
-    function setParamValue(el, index, value) {
-      if (!el.params[index]) {
-        el.params[index] = { quantity: null, value: value };
-      } else {
-        el.params[index] = {
-          quantity: el.params[index].quantity,
-          value: value
-        };
-      }
-    }
-
-    // apply direct change to element
-    if (change && change.element) {
-      const el = findEl(change.element);
-      if (el) {
-        const resolved = getParams(el);
-        if (change.delta_extension != null) {
-          // find L0 (second Q008 scalar) and keep r; extension is derived for links
-          el._delta_extension = Number(change.delta_extension);
-        } else if (change.index != null && change.value !== undefined) {
-          setParamValue(el, change.index, change.value);
-        } else if (change.quantity) {
-          for (let i = resolved.length - 1; i >= 0; i--) {
-            if (resolved[i].quantity === change.quantity) {
-              setParamValue(el, i, change.value);
-              break;
-            }
+    function setSlotValue(slotId, value) {
+      function patch(el) {
+        if (!el || !el.params) return false;
+        for (let i = 0; i < el.params.length; i++) {
+          const p = el.params[i];
+          const pid = p.id || (p.role ? el.id + "." + p.role : null);
+          if (pid === slotId || (p.role && el.id + "." + p.role === slotId)) {
+            el.params[i] = {
+              id: pid || p.id,
+              quantity: p.quantity,
+              role: p.role,
+              value: Array.isArray(value) ? value.slice() : value
+            };
+            return true;
           }
         }
+        return false;
+      }
+      for (let i = 0; i < c.elements.length; i++) {
+        if (patch(c.elements[i])) return true;
+      }
+      return patch(c.observer);
+    }
+
+    // apply change by slotId / role extension / force
+    if (change) {
+      if (change.slotId != null && change.value !== undefined) {
+        setSlotValue(change.slotId, change.value);
+      } else if (change.role === "extension" || change.delta_extension != null) {
+        const v =
+          change.value != null ? change.value : change.delta_extension;
+        // first extension slot in links or elements
+        const slots = indexConstructionSlots(c, comps);
+        Object.keys(slots).forEach(function (id) {
+          if (slots[id].role === "extension") setSlotValue(id, Number(v));
+        });
       }
     }
 
-    const axis = c.layout === "parallel" ? 1 : 0; // series → x, parallel → still link along x primarily
+    const layout = String(c.layout || "series_vertical");
+    const vertical =
+      layout === "series_vertical" ||
+      layout === "vertical" ||
+      layout === "parallel" ||
+      layout.indexOf("vertical") >= 0;
 
     (c.links || []).forEach(function (link) {
-      if (!link) return;
-      const from = findEl(link.from);
-      const to = findEl(link.to);
-      if (!from || !to) return;
+      if (!link || !link.law) return;
+      const slotIds = Array.isArray(link.params) ? link.params : [];
+      const allSlots = indexConstructionSlots(c, comps);
+      const pool = slotIds
+        .map(function (id) {
+          return allSlots[id];
+        })
+        .filter(Boolean);
 
-      const fromP = getParams(from);
-      const toP = getParams(to);
+      const law = formulasById[link.law] || null;
+      let matched = { values: {}, meta: [], nested: [] };
+      if (law) {
+        matched = matchLawToSlots(law, pool, formulasById, Object.create(null));
+      }
 
-      // k from from-element Q013
-      let k = null;
-      let L0 = null;
-      let fromR = [0, 0, 0];
-      fromP.forEach(function (p) {
-        if (p.quantity === "Q013") {
-          const s = scalarFromParamValue(p.value);
-          if (s != null) k = s;
-        }
-        if (p.quantity === "Q008") {
-          if (Array.isArray(p.value) || (p.index === 0 && Array.isArray(p.raw))) {
-            fromR = asVec3(p.raw != null ? p.raw : p.value);
-          } else {
-            const s = scalarFromParamValue(p.value);
-            if (s != null) L0 = s;
+      function elOf(slotId) {
+        if (!slotId) return null;
+        const i = String(slotId).indexOf(".");
+        return i > 0 ? slotId.slice(0, i) : slotId;
+      }
+
+      // g from environment E0
+      let g = 9.8;
+      const envComp = comps[c.environment || "E0"] || comps.E0 || {};
+      if (Array.isArray(envComp.params)) {
+        envComp.params.forEach(function (p) {
+          if (p.role === "free_fall_acceleration" || p.quantity === "Q006") {
+            const n = scalarFromParamValue(p.default != null ? p.default : p.value);
+            if (n != null) g = n;
+          }
+        });
+      }
+
+      // ── P014 Гук + геометрия от потолка ─────────────────
+      if (link.law === "P014") {
+        let k = null;
+        let L0 = null;
+        let deltaL = 0;
+        let extensionId = null;
+        const radiusSlots = [];
+        pool.forEach(function (s) {
+          if (s.role === "spring_constant") {
+            const n = scalarFromParamValue(s.value);
+            if (n != null) k = n;
+          } else if (s.role === "natural_length") {
+            const n = scalarFromParamValue(s.value);
+            if (n != null) L0 = n;
+          } else if (s.role === "extension" || s.role === "length") {
+            const n = scalarFromParamValue(s.value);
+            if (n != null) deltaL = n;
+            extensionId = s.id;
+          } else if (s.role === "radius_vector") {
+            radiusSlots.push(s);
+          }
+        });
+        if (matched.values.O3 != null && isFinite(matched.values.O3)) deltaL = matched.values.O3;
+        if (matched.values.O2 != null) k = matched.values.O2;
+        if (L0 == null) L0 = 0.2;
+
+        // equilibrium: Δl = mg/k (needs mass in construction, not only pool)
+        if (opts.equilibrium || (change && change.equilibrium)) {
+          const all = indexConstructionSlots(c, comps);
+          let m = null;
+          Object.keys(all).forEach(function (id) {
+            if (all[id].role === "mass") {
+              const n = scalarFromParamValue(all[id].value);
+              if (n != null) m = n;
+            }
+          });
+          if (m != null && k != null && k !== 0) {
+            deltaL = (m * g) / k;
+            if (extensionId) setSlotValue(extensionId, deltaL);
           }
         }
-      });
-      // explicit pass: first Q008 array = r, later scalar Q008 = L0
-      fromP.forEach(function (p) {
-        if (p.quantity !== "Q008") return;
-        if (Array.isArray(p.value) || Array.isArray(p.raw)) {
-          fromR = asVec3(p.raw != null ? p.raw : p.value);
-        } else if (typeof p.value === "number") {
-          L0 = p.value;
+
+        let forceOverride =
+          opts.force != null
+            ? Number(opts.force)
+            : change && change.force != null
+              ? Number(change.force)
+              : null;
+        if (forceOverride != null && k != null && k !== 0) {
+          deltaL = forceOverride / k;
+          if (extensionId) setSlotValue(extensionId, deltaL);
         }
-      });
-      if (L0 == null) L0 = 0.2;
 
-      let deltaL =
-        from._delta_extension != null
-          ? Number(from._delta_extension)
-          : opts.delta_extension != null
-            ? Number(opts.delta_extension)
-            : 0;
+        const F = k != null && isFinite(deltaL) ? k * deltaL : null;
 
-      // F = k * Δl if law P014
-      let F = null;
-      if (link.law === "P014" && k != null && isFinite(deltaL)) {
-        F = k * deltaL;
-      }
-      if (opts.force != null && k != null && k !== 0 && link.law === "P014") {
-        F = Number(opts.force);
-        deltaL = F / k;
-        from._delta_extension = deltaL;
-      }
+        // radius order in link.params: [ceiling?, spring.r…, end.r]
+        // anchor = ceiling || first; to = last (series: стык или mass)
+        let ceilingS = null;
+        const springSlots = [];
+        radiusSlots.forEach(function (s) {
+          const e = elOf(s.id);
+          if (e === "ceiling") ceilingS = s;
+          else if (e && String(e).indexOf("spring") === 0) springSlots.push(s);
+        });
+        const anchorS = ceilingS || radiusSlots[0] || null;
+        const endS =
+          radiusSlots.length > 0 ? radiusSlots[radiusSlots.length - 1] : null;
+        const fromR = anchorS ? asVec3(anchorS.value) : [0, 0, 0];
+        const fromRId = anchorS ? anchorS.id : null;
+        const toRId = endS && endS !== anchorS ? endS.id : null;
+        let toR = endS ? asVec3(endS.value) : [0, 0, 0];
 
-      // axis: vertical (default series_vertical / vertical / parallel) → mass below spring (−y);
-      //      horizontal series → +x
-      const layout = String(c.layout || "series_vertical");
-      const vertical =
-        layout === "series_vertical" ||
-        layout === "vertical" ||
-        layout === "parallel" ||
-        layout.indexOf("vertical") >= 0;
+        if (springSlots.length && anchorS) {
+          const topSpring = springSlots[0];
+          if (topSpring.id !== toRId) setSlotValue(topSpring.id, fromR.slice());
+        }
 
-      if (link.quantity === "Q008" || !link.quantity) {
-        const newR = fromR.slice();
-        if (vertical) {
-          // hanging: same x (or keep parallel offset), y decreases
-          if (layout === "parallel") {
-            const toR0 = asVec3(
-              (toP.find(function (p) {
-                return p.quantity === "Q008" && Array.isArray(p.value);
-              }) || {}).value
-            );
-            newR[0] = toR0[0] != null && isFinite(toR0[0]) ? toR0[0] : fromR[0];
-          } else {
+        if (toRId && fromRId) {
+          const newR = fromR.slice();
+          if (vertical) {
             newR[0] = fromR[0];
+            newR[1] = fromR[1] - (L0 + deltaL);
+            newR[2] = fromR[2] || 0;
+          } else {
+            newR[0] = fromR[0] + (L0 + deltaL);
+            newR[1] = fromR[1];
           }
-          newR[1] = fromR[1] - (L0 + deltaL);
-          newR[2] = fromR[2] || 0;
-        } else {
-          newR[0] = fromR[0] + (L0 + deltaL);
-          if (layout === "parallel") {
-            const toR0 = asVec3(
-              (toP.find(function (p) {
-                return p.quantity === "Q008" && Array.isArray(p.value);
-              }) || {}).value
-            );
-            newR[1] = toR0[1];
-          }
+          setSlotValue(toRId, newR);
+          if (allSlots[toRId]) allSlots[toRId].value = newR.slice();
+          if (anchorS && allSlots[fromRId]) allSlots[fromRId].value = fromR.slice();
+          toR = newR;
         }
-        let rIndex = 0;
-        const toResolved = getParams(to);
-        for (let i = 0; i < toResolved.length; i++) {
-          if (toResolved[i].quantity === "Q008") {
-            rIndex = i;
-            break;
-          }
-        }
-        setParamValue(to, rIndex, newR);
+
+        outDerived.push({
+          link: link.id || link.law,
+          law: link.law,
+          from: elOf(fromRId) || "ceiling",
+          to: elOf(toRId) || "mass",
+          k: k,
+          L0: L0,
+          delta_l: deltaL,
+          F: F,
+          F_elastic: F,
+          axis: vertical ? "y" : "x",
+          slots: slotIds.slice(),
+          match: matched.meta
+        });
+        return;
       }
 
-      outDerived.push({
-        link: link.id || link.from + "→" + link.to,
-        from: link.from,
-        to: link.to,
-        k: k,
-        L0: L0,
-        delta_l: deltaL,
-        F: F,
-        law: link.law || null,
-        axis: vertical ? "y" : "x"
-      });
-    });
+      // ── P005 Ньютон: F_net = mg − Σ k·Δl → a = F_net/m ──
+      if (link.law === "P005") {
+        let m = null;
+        let accelId = null;
+        let forceId = null;
+        let F_elastic = 0;
+        const ks = [];
+        const dls = [];
+        pool.forEach(function (s) {
+          if (s.role === "mass") {
+            const n = scalarFromParamValue(s.value);
+            if (n != null) m = n;
+          } else if (s.role === "acceleration") {
+            accelId = s.id;
+          } else if (s.role === "force") {
+            forceId = s.id;
+          } else if (s.role === "spring_constant") {
+            ks.push(scalarFromParamValue(s.value));
+          } else if (s.role === "extension" || s.role === "length") {
+            dls.push(scalarFromParamValue(s.value));
+          }
+        });
+        // pair k with dl in order
+        const nPair = Math.min(ks.length, dls.length);
+        const parallel = layout === "parallel";
+        if (nPair > 0) {
+          if (parallel) {
+            for (let i = 0; i < nPair; i++) {
+              if (ks[i] != null && dls[i] != null) F_elastic += ks[i] * dls[i];
+            }
+          } else {
+            // series: сила на груз = натяжение нижней пружины (последняя пара)
+            const i = nPair - 1;
+            if (ks[i] != null && dls[i] != null) F_elastic = ks[i] * dls[i];
+          }
+        } else {
+          const hookes = outDerived.filter(function (d) {
+            return d.law === "P014" && d.F_elastic != null;
+          });
+          if (parallel) {
+            hookes.forEach(function (d) {
+              F_elastic += d.F_elastic;
+            });
+          } else if (hookes.length) {
+            F_elastic = hookes[hookes.length - 1].F_elastic;
+          }
+        }
+        if (m == null || m === 0) {
+          outDerived.push({
+            link: link.id || link.law,
+            law: link.law,
+            error: "no mass",
+            slots: slotIds.slice(),
+            match: matched.meta
+          });
+          return;
+        }
+        const weight = m * g;
+        // вниз + : растяжение пружины растёт, когда weight > F_elastic
+        const F_net = weight - F_elastic;
+        const a = F_net / m;
+        if (forceId) setSlotValue(forceId, F_net);
+        if (accelId) setSlotValue(accelId, a);
 
-    // strip temp
-    c.elements.forEach(function (el) {
-      delete el._delta_extension;
+        outDerived.push({
+          link: link.id || link.law,
+          law: link.law,
+          from: "mass",
+          to: "mass",
+          m: m,
+          g: g,
+          weight: weight,
+          F_elastic: F_elastic,
+          F_net: F_net,
+          F: F_net,
+          a: a,
+          axis: "y",
+          slots: slotIds.slice(),
+          match: matched.meta
+        });
+        return;
+      }
+
+      // generic law: only match meta
+      outDerived.push({
+        link: link.id || link.law,
+        law: link.law,
+        slots: slotIds.slice(),
+        match: matched.meta,
+        values: matched.values
+      });
     });
 
     return { construction: c, derived: outDerived };
@@ -1460,6 +1732,8 @@
     collectConstructionQuantityEntries: collectConstructionQuantityEntries,
     valuesFromLawAndConstruction: valuesFromLawAndConstruction,
     resolveElementParams: resolveElementParams,
+    indexConstructionSlots: indexConstructionSlots,
+    matchLawToSlots: matchLawToSlots,
     applyConstructionLinks: applyConstructionLinks
   };
 
