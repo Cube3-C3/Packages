@@ -1,110 +1,520 @@
 {
-  "schema_version": "0.3.0",
-  "description": "C* вертикальные, центр Frame (x≈0.5 м при базовом масштабе). series_vertical: пружина сверху, груз снизу (−y). links S2 → P014. Векторы F/mg рисует ConstructLayout.",
+  "schema_version": "0.6.0",
+  "description": "C001: одна пружина; C002: параллельно; C003: последовательно две пружины. Потолок → пружины → груз. P014 + P005.",
   "meta": {
-    "language_order": ["en", "ru"],
+    "language_order": [
+      "en",
+      "ru"
+    ],
     "id_prefix": "C",
     "components_ref": "Componovka/components.json",
-    "decision": "S2",
     "notes": [
-      "layout series_vertical | parallel — ось −y (подвес), x = центр Frame ~0.5 м.",
-      "r в СИ [x,y,z]; z=0. observer в начале координат Frame.",
-      "links: from spring → to mass, quantity Q008, law P014."
+      "C003 series: ceiling → spring_1 → spring_2 → mass; длины складываются.",
+      "Каждый L_hooke* — сегмент (якорь → конец); L_newton — Σ/низкая сила на груз.",
+      "layout series_vertical | parallel."
     ]
   },
   "constructions": [
     {
       "id": "C001",
-      "name": ["vertical series: spring–mass", "вертикально: пружина–груз"],
+      "name": [
+        "ceiling–spring–mass",
+        "потолок–пружина–груз"
+      ],
       "layout": "series_vertical",
       "environment": "E0",
       "observer": {
         "id": "obs",
         "component": "E010",
-        "params": [{ "quantity": "Q008", "value": [0, 0, 0] }]
+        "params": [
+          {
+            "id": "obs.radius_vector",
+            "quantity": "Q008",
+            "role": "radius_vector",
+            "value": [
+              0,
+              0,
+              0
+            ]
+          }
+        ]
       },
       "elements": [
+        {
+          "id": "ceiling",
+          "component": "E003",
+          "params": [
+            {
+              "id": "ceiling.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.5,
+                0.9,
+                0
+              ]
+            }
+          ]
+        },
         {
           "id": "spring",
           "component": "E001",
           "params": [
-            { "quantity": "Q008", "value": [0.5, 0.7, 0] },
-            { "quantity": "Q013", "value": 100 },
-            { "quantity": "Q008", "value": 0.2 }
+            {
+              "id": "spring.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.5,
+                0.9,
+                0
+              ]
+            },
+            {
+              "id": "spring.spring_constant",
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 100
+            },
+            {
+              "id": "spring.natural_length",
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.2
+            },
+            {
+              "id": "spring.extension",
+              "quantity": "Q008",
+              "role": "extension",
+              "value": 0
+            }
           ]
         },
         {
           "id": "mass",
           "component": "E002",
           "params": [
-            { "quantity": "Q008", "value": [0.5, 0.5, 0] },
-            { "quantity": "Q003", "value": 0.5 }
+            {
+              "id": "mass.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.5,
+                0.7,
+                0
+              ]
+            },
+            {
+              "id": "mass.mass",
+              "quantity": "Q003",
+              "role": "mass",
+              "value": 0.5
+            },
+            {
+              "id": "mass.acceleration",
+              "quantity": "Q006",
+              "role": "acceleration",
+              "value": 0
+            },
+            {
+              "id": "mass.force",
+              "quantity": "Q004",
+              "role": "force",
+              "value": 0
+            }
           ]
         }
       ],
       "links": [
         {
-          "id": "L1",
-          "from": "spring",
-          "to": "mass",
-          "quantity": "Q008",
+          "id": "L_hooke",
           "law": "P014",
-          "notes": "подвес: mass.y = spring.y − (L0 + Δl); F = k·Δl"
+          "params": [
+            "spring.spring_constant",
+            "spring.extension",
+            "spring.natural_length",
+            "ceiling.radius_vector",
+            "spring.radius_vector",
+            "mass.radius_vector"
+          ]
+        },
+        {
+          "id": "L_newton",
+          "law": "P005",
+          "params": [
+            "mass.mass",
+            "mass.acceleration",
+            "mass.force",
+            "spring.spring_constant",
+            "spring.extension"
+          ]
         }
       ]
     },
     {
       "id": "C002",
-      "name": ["vertical parallel: two springs–mass", "вертикально параллельно: две пружины–груз"],
+      "name": [
+        "vertical parallel: two springs–mass",
+        "вертикально параллельно: две пружины–груз"
+      ],
       "layout": "parallel",
       "environment": "E0",
       "observer": {
         "id": "obs",
         "component": "E010",
-        "params": [{ "quantity": "Q008", "value": [0, 0, 0] }]
+        "params": [
+          {
+            "id": "obs.radius_vector",
+            "quantity": "Q008",
+            "role": "radius_vector",
+            "value": [
+              0,
+              0,
+              0
+            ]
+          }
+        ]
       },
       "elements": [
+        {
+          "id": "ceiling",
+          "component": "E003",
+          "params": [
+            {
+              "id": "ceiling.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.5,
+                0.9,
+                0
+              ]
+            }
+          ]
+        },
         {
           "id": "spring_a",
           "component": "E001",
           "params": [
-            { "quantity": "Q008", "value": [0.42, 0.7, 0] },
-            { "quantity": "Q013", "value": 80 },
-            { "quantity": "Q008", "value": 0.2 }
+            {
+              "id": "spring_a.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.42,
+                0.9,
+                0
+              ]
+            },
+            {
+              "id": "spring_a.spring_constant",
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 80
+            },
+            {
+              "id": "spring_a.natural_length",
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.2
+            },
+            {
+              "id": "spring_a.extension",
+              "quantity": "Q008",
+              "role": "extension",
+              "value": 0
+            }
           ]
         },
         {
           "id": "spring_b",
           "component": "E001",
           "params": [
-            { "quantity": "Q008", "value": [0.58, 0.7, 0] },
-            { "quantity": "Q013", "value": 120 },
-            { "quantity": "Q008", "value": 0.2 }
+            {
+              "id": "spring_b.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.58,
+                0.9,
+                0
+              ]
+            },
+            {
+              "id": "spring_b.spring_constant",
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 120
+            },
+            {
+              "id": "spring_b.natural_length",
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.2
+            },
+            {
+              "id": "spring_b.extension",
+              "quantity": "Q008",
+              "role": "extension",
+              "value": 0
+            }
           ]
         },
         {
           "id": "mass",
           "component": "E002",
           "params": [
-            { "quantity": "Q008", "value": [0.5, 0.5, 0] },
-            { "quantity": "Q003", "value": 0.5 }
+            {
+              "id": "mass.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.5,
+                0.7,
+                0
+              ]
+            },
+            {
+              "id": "mass.mass",
+              "quantity": "Q003",
+              "role": "mass",
+              "value": 0.5
+            },
+            {
+              "id": "mass.acceleration",
+              "quantity": "Q006",
+              "role": "acceleration",
+              "value": 0
+            },
+            {
+              "id": "mass.force",
+              "quantity": "Q004",
+              "role": "force",
+              "value": 0
+            }
           ]
         }
       ],
       "links": [
         {
-          "id": "L1",
-          "from": "spring_a",
-          "to": "mass",
-          "quantity": "Q008",
-          "law": "P014"
+          "id": "L_hooke_a",
+          "law": "P014",
+          "params": [
+            "spring_a.spring_constant",
+            "spring_a.extension",
+            "spring_a.natural_length",
+            "ceiling.radius_vector",
+            "spring_a.radius_vector",
+            "mass.radius_vector"
+          ]
         },
         {
-          "id": "L2",
-          "from": "spring_b",
-          "to": "mass",
-          "quantity": "Q008",
-          "law": "P014"
+          "id": "L_hooke_b",
+          "law": "P014",
+          "params": [
+            "spring_b.spring_constant",
+            "spring_b.extension",
+            "spring_b.natural_length",
+            "ceiling.radius_vector",
+            "spring_b.radius_vector",
+            "mass.radius_vector"
+          ]
+        },
+        {
+          "id": "L_newton",
+          "law": "P005",
+          "params": [
+            "mass.mass",
+            "mass.acceleration",
+            "mass.force",
+            "spring_a.spring_constant",
+            "spring_a.extension",
+            "spring_b.spring_constant",
+            "spring_b.extension"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C003",
+      "name": [
+        "series springs: ceiling–s1–s2–mass",
+        "последовательно: потолок–пружина–пружина–груз"
+      ],
+      "layout": "series_vertical",
+      "environment": "E0",
+      "observer": {
+        "id": "obs",
+        "component": "E010",
+        "params": [
+          {
+            "id": "obs.radius_vector",
+            "quantity": "Q008",
+            "role": "radius_vector",
+            "value": [
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "elements": [
+        {
+          "id": "ceiling",
+          "component": "E003",
+          "params": [
+            {
+              "id": "ceiling.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.5,
+                0.95,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "spring_1",
+          "component": "E001",
+          "params": [
+            {
+              "id": "spring_1.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.5,
+                0.95,
+                0
+              ]
+            },
+            {
+              "id": "spring_1.spring_constant",
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 100
+            },
+            {
+              "id": "spring_1.natural_length",
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.15
+            },
+            {
+              "id": "spring_1.extension",
+              "quantity": "Q008",
+              "role": "extension",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "spring_2",
+          "component": "E001",
+          "params": [
+            {
+              "id": "spring_2.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.5,
+                0.8,
+                0
+              ]
+            },
+            {
+              "id": "spring_2.spring_constant",
+              "quantity": "Q013",
+              "role": "spring_constant",
+              "value": 100
+            },
+            {
+              "id": "spring_2.natural_length",
+              "quantity": "Q008",
+              "role": "natural_length",
+              "value": 0.15
+            },
+            {
+              "id": "spring_2.extension",
+              "quantity": "Q008",
+              "role": "extension",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "mass",
+          "component": "E002",
+          "params": [
+            {
+              "id": "mass.radius_vector",
+              "quantity": "Q008",
+              "role": "radius_vector",
+              "value": [
+                0.5,
+                0.65,
+                0
+              ]
+            },
+            {
+              "id": "mass.mass",
+              "quantity": "Q003",
+              "role": "mass",
+              "value": 0.5
+            },
+            {
+              "id": "mass.acceleration",
+              "quantity": "Q006",
+              "role": "acceleration",
+              "value": 0
+            },
+            {
+              "id": "mass.force",
+              "quantity": "Q004",
+              "role": "force",
+              "value": 0
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "L_hooke_1",
+          "law": "P014",
+          "params": [
+            "spring_1.spring_constant",
+            "spring_1.extension",
+            "spring_1.natural_length",
+            "ceiling.radius_vector",
+            "spring_1.radius_vector",
+            "spring_2.radius_vector"
+          ]
+        },
+        {
+          "id": "L_hooke_2",
+          "law": "P014",
+          "params": [
+            "spring_2.spring_constant",
+            "spring_2.extension",
+            "spring_2.natural_length",
+            "spring_2.radius_vector",
+            "mass.radius_vector"
+          ]
+        },
+        {
+          "id": "L_newton",
+          "law": "P005",
+          "params": [
+            "mass.mass",
+            "mass.acceleration",
+            "mass.force",
+            "spring_1.spring_constant",
+            "spring_1.extension",
+            "spring_2.spring_constant",
+            "spring_2.extension"
+          ]
         }
       ]
     }
