@@ -1,20 +1,16 @@
 /**
- * construct_layout.js — 2D раскладка элементов конструкции по логическим связям.
+ * construct_layout.js — 2D раскладка элементов конструкции.
  * Host: window.ConstructLayout
  *
- * Вход: construction (из Constructs.json) + пакет данных
- *   { relation_types, components (physi_comps), assets (registry), environment }
+ * Канон (Componovka): thin elements {id, component, overrides} + links {structure_ref:L*, of:[]}.
+ * Pack: { components, links|LINK, formulas, constructs }.
+ * Рекурсия: expandConstruction(include[] / elements[].construction) до layout.
  *
- * Выход: layout model
- *   {
- *     origin, axes, frame (Geo Frame), bounds,
- *     nodes: [{ id, component, role, x, y, w, h, asset, anchor, quantities }],
- *     edges: [{ id, structure_ref, from, to, x1,y1,x2,y2 }]
- *   }
+ * Legacy (не Componovka): relations[] + relation_types + ports — только если нет links/overrides.
+ * Порты / line_types в канон-пути не используются.
  *
- * Координаты — math-space Frame (y-up). Environment (E0) только предоставляет Frame
- * через GeoCompute.frameFromEnv; toSVG → GeoCompute.toScreen. Линии port→port, не хранятся.
- * Требует: window.GeoCompute (загружать geo_compute.js до этого модуля).
+ * Выход: layout model { nodes, edges, bounds, derived, … }
+ * Требует: window.GeoCompute (scene_compute.js) до этого модуля.
  */
 (function (global) {
   "use strict";
@@ -27,6 +23,18 @@
   // в размер box. Раньше assetSize() всегда возвращал фиксированные 120×40 для пружины,
   // независимо от реального L, что и приводило к наложениям/разрывам при explicit position.
   const DEFAULT_PX_PER_M = 300;
+
+  // Цвет стрелки вектора по роли величины (можно переопределить через edge.color).
+  const VECTOR_STYLE = {
+    force: "#dc2626",
+    velocity: "#2563eb",
+    acceleration: "#16a34a",
+    displacement: "#9333ea",
+    default: "#18181b"
+  };
+  function vectorColor(e) {
+    return e.color || VECTOR_STYLE[e.role] || VECTOR_STYLE.default;
+  }
 
   function pick(arr, lang) {
     if (!Array.isArray(arr)) return arr != null ? String(arr) : "";
@@ -176,31 +184,44 @@
   function envFrame(componentsMap, envId, viewportOpts) {
     const e = componentsMap[envId || "E0"] || {};
     const gRaw = e.g || {};
-    // g всегда адресуется к Q006 (free-fall acceleration); value — текущее для просмотра/симуляции
+    let gVal = gRaw.value != null ? Number(gRaw.value) : 9.8;
+    // Componovka E0: g in params as Q006
+    if (Array.isArray(e.params)) {
+      e.params.forEach(function (p) {
+        if (p && p.quantity === "Q006" && p.default != null) gVal = Number(p.default);
+      });
+    }
     const g = {
       quantity: gRaw.quantity || "Q006",
       role: gRaw.role || "free_fall_acceleration",
-      value: gRaw.value != null ? Number(gRaw.value) : 9.8,
+      value: gVal,
       unit: gRaw.unit || "m/s^2",
       direction: gRaw.direction || "down"
     };
-    // Frame из Geo-слоя: E0 — провайдер Frame, не особый случай координатной логики.
     let frame = null;
+    const frameSrc = e.frame
+      ? Object.assign({}, e, e.frame, {
+          origin: (e.frame.origin || e.origin || [0, 0]).slice(0, 2)
+        })
+      : e;
     if (global.GeoCompute && typeof global.GeoCompute.frameFromEnv === "function") {
-      frame = global.GeoCompute.frameFromEnv(e, viewportOpts || {});
+      frame = global.GeoCompute.frameFromEnv(frameSrc, viewportOpts || {});
     }
+    const origin = Array.isArray(e.frame && e.frame.origin)
+      ? e.frame.origin.slice(0, 2)
+      : Array.isArray(e.origin)
+        ? e.origin.slice(0, 2)
+        : [0, 0];
     return {
-      origin: Array.isArray(e.origin) ? e.origin.slice() : [0, 0],
-      origin_corner: e.origin_corner || "bottom_left",
-      axes: e.axes || { x: "right", y: "up" },
-      // опорный вектор углов: горизонталь вправо; все углы CCW от него
+      origin: origin,
+      origin_corner: (e.frame && e.frame.origin_corner) || e.origin_corner || "bottom_left",
+      axes: (e.frame && e.frame.axes) || e.axes || { x: "right", y: "up" },
       angle_ref: Array.isArray(e.angle_ref) ? e.angle_ref.slice() : [1, 0],
       angle_convention: e.angle_convention || "ccw_from_ref",
       g: g,
       quantities: e.quantities || { g: { quantity: g.quantity, role: g.role, value: g.value, unit: g.unit } },
       assumptions: e.assumptions || [],
       initial_conditions: e.initial_conditions || {},
-      // единый Frame (Geo). toScreen/fromScreen — через него.
       frame: frame
     };
   }
@@ -252,11 +273,33 @@
   }
 
   /**
-   * Resolve quantities for an element instance:
-   * instance.quantities override component defaults; always keep quantity ID + value.
+   * Resolve quantities for an element instance.
+   * Prefer thin Componovka path (GeoCompute.resolveElementParams: defaults + overrides).
+   * Legacy: instance.quantities override component.quantities dict.
    */
   function resolveQuantities(el, comp) {
     const out = Object.create(null);
+    const GC = global.GeoCompute;
+    if (
+      GC &&
+      typeof GC.resolveElementParams === "function" &&
+      ((comp && Array.isArray(comp.params)) ||
+        (el && (el.overrides || Array.isArray(el.params))))
+    ) {
+      const list = GC.resolveElementParams(el, comp) || [];
+      list.forEach(function (p) {
+        if (!p || !p.role) return;
+        out[p.role] = {
+          quantity: p.quantity || null,
+          role: p.role,
+          value: p.value,
+          unit: null,
+          id: p.id,
+          symbol: p.role
+        };
+      });
+      if (Object.keys(out).length) return out;
+    }
     const defaults = (comp && comp.quantities) || {};
     const inst = (el && el.quantities) || {};
     const keys = Object.keys(defaults).concat(Object.keys(inst));
@@ -482,9 +525,263 @@
   }
 
   /**
+   * Componovka (S2): новая схема без relations/quantities{} —
+   * elements[].params[] (материальная точка, Q008 = r в метрах) + links[{from,to,quantity,law}].
+   * Контуры элементов не рисуем (primitive: material_point) — только точка + подпись.
+   * Смещение → сила идёт через GeoCompute.applyConstructionLinks (единая физика, не дублируем здесь).
+   */
+  function isComponovka(construction) {
+    if (!construction) return false;
+    if (Array.isArray(construction.links) && construction.links.length) return true;
+    if (Array.isArray(construction.include) && construction.include.length) return true;
+    // thin / overrides or nested construction refs — not legacy relations
+    if (
+      (construction.elements || []).some(function (el) {
+        return (
+          el &&
+          (el.overrides ||
+            Array.isArray(el.params) ||
+            el.construction ||
+            el.c)
+        );
+      })
+    ) {
+      return true;
+    }
+    // explicit legacy only when relations[] present without links
+    if (Array.isArray(construction.relations) && construction.relations.length) {
+      return false;
+    }
+    return false;
+  }
+
+  function componovkaNodeKind(comp) {
+    const id = comp && comp.id;
+    const name = ((comp && comp.name && (comp.name[1] || comp.name[0])) || "").toLowerCase();
+    if (id === "E003" || name.indexOf("потол") >= 0 || name.indexOf("ceiling") >= 0 ||
+        name.indexOf("опора") >= 0 || name.indexOf("support") >= 0) return "fixed_support";
+    if (id === "E001" || name.indexOf("пружин") >= 0 || name.indexOf("spring") >= 0) return "elastic_element";
+    if (id === "E002" || name.indexOf("груз") >= 0 || name.indexOf("брус") >= 0 ||
+        name.indexOf("mass") >= 0 || name.indexOf("block") >= 0) return "rigid_body";
+    return null;
+  }
+
+  function componovkaR(el, comp, GC) {
+    const params = GC && typeof GC.resolveElementParams === "function"
+      ? GC.resolveElementParams(el, comp)
+      : (el && el.params) || [];
+    for (let i = 0; i < params.length; i++) {
+      if (params[i].role === "radius_vector") return params[i].value;
+    }
+    for (let i = 0; i < params.length; i++) {
+      if (params[i].quantity === "Q008" && Array.isArray(params[i].value)) return params[i].value;
+    }
+    return [0, 0, 0];
+  }
+
+  function layoutComponovka(construction, pack, options) {
+    options = options || {};
+    const margin = options.margin != null ? options.margin : MARGIN;
+    const pxPerMeter = options.pxPerMeter != null ? options.pxPerMeter : DEFAULT_PX_PER_M;
+    const nodeSizeM = options.nodeSize != null ? options.nodeSize : 0.14; // м, иконка материальной точки
+    const comps = getComponentsMap(pack && pack.components);
+    const env = envFrame(comps, construction.environment || "E0");
+    const GC = global.GeoCompute;
+    // recursive include[] / nested construction → flat elements+links
+    if (GC && typeof GC.expandConstruction === "function") {
+      construction = GC.expandConstruction(construction, {
+        constructions:
+          (pack && pack.constructs && pack.constructs.constructions) ||
+          (pack && pack.constructions) ||
+          null,
+        constructs: pack && pack.constructs,
+        pack: pack
+      });
+    }
+    const observerId = construction.observer && construction.observer.id;
+
+    const elements = (construction.elements || []).filter(function (el) {
+      return el && el.id !== observerId;
+    });
+
+    const posById = Object.create(null);
+    const nodesOut = [];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    function thinQuantities(el, comp) {
+      const out = Object.create(null);
+      if (!GC || typeof GC.resolveElementParams !== "function") return out;
+      const list = GC.resolveElementParams(el, comp) || [];
+      list.forEach(function (p) {
+        if (!p || !p.role) return;
+        out[p.role] = {
+          quantity: p.quantity,
+          role: p.role,
+          value: p.value,
+          symbol: p.role,
+          id: p.id
+        };
+      });
+      return out;
+    }
+
+    elements.forEach(function (el) {
+      const comp = comps[el.component] || {};
+      const r = componovkaR(el, comp, GC);
+      const cx = (Number(r[0]) || 0) * pxPerMeter;
+      const cy = (Number(r[1]) || 0) * pxPerMeter;
+      posById[el.id] = [cx, cy];
+      const w = nodeSizeM * pxPerMeter, h = w;
+      const x = cx - w / 2, y = cy - h / 2;
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x + w);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y + h);
+      nodesOut.push({
+        id: el.id,
+        component: el.component,
+        role: null,
+        quantities: thinQuantities(el, comp),
+        kind: componovkaNodeKind(comp),
+        ports_def: null,
+        asset: null, src: null, anchor: [0, 0], opacity: 1, scale: 1,
+        position: [cx, cy],
+        rotation: 0,
+        x: x, y: y, w: w, h: h,
+        label: comp.name ? (comp.name[1] || comp.name[0]) : el.id
+      });
+    });
+
+    const edgesOut = [];
+    let derived = [];
+    if (GC && typeof GC.applyConstructionLinks === "function") {
+      const res = GC.applyConstructionLinks(construction, {
+        components: pack && pack.components,
+        links: pack && (pack.links || pack.LINK),
+        formulas: pack && (pack.formulas || pack.physi_formulas),
+        constructions:
+          (pack && pack.constructs && pack.constructs.constructions) ||
+          (pack && pack.constructions) ||
+          null,
+        change: options.change || null,
+        delta_extension: options.delta_extension,
+        force: options.force,
+        equilibrium: options.equilibrium != null ? options.equilibrium : true
+      });
+      derived = res.derived || [];
+      // sync positions + thin quantities after physics
+      (res.construction.elements || []).forEach(function (el) {
+        if (!posById[el.id]) return;
+        const r = componovkaR(el, comps[el.component] || {}, GC);
+        posById[el.id] = [(Number(r[0]) || 0) * pxPerMeter, (Number(r[1]) || 0) * pxPerMeter];
+      });
+      nodesOut.forEach(function (n) {
+        const p = posById[n.id];
+        if (!p) return;
+        n.x = p[0] - n.w / 2; n.y = p[1] - n.h / 2; n.position = p;
+        minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x + n.w);
+        minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y + n.h);
+        const el = (res.construction.elements || []).find(function (e) {
+          return e && e.id === n.id;
+        });
+        if (el) n.quantities = thinQuantities(el, comps[n.component] || {});
+      });
+    }
+    // geometry of links + force vectors (spring → mass chain line; F on mass toward spring)
+    const forceScale = options.forceScale != null ? options.forceScale : 0.004; // м/Н → px via pxPerMeter later; here already px
+    const forceLenPx = function (F) {
+      const L = Math.abs(F) * forceScale * pxPerMeter;
+      return Math.max(18, Math.min(L, 120));
+    };
+    derived.forEach(function (d) {
+      const p1 = posById[d.from], p2 = posById[d.to];
+      if (!p1 || !p2) return;
+      // spring body / link line
+      edgesOut.push({
+        id: d.link + "_link",
+        kind: "generic",
+        x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1]
+      });
+      if (d.F != null) {
+        // unit direction mass → spring (force of spring on mass)
+        const dx = p1[0] - p2[0];
+        const dy = p1[1] - p2[1];
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const ux = dx / len;
+        const uy = dy / len;
+        const fl = forceLenPx(d.F);
+        const sign = d.F >= 0 ? 1 : -1;
+        edgesOut.push({
+          id: d.link + "_F",
+          kind: "vector",
+          role: "force",
+          x1: p2[0],
+          y1: p2[1],
+          x2: p2[0] + ux * fl * sign,
+          y2: p2[1] + uy * fl * sign,
+          label: "F = " + Number(d.F).toFixed(2) + " Н"
+        });
+      }
+    });
+    // weight mg on each mass-like node (E002)
+    const g = (env.g && env.g.value != null) ? Number(env.g.value) : 9.8;
+    elements.forEach(function (el) {
+      const comp = comps[el.component] || {};
+      if (String(el.component) !== "E002" && !(comp.name && String(comp.name[0]).indexOf("mass") >= 0)) return;
+      const p = posById[el.id];
+      if (!p) return;
+      let m = 0.5;
+      if (GC && typeof GC.resolveElementParams === "function") {
+        GC.resolveElementParams(el, comp).forEach(function (pr) {
+          if (pr.quantity === "Q003" && typeof pr.value === "number") m = pr.value;
+        });
+      }
+      const Wf = m * g;
+      const fl = forceLenPx(Wf);
+      edgesOut.push({
+        id: el.id + "_mg",
+        kind: "vector",
+        role: "force",
+        color: "#b45309",
+        x1: p[0],
+        y1: p[1],
+        x2: p[0],
+        y2: p[1] - fl,
+        label: "mg = " + Wf.toFixed(2) + " Н"
+      });
+    });
+
+    const model = {
+      id: construction.id,
+      environment: construction.environment || "E0",
+      origin: env.origin,
+      axes: env.axes,
+      g: env.g,
+      frame: env.frame || null,
+      symbols: {},
+      rotation_deg: 0,
+      bounds: {
+        x: Number.isFinite(minX) ? minX - margin : env.origin[0],
+        y: Number.isFinite(minY) ? minY - margin : env.origin[1],
+        w: (Number.isFinite(minX) ? maxX - minX : pxPerMeter) + margin * 2,
+        h: (Number.isFinite(minY) ? maxY - minY : pxPerMeter) + margin * 2
+      },
+      nodes: nodesOut,
+      edges: edgesOut,
+      derived: derived
+    };
+    model.center = centerOf(model);
+    return model;
+  }
+
+  /**
    * Main: construction → layout model (math coords, y up).
    */
   function layout(construction, pack, options) {
+    // Канон: links / thin / include → Componovka (без ports / relation_types).
+    if (isComponovka(construction)) {
+      return layoutComponovka(construction, pack, options || {});
+    }
+
+    // Legacy-only path (relations[] + ports) — не используется паспортом конструкций.
     options = options || {};
     const gapS = options.gapSeries != null ? options.gapSeries : GAP_SERIES;
     const gapP = options.gapParallel != null ? options.gapParallel : GAP_PARALLEL;
@@ -841,6 +1138,8 @@
     const jointR = 4;
     const labelFs = 10;
 
+    const hasVectors = (layoutModel.edges || []).some(function (e) { return e.kind === "vector"; });
+
     let parts = [];
     parts.push(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
@@ -857,6 +1156,20 @@
         H +
         'px;max-width:100%;background:transparent;overflow:hidden">'
     );
+    if (hasVectors) {
+      parts.push(
+        '<defs>' +
+          Object.keys(VECTOR_STYLE).map(function (role) {
+            const id = "arrow-" + role;
+            const color = VECTOR_STYLE[role];
+            return (
+              '<marker id="' + id + '" markerWidth="8" markerHeight="8" refX="6" refY="3" ' +
+              'orient="auto-start-reverse"><path d="M0 0 L6 3 L0 6 Z" fill="' + color + '"/></marker>'
+            );
+          }).join("") +
+        '</defs>'
+      );
+    }
 
     // edges
     (layoutModel.edges || []).forEach(function (e) {
@@ -898,6 +1211,35 @@
               '" r="' +
               jointR +
               '" fill="#2563eb"/>'
+          );
+        }
+      } else if (e.kind === "vector") {
+        const role = VECTOR_STYLE[e.role] ? e.role : "default";
+        const color = vectorColor(e);
+        const markerId = e.color ? null : "arrow-" + role;
+        parts.push(
+          '<line x1="' +
+            sx(e.x1) +
+            '" y1="' +
+            syPt(e.y1) +
+            '" x2="' +
+            sx(e.x2) +
+            '" y2="' +
+            syPt(e.y2) +
+            '" stroke="' +
+            color +
+            '" stroke-width="' +
+            strokeMain +
+            '"' +
+            (markerId ? ' marker-end="url(#' + markerId + ')"' : "") +
+            '/>'
+        );
+        if (showLabels && e.label) {
+          const mx = (sx(e.x1) + sx(e.x2)) / 2;
+          const my = (syPt(e.y1) + syPt(e.y2)) / 2 - 4;
+          parts.push(
+            '<text x="' + mx + '" y="' + my + '" text-anchor="middle" font-size="' +
+              labelFs + '" fill="' + color + '">' + String(e.label) + '</text>'
           );
         }
       } else {

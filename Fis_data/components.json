@@ -1,0 +1,162 @@
+{
+  "schema_version": "0.9.1",
+  "description": "E* params {quantity, role, default}. E003 = неподвижная опора/потолок (поверхность). Канон Componovka only.",
+  "meta": {
+    "language_order": [
+      "en",
+      "ru"
+    ],
+    "id_prefix": "E",
+    "decision": "D1",
+    "notes": [
+      "params[]: { quantity, role, default } — СИ.",
+      "E003 fixed_support: только radius_vector (закреплено).",
+      "C* thin: {id, component, overrides:{role:value}}; links: {structure_ref:L*, of:[elId…] } via LINK.json."
+    ]
+  },
+  "components": {
+    "E0": {
+      "id": "E0",
+      "name": [
+        "environment",
+        "среда"
+      ],
+      "primitive": "material_point",
+      "params": [
+        {
+          "quantity": "Q008",
+          "role": "radius_vector",
+          "default": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "quantity": "Q006",
+          "role": "free_fall_acceleration",
+          "default": 9.8
+        }
+      ],
+      "frame": {
+        "origin": [
+          0,
+          0,
+          0
+        ],
+        "origin_corner": "bottom_left",
+        "axes": {
+          "x": "right",
+          "y": "up",
+          "z": "out"
+        }
+      }
+    },
+    "E001": {
+      "id": "E001",
+      "name": [
+        "spring",
+        "пружина"
+      ],
+      "primitive": "material_point",
+      "params": [
+        {
+          "quantity": "Q008",
+          "role": "radius_vector",
+          "default": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "quantity": "Q013",
+          "role": "spring_constant",
+          "default": 100
+        },
+        {
+          "quantity": "Q008",
+          "role": "natural_length",
+          "default": 0.2
+        },
+        {
+          "quantity": "Q008",
+          "role": "extension",
+          "default": 0
+        }
+      ]
+    },
+    "E002": {
+      "id": "E002",
+      "name": [
+        "block / mass",
+        "брусок / груз"
+      ],
+      "primitive": "material_point",
+      "params": [
+        {
+          "quantity": "Q008",
+          "role": "radius_vector",
+          "default": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "quantity": "Q003",
+          "role": "mass",
+          "default": 0.5
+        },
+        {
+          "quantity": "Q006",
+          "role": "acceleration",
+          "default": 0
+        },
+        {
+          "quantity": "Q004",
+          "role": "force",
+          "default": 0
+        }
+      ]
+    },
+    "E003": {
+      "id": "E003",
+      "name": [
+        "ceiling / fixed support",
+        "потолок / опора"
+      ],
+      "primitive": "material_point",
+      "params": [
+        {
+          "quantity": "Q008",
+          "role": "radius_vector",
+          "default": [
+            0.5,
+            0.9,
+            0
+          ]
+        }
+      ]
+    },
+    "E010": {
+      "id": "E010",
+      "name": [
+        "observer",
+        "наблюдатель"
+      ],
+      "primitive": "material_point",
+      "params": [
+        {
+          "quantity": "Q008",
+          "role": "radius_vector",
+          "default": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  }
+}

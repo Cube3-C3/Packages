@@ -49,7 +49,6 @@
       pack.filter_ontology = json;
     } else if (json.style_kinds || (json.tree && json.fields)) pack.presentation_ontology = json;
     else if (json.manifests) pack.card_manifests = json;
-    else if (json.arity && json.indexes && json.operators) pack.mechanics = json;
     else if (json.operators || json.math_kinds) pack.math_ops = json;
     else if (name.indexOf("units") >= 0) pack.units = json;
     else if (name.indexOf("physi_quant") >= 0 || name.indexOf("quant") >= 0) pack.physi_quant = json;
@@ -67,13 +66,20 @@
     ) {
       pack.constructs = json;
     } else if (
-      name.indexOf("physi_comp") >= 0 ||
-      name.indexOf("comps") >= 0 ||
+      name.indexOf("componovka") >= 0 ||
+      name.indexOf("components") >= 0 ||
       (json.components && typeof json.components === "object" && !json.constructions)
     ) {
       pack.components = json;
     } else if (name.indexOf("relation") >= 0 || (json.types && name.indexOf("relation") >= 0)) {
       pack.relation_types = json;
+    } else if (
+      name === "LINK.json" ||
+      name.indexOf("LINK") >= 0 ||
+      (json.id === "LINK" && json.schemes)
+    ) {
+      pack.links = json;
+      pack.LINK = json;
     } else if (name.indexOf("line_type") >= 0) {
       pack.line_types = json;
     } else if (
@@ -483,7 +489,24 @@
       search: "",
       symbolMode: false,
       /** side + top filter values: { [criterionId]: { value, ... } } */
-      filters: {}
+      filters: {},
+      /**
+       * Frame controls (env + graph): unit scale ids change labels only;
+       * scale_px = CSS-px per SI metre — graphical segment length stays.
+       * Same block shape for both frames (platform protocol).
+       */
+      frame_env: {
+        scale_id_h: "U004",
+        scale_id_v: "U004",
+        scale_px: 320
+      },
+      frame_graph: {
+        scale_id_h: "U004",
+        scale_id_v: "U004",
+        scale_px: 320,
+        /** dependency to plot (one menu, not a formula list) */
+        dep_law_id: "P014"
+      }
     };
   }
 
@@ -617,6 +640,41 @@
         } else if (inner.type === "custom") {
           intents.push({ type: "custom", payload: inner.payload || {} });
         }
+        break;
+      }
+
+      /**
+       * Frame scale block (env | graph): labels only — scale_px (px/m SI) unchanged
+       * unless payload.scale_px is set explicitly.
+       * payload: { target: "env"|"graph", scale_id_h?, scale_id_v?, scale_px? }
+       */
+      case "frame_scale_change": {
+        const target = p.target === "graph" ? "graph" : "env";
+        const key = target === "graph" ? "frame_graph" : "frame_env";
+        const cur = Object.assign({}, next[key] || {});
+        if (p.scale_id_h != null) cur.scale_id_h = String(p.scale_id_h);
+        if (p.scale_id_v != null) cur.scale_id_v = String(p.scale_id_v);
+        if (p.scale_px != null) {
+          const n = Number(p.scale_px);
+          if (isFinite(n) && n > 0) cur.scale_px = n;
+        }
+        next[key] = cur;
+        intents.push({ type: "refresh_graph", target: target });
+        break;
+      }
+
+      /**
+       * Graph dependency menu (one select, not formula list).
+       * payload: { law_id } — which y(x) relation to view.
+       */
+      case "graph_dep_change": {
+        const lid = p.law_id || p.id || null;
+        const fg = Object.assign({}, next.frame_graph || {});
+        if (lid) fg.dep_law_id = String(lid);
+        next.frame_graph = fg;
+        // also mirror into law_id for passport/list alignment when useful
+        if (lid) next.law_id = String(lid);
+        intents.push({ type: "refresh_graph", target: "graph" });
         break;
       }
 
@@ -961,18 +1019,28 @@
                     return usageMatchesSection(data, u, subjectId, sectionId);
                   }) || pick;
               }
-              const label = pick
-                ? String(pick.symbol || "") +
-                  (pick.name
-                    ? " · " +
-                      (Array.isArray(pick.name)
-                        ? lang === "ru"
-                          ? pick.name[1] || pick.name[0]
-                          : pick.name[0]
-                        : pick.name)
-                    : "")
-                : item.id;
-              html = '<span class="pres-title">' + String(label || "—") + "</span>";
+              let sym = pick ? String(pick.symbol || "") : "";
+              if (
+                sym &&
+                global.FisUnits &&
+                typeof global.FisUnits.formatVectorSymbol === "function" &&
+                typeof global.FisUnits.isVectorMathKind === "function" &&
+                global.FisUnits.isVectorMathKind(item)
+              ) {
+                sym = global.FisUnits.formatVectorSymbol(sym, item, {
+                  format: "html"
+                });
+              }
+              const namePart = pick && pick.name
+                ? " · " +
+                  (Array.isArray(pick.name)
+                    ? lang === "ru"
+                      ? pick.name[1] || pick.name[0]
+                      : pick.name[0]
+                    : pick.name)
+                : "";
+              const label = pick ? sym + namePart : item.id;
+              html = '<span class="pres-title">' + (label || "—") + "</span>";
             }
           }
           return { id: id, html: html };
@@ -1161,6 +1229,97 @@
         return null;
       },
 
+      /**
+       * Frame control blocks for env + graph (platform renders selects/slider).
+       * Unit scale options from units [L]; changing scale_id does NOT change scale_px
+       * (graphical segment length in px per SI metre is independent — as in frame_proto).
+       *
+       * ctx.state.frame_env / frame_graph
+       * returns { env, graph } descriptors
+       */
+      frame_controls: function (ctx) {
+        const lang = (ctx && ctx.lang) || "ru";
+        const st = (ctx && ctx.state) || {};
+        const env = Object.assign(
+          { scale_id_h: "U004", scale_id_v: "U004", scale_px: 320 },
+          st.frame_env || {}
+        );
+        const graph = Object.assign(
+          {
+            scale_id_h: "U004",
+            scale_id_v: "U004",
+            scale_px: 320,
+            dep_law_id: "P014"
+          },
+          st.frame_graph || {}
+        );
+
+        const scaleOptions = lengthScaleOptions(data, lang);
+
+        function block(id, snap, withDep) {
+          const b = {
+            id: id,
+            /** graphical scale: px per SI metre — independent of unit labels */
+            scale_px: {
+              value: snap.scale_px != null ? Number(snap.scale_px) : 320,
+              min: 40,
+              max: 600,
+              step: 10,
+              unit: "px/m"
+            },
+            scale_h: {
+              value: snap.scale_id_h || "U004",
+              options: scaleOptions,
+              axis: "h"
+            },
+            scale_v: {
+              value: snap.scale_id_v || "U004",
+              options: scaleOptions,
+              axis: "v"
+            },
+            note:
+              lang === "en"
+                ? "Unit scale = labels only; px/m keeps segment length"
+                : "Шкала единиц — только подписи; px/m сохраняет длину отрезка"
+          };
+          if (withDep) {
+            b.dependency = {
+              value: snap.dep_law_id || "P014",
+              options: graphDependencyOptions(data, lang),
+              signal: "graph_dep_change"
+            };
+          }
+          return b;
+        }
+
+        return {
+          env: block("frame_env", env, false),
+          graph: block("frame_graph", graph, true),
+          signals: {
+            scale: "frame_scale_change",
+            dependency: "graph_dep_change"
+          }
+        };
+      },
+
+      /**
+       * Single menu: which dependency y(x) to view on graph frame.
+       * Prefer explicit graphable set; fallback to formulas list head.
+       */
+      graph_dependency_menu: function (ctx) {
+        const lang = (ctx && ctx.lang) || "ru";
+        const st = (ctx && ctx.state) || {};
+        const cur =
+          (st.frame_graph && st.frame_graph.dep_law_id) ||
+          st.law_id ||
+          "P014";
+        return {
+          value: cur,
+          options: graphDependencyOptions(data, lang),
+          signal: "graph_dep_change"
+        };
+      },
+
       summarize: function () {
         const keys = [
           "physi_quant",
@@ -1173,12 +1332,13 @@
           "presentation_ontology",
           "card_manifests",
           "math_ops",
-          "mechanics",
           "constructs",
           "components",
           "relation_types",
           "line_types",
-          "assets"
+          "assets",
+          "links",
+          "LINK"
         ].filter(function (k) {
           return !!data[k];
         });
@@ -1197,25 +1357,145 @@
     };
   }
 
-  global.FisPackage = {
-    /** Signal types this package may handle (platform registry is authoritative). */
-    supportedSignals: [
-      "card_type_change",
-      "filter_change",
-      "search_change",
-      "list_select",
-      "slot_action",
-      "lang_change"
-    ],
+  /** [L] scales for frame H/V selects — factor = SI metres per 1 label unit. */
+  function lengthScaleOptions(pack, lang) {
+    lang = lang || "ru";
+    const FU = global.FisUnits;
+    const unitsData = pack && pack.units;
+    if (FU && typeof FU.listNamedUnits === "function" && unitsData) {
+      const list = FU.listNamedUnits("[L]", unitsData, lang) || [];
+      if (list.length) {
+        return list.map(function (u) {
+          return {
+            id: u.id || u.scale_id,
+            symbol: u.symbol,
+            name: u.name,
+            factor: u.factor != null ? u.factor : 1
+          };
+        });
+      }
+    }
+    // minimal fallback (m / cm / mm / km) as in frame_proto UnitsSlice
+    return [
+      { id: "U004", symbol: lang === "en" ? "m" : "м", name: lang === "en" ? "metre" : "метр", factor: 1 },
+      { id: "U028", symbol: lang === "en" ? "cm" : "см", name: lang === "en" ? "centimetre" : "сантиметр", factor: 0.01 },
+      { id: "U032", symbol: lang === "en" ? "mm" : "мм", name: lang === "en" ? "millimetre" : "миллиметр", factor: 0.001 },
+      { id: "U031", symbol: lang === "en" ? "km" : "км", name: lang === "en" ? "kilometre" : "километр", factor: 1000 }
+    ];
+  }
 
-    /** Pure compute layer (variant A) */
+  /**
+   * One dependency menu for graph frame (not a scrolling formula list).
+   * Curated graphable laws first; labels bilingual via formula name.
+   */
+  function graphDependencyOptions(pack, lang) {
+    lang = lang || "ru";
+    const li = lang === "en" ? 0 : 1;
+    const preferred = ["P014", "P008", "P005"];
+    const byId = Object.create(null);
+    const raw = pack && pack.formulas;
+    const list = raw
+      ? Array.isArray(raw)
+        ? raw
+        : raw.formulas || []
+      : [];
+    list.forEach(function (law) {
+      if (!law) return;
+      const id = law.law_id || law.id;
+      if (id) byId[id] = law;
+    });
+    const out = [];
+    const seen = Object.create(null);
+    function pushId(id, fallbackLabel) {
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      const law = byId[id];
+      let label = fallbackLabel || id;
+      if (law && law.name) {
+        label =
+          (Array.isArray(law.name) ? law.name[li] || law.name[0] : law.name) ||
+          id;
+      }
+      out.push({ id: id, label: label });
+    }
+    preferred.forEach(function (id) {
+      const fb =
+        id === "P014"
+          ? lang === "en"
+            ? "Hooke · F(x)"
+            : "Гук · F(x)"
+          : id === "P008"
+            ? lang === "en"
+              ? "Elastic energy · U(x)"
+              : "Упругая энергия · U(x)"
+            : lang === "en"
+              ? "Newton II · F(a)"
+              : "Ньютон II · F(a)";
+      pushId(id, fb);
+    });
+    // if construction selected — add linked laws
+    return out;
+  }
+
+  /** Declared uses — sync with PACKAGE_CONTRACT.md §2 */
+  const PACKAGE_MANIFEST = {
+    id: "phys.hub",
+    version: "0.5",
+    uses: {
+      components: ["filters", "list", "passport", "table", "graph", "text"],
+      signals: [
+        "lang_change",
+        "card_type_change",
+        "filter_change",
+        "search_change",
+        "list_select",
+        "slot_action",
+        "frame_scale_change",
+        "graph_dep_change"
+      ],
+      styles: ["title", "symbol", "muted", "chip", "algebra", "block"]
+    }
+  };
+
+  /**
+   * Host helper: bind passport DOM → handleSignal.
+   * Listens for CustomEvent "fis-signal" (bubbles from dep select).
+   * api: { getState, setState, pack, onIntents? } → dispose()
+   */
+  function connectPassportSignals(root, api) {
+    if (!root || !api) return function () {};
+    function onFisSignal(ev) {
+      const d = (ev && ev.detail) || {};
+      if (!d.type) return;
+      const prev = typeof api.getState === "function" ? api.getState() : null;
+      const result = handleSignal(
+        { type: d.type, payload: d.payload || {} },
+        prev,
+        api.pack
+      );
+      if (typeof api.setState === "function") api.setState(result.state);
+      if (typeof api.onIntents === "function") {
+        api.onIntents(result.intents || [], result.state);
+      }
+    }
+    root.addEventListener("fis-signal", onFisSignal);
+    return function dispose() {
+      root.removeEventListener("fis-signal", onFisSignal);
+    };
+  }
+
+  global.FisPackage = {
+    supportedSignals: PACKAGE_MANIFEST.uses.signals.slice(),
+
+    packageManifest: function () {
+      return PACKAGE_MANIFEST;
+    },
+
     createInitialState: createInitialState,
     handleSignal: handleSignal,
-
-    /** Data ingest */
     ingestFile: ingestFile,
+    connectPassportSignals: connectPassportSignals,
 
-    /** Legacy handler factory — platform may still call until fully migrated */
     handlers: handlers,
     idFieldForCardType: idFieldForCardType
   };

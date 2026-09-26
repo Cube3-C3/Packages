@@ -13,7 +13,7 @@
       "physics sections ≈ 10 верхних доменов domains.json (parent=null, кроме mathematics); match включает потомков.",
       "mathematics sections: arithmetic, geometry, algebra, graphs — пока filter-only ids (до наполнения usages).",
       "unit_sys: СИ = канон; CGS/natural = оверлей (коррективы шкал/констант). Фильтр НЕ ограничивает список — нетронутые величины остаются, показ в СИ.",
-      "construction — entity_kind=construction; данные Constructs.json + physi_comps; layout в Fis_runtime/construct_layout.js; паспорт construction_passport."
+      "construction — entity_kind=construction; компоненты = Componovka/components.json (pack.components); сборки = pack.constructs; layout Fis_runtime/construct_layout.js; паспорт construction_passport. Старый Constructions/physi_comps не используется."
     ]
   },
 

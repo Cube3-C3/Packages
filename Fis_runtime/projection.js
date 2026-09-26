@@ -588,7 +588,20 @@
         derived.primary_usage = usagesView[0] || null;
       }
       if (!derived.primary_symbol && derived.primary_usage) {
-        derived.primary_symbol = derived.primary_usage.symbol || "";
+        const plain = derived.primary_usage.symbol || "";
+        if (
+          window.FisUnits &&
+          typeof window.FisUnits.formatVectorSymbol === "function" &&
+          typeof window.FisUnits.isVectorMathKind === "function" &&
+          window.FisUnits.isVectorMathKind(q)
+        ) {
+          // HTML for passport header (presentation detects <span and uses rawHtml)
+          derived.primary_symbol = window.FisUnits.formatVectorSymbol(plain, q, {
+            format: "html"
+          });
+        } else {
+          derived.primary_symbol = plain;
+        }
       }
       if (!derived.primary_name && derived.primary_usage) {
         derived.primary_name = pickName(derived.primary_usage.name, lang);
@@ -720,8 +733,18 @@
           const domains_html = (u.domains || [])
             .map((d) => `<span class="dom" title="${escapeHtml(d)}">${escapeHtml(domainName(data.domains, d, lang))}</span>`)
             .join("");
+          let sym = u.symbol || "";
+          if (
+            window.FisUnits &&
+            typeof window.FisUnits.formatVectorSymbol === "function" &&
+            typeof window.FisUnits.isVectorMathKind === "function" &&
+            window.FisUnits.isVectorMathKind(q)
+          ) {
+            // plain + combining arrow for table cell (escaped later in presentation)
+            sym = window.FisUnits.formatVectorSymbol(sym, q, { format: "text" });
+          }
           return {
-            symbol: u.symbol || "",
+            symbol: sym,
             name: pickName(u.name, lang),
             role: u.role || "",
             notes: u.notes || "",
@@ -958,8 +981,10 @@
   const instances = new WeakMap();
 
   /**
-   * Minimal construction passport: title + env SVG (layout in package) + related formulas.
-   * No rotation / interactive chrome — host viewport is the environment frame.
+   * Construction passport (minimal contour 1–3):
+   * 1) expandConstruction + thin slots (chips)
+   * 2) env canvas + drawAxes (proto insets / unit scales from state.frame_env)
+   * 3) one dependency menu (frame_graph.dep_law_id) → attachLawGraph; no formula-list select
    */
   function renderConstructionPassport(container, projection, state, data) {
     const lang = (projection && projection.lang) || "ru";
@@ -971,7 +996,7 @@
     const list =
       (data.constructs && data.constructs.constructions) ||
       (Array.isArray(data.constructs) ? data.constructs : []);
-    const C = list.find(function (c) {
+    let C = list.find(function (c) {
       return c && c.id === cid;
     });
     if (!C) {
@@ -980,34 +1005,146 @@
       return;
     }
 
+    const GC = window.GeoCompute;
+    // 1) recursive expand (include / nested C*)
+    let Cflat = C;
+    if (GC && typeof GC.expandConstruction === "function") {
+      Cflat = GC.expandConstruction(C, {
+        constructions: list,
+        constructs: data.constructs,
+        pack: data
+      });
+    }
+
     const title = Array.isArray(C.name)
       ? lang === "ru"
         ? C.name[1] || C.name[0]
         : C.name[0] || C.name[1]
       : C.name || C.id;
 
-    // layout + symbols entirely in package runtime
+    const frameEnv = Object.assign(
+      { scale_id_h: "U004", scale_id_v: "U004", scale_px: 320 },
+      (state && state.frame_env) || {}
+    );
+    const frameGraph = Object.assign(
+      {
+        scale_id_h: "U004",
+        scale_id_v: "U004",
+        scale_px: 320,
+        dep_law_id: "P014"
+      },
+      (state && state.frame_graph) || {}
+    );
+
+    // unit factor from scale id (labels only; px/m separate)
+    function factorForScaleId(scaleId) {
+      const FU = window.FisUnits;
+      if (FU && typeof FU.listNamedUnits === "function" && data.units) {
+        const opts = FU.listNamedUnits("[L]", data.units, lang) || [];
+        for (let i = 0; i < opts.length; i++) {
+          if (opts[i].id === scaleId || opts[i].scale_id === scaleId) {
+            return opts[i].factor != null ? opts[i].factor : 1;
+          }
+        }
+      }
+      if (scaleId === "U028") return 0.01;
+      if (scaleId === "U032") return 0.001;
+      if (scaleId === "U031") return 1000;
+      return 1;
+    }
+    const ufEnvH = factorForScaleId(frameEnv.scale_id_h);
+    const ufEnvV = factorForScaleId(frameEnv.scale_id_v);
+    const scalePx = frameEnv.scale_px != null ? Number(frameEnv.scale_px) : 320;
+
+    // layout for chips + optional SVG fallback
     let layoutModel = null;
     let svgHtml = "";
     if (window.ConstructLayout && typeof window.ConstructLayout.layout === "function") {
       const pack = {
         components: data.components,
         assets: data.assets,
-        relation_types: data.relation_types,
-        line_types: data.line_types,
+        links: data.links || data.LINK,
+        LINK: data.LINK || data.links,
+        formulas: data.formulas || data.physi_formulas,
+        constructs: data.constructs,
+        constructions: list,
         usages: data.usages
       };
-      layoutModel = window.ConstructLayout.layout(C, pack);
+      layoutModel = window.ConstructLayout.layout(Cflat, pack, {
+        pxPerMeter: scalePx,
+        equilibrium: true
+      });
       if (layoutModel && typeof window.ConstructLayout.toSVG === "function") {
         svgHtml = window.ConstructLayout.toSVG(layoutModel, {
-          viewportW: 480,
+          viewportW: 560,
           viewportH: 320,
           showLabels: true
         });
       }
     }
 
-    // формулы: formula_needs (quantity+role+count) → иначе union по величинам элементов
+    // quantity chips from thin slots (layout nodes) + spatialForHuman for vectors
+    let qtyRows = "";
+    function formatChipValue(q, role) {
+      if (!q || q.value == null) return "—";
+      const v = q.value;
+      if (
+        GC &&
+        typeof GC.spatialForHuman === "function" &&
+        (role === "radius_vector" || Array.isArray(v))
+      ) {
+        const frame = GC.createFrame({
+          origin: [0, 0],
+          unit_factor_x: ufEnvH,
+          unit_factor_y: ufEnvV
+        });
+        const hum = GC.spatialForHuman(frame, v, { unitFactor: ufEnvH });
+        if (hum && hum.kind === "vector") {
+          return (
+            "[" +
+            (isFinite(hum.x) ? Number(hum.x).toPrecision(4) : "—") +
+            ", " +
+            (isFinite(hum.y) ? Number(hum.y).toPrecision(4) : "—") +
+            "]"
+          );
+        }
+      }
+      if (typeof v === "number" && isFinite(v)) {
+        if (
+          GC &&
+          typeof GC.toScale === "function" &&
+          (role === "extension" || role === "natural_length")
+        ) {
+          return String(Number(GC.toScale(v, ufEnvH).toPrecision(4)));
+        }
+        return String(v);
+      }
+      if (Array.isArray(v)) return JSON.stringify(v);
+      return String(v);
+    }
+
+    if (layoutModel && layoutModel.nodes) {
+      layoutModel.nodes.forEach(function (n) {
+        const qs = n.quantities || {};
+        const keys = Object.keys(qs);
+        if (!keys.length) return;
+        const parts = keys.map(function (k) {
+          const q = qs[k];
+          const sym = q.symbol || k;
+          const disp = formatChipValue(q, q.role || k);
+          const u = unitSymbolForQid(q.quantity, data, lang) || q.unit || "";
+          return (
+            `<code>${escapeHtml(sym)}</code>=${escapeHtml(disp)}` +
+            (u ? ` <span class="pres-muted">${escapeHtml(u)}</span>` : "") +
+            ` <span class="pres-muted">(${escapeHtml(q.quantity || "")})</span>`
+          );
+        });
+        qtyRows +=
+          `<div style="margin:4px 0;font-size:0.82rem"><strong>${escapeHtml(n.id)}</strong> · ${parts.join(", ")}</div>`;
+      });
+    }
+
+    // related laws for short navigate list (not graph menu)
     let related = [];
     if (
       window.FisUnits &&
@@ -1015,24 +1152,46 @@
     ) {
       related =
         window.FisUnits.formulasForConstruction(
-          C,
+          Cflat,
           data.formulas || data.physi_formulas,
           data.structures || data.AST,
-          data.usages
+          data.usages,
+          data.components
         ) || [];
     } else {
       const qids = Object.create(null);
-      if (layoutModel && layoutModel.g && layoutModel.g.quantity) {
-        qids[layoutModel.g.quantity] = true;
-      }
-      (C.elements || []).forEach(function (el) {
-        const qs = el.quantities || {};
-        Object.keys(qs).forEach(function (k) {
-          if (qs[k] && qs[k].quantity) qids[qs[k].quantity] = true;
-        });
+      (Cflat.elements || []).forEach(function (el) {
+        if (GC && typeof GC.resolveElementParams === "function") {
+          const comps =
+            (data.components && data.components.components) || data.components || {};
+          const listP = GC.resolveElementParams(el, comps[el.component] || {});
+          listP.forEach(function (p) {
+            if (p.quantity) qids[p.quantity] = true;
+          });
+        }
+      });
+      // laws from links
+      (Cflat.links || []).forEach(function (lnk) {
+        if (lnk && lnk.law) qids["__law__" + lnk.law] = true;
       });
       const seenLaw = Object.create(null);
       Object.keys(qids).forEach(function (qid) {
+        if (qid.indexOf("__law__") === 0) {
+          const lid = qid.slice(8);
+          if (seenLaw[lid]) return;
+          seenLaw[lid] = true;
+          const formulas = data.formulas || data.physi_formulas;
+          const arr = formulas
+            ? Array.isArray(formulas)
+              ? formulas
+              : formulas.formulas || []
+            : [];
+          const f = arr.find(function (x) {
+            return x && (x.id === lid || x.law_id === lid);
+          });
+          if (f) related.push(f);
+          return;
+        }
         const using =
           formulasUsing(data.formulas, qid, data.structures, data.usages) || [];
         using.forEach(function (f) {
@@ -1044,65 +1203,39 @@
       });
     }
 
-    // quantity chips — unit symbol from units.json via formatUnit(dimension)
-    let qtyRows = "";
-    if (layoutModel && layoutModel.nodes) {
-      layoutModel.nodes.forEach(function (n) {
-        const qs = n.quantities || {};
-        const keys = Object.keys(qs);
-        if (!keys.length) return;
-        const parts = keys.map(function (k) {
-          const q = qs[k];
-          const sym = q.symbol || k;
-          const v = q.value != null ? q.value : "—";
-          const u = unitSymbolForQid(q.quantity, data, lang) || q.unit || "";
-          return (
-            `<code>${escapeHtml(sym)}</code>=${escapeHtml(String(v))}` +
-            (u ? ` <span class="pres-muted">${escapeHtml(u)}</span>` : "") +
-            ` <span class="pres-muted">(${escapeHtml(q.quantity || "")})</span>`
-          );
-        });
-        qtyRows +=
-          `<div style="margin:4px 0;font-size:0.82rem"><strong>${escapeHtml(n.id)}</strong> · ${parts.join(", ")}</div>`;
-      });
+    // 3) dependency menu options (package handler if present)
+    let depOptions = [
+      { id: "P014", label: lang === "en" ? "Hooke · F(x)" : "Гук · F(x)" },
+      { id: "P008", label: lang === "en" ? "U(x)" : "U(x)" },
+      { id: "P005", label: lang === "en" ? "Newton II" : "Ньютон II" }
+    ];
+    if (window.FisPackage && typeof window.FisPackage.handlers === "function") {
+      try {
+        const h = window.FisPackage.handlers(data);
+        if (h && typeof h.graph_dependency_menu === "function") {
+          const menu = h.graph_dependency_menu({ lang: lang, state: state });
+          if (menu && menu.options && menu.options.length) depOptions = menu.options;
+        }
+      } catch (e) { /* keep defaults */ }
     }
-    if (layoutModel && layoutModel.g) {
-      const g = layoutModel.g;
-      const gu =
-        unitSymbolForQid(g.quantity || "Q006", data, lang) || g.unit || "";
-      qtyRows =
-        `<div style="margin:4px 0;font-size:0.82rem"><strong>E0</strong> · <code>${escapeHtml(g.symbol || "g")}</code>=${escapeHtml(String(g.value))} <span class="pres-muted">${escapeHtml(gu)}</span> <span class="pres-muted">(${escapeHtml(g.quantity || "Q006")})</span></div>` +
-        qtyRows;
+    let depLawId = frameGraph.dep_law_id || "P014";
+    if (
+      !depOptions.some(function (o) {
+        return o.id === depLawId;
+      })
+    ) {
+      depLawId = depOptions[0] ? depOptions[0].id : depLawId;
     }
-
-    // related formula ids for graph selector (variant A)
-    const relatedLawOptions = [];
-    (related || []).forEach(function (f) {
-      const id = f.id || f.law_id;
-      if (!id) return;
-      const nm =
-        (Array.isArray(f.name) ? f.name[lang === "en" ? 0 : 1] || f.name[0] : f.name) ||
-        id;
-      relatedLawOptions.push({ id: String(id), name: String(nm), structure_ref: f.structure_ref || "" });
-    });
-    const defaultLawId = relatedLawOptions.length ? relatedLawOptions[0].id : "";
 
     let formulasHtml = "";
     if (related.length) {
       formulasHtml = '<ul class="formulas-list">';
-      related.slice(0, 12).forEach(function (f) {
+      related.slice(0, 8).forEach(function (f) {
         const fid = f.id || f.law_id || "";
-        const fname = f.name || fid;
-        let algebra = "";
-        if (f.ast && window.FisUnits && window.FisUnits.formatFormula) {
-          try {
-            const disp = window.FisUnits.formatFormula(f.ast, {
-              usagesData: data.usages,
-              physiQuant: data.physi_quant
-            }, { mulStyle: "implicit", divStyle: "bar" });
-            algebra = disp && disp.html ? disp.html : "";
-          } catch (e) { /* skip */ }
-        }
+        const fname =
+          (Array.isArray(f.name)
+            ? f.name[lang === "en" ? 0 : 1] || f.name[0]
+            : f.name) || fid;
         const navPayload = JSON.stringify({
           cardType: "formulas",
           id: fid,
@@ -1111,14 +1244,31 @@
         formulasHtml +=
           `<li class="clickable" data-fis-slot-action="navigate" data-fis-payload="${navPayload}" tabindex="0" role="button">` +
           `<span class="fname">${escapeHtml(fname)}</span>` +
-          (algebra ? `<div class="algebra">${algebra}</div>` : "") +
-          `</li>`;
+          ` <span class="pres-muted">(${escapeHtml(fid)})</span></li>`;
       });
       formulasHtml += "</ul>";
     } else {
       formulasHtml =
-        `<div class="pres-muted" style="font-size:0.85rem">${lang === "ru" ? "Нет связанных формул по величинам конструкции" : "No related formulas"}</div>`;
+        `<div class="pres-muted" style="font-size:0.85rem">${lang === "ru" ? "Нет связанных формул" : "No related formulas"}</div>`;
     }
+
+    const depSelect =
+      `<label style="font-size:0.8rem;display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">` +
+      `<span class="pres-muted">${lang === "ru" ? "Зависимость" : "Dependency"}</span>` +
+      `<select class="construction-graph-dep-select" data-fis-signal="graph_dep_change" style="font-size:0.85rem;max-width:100%">` +
+      depOptions
+        .map(function (o) {
+          return (
+            `<option value="${escapeHtml(o.id)}"${o.id === depLawId ? " selected" : ""}>${escapeHtml(o.label || o.name || o.id)}</option>`
+          );
+        })
+        .join("") +
+      `</select></label>`;
+
+    const scaleNote =
+      lang === "ru"
+        ? "Шкала — подписи; px/m — длина отрезка"
+        : "Unit scale = labels; px/m = segment length";
 
     container.innerHTML =
       `<div class="passport" data-projection="construction_passport" data-construction="${escapeHtml(cid)}">` +
@@ -1126,32 +1276,203 @@
       `<span class="pres-symbol primary">${escapeHtml(C.id)}</span> ` +
       `<span class="pres-title primary">${escapeHtml(title)}</span>` +
       `</div>` +
-      (C.description
-        ? `<p class="pres-muted" style="margin:6px 0 12px;font-size:0.85rem">${escapeHtml(C.description)}</p>`
+      `<div class="section"><h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "Среда" : "Environment"} · ${escapeHtml(Cflat.environment || C.environment || "E0")}</h3>` +
+      `<div class="construction-env-frame" data-frame-target="env" style="background:#171a21;border-radius:8px;padding:0;width:560px;max-width:100%;height:320px;overflow:hidden;box-sizing:border-box;position:relative">` +
+      `<canvas class="construction-env-canvas" width="560" height="320" style="display:block;width:100%;height:100%"></canvas>` +
+      (svgHtml
+        ? `<div class="construction-env-svg-fallback" style="display:none">${svgHtml}</div>`
         : "") +
-      `<div class="section"><h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "Среда" : "Environment"} · ${escapeHtml(C.environment || "E0")}</h3>` +
-      `<div class="construction-env" style="background:#f4f4f5;border-radius:8px;padding:8px;width:480px;max-width:100%;height:320px;overflow:hidden;box-sizing:border-box">${svgHtml || '<div class="empty">ConstructLayout missing</div>'}</div>` +
+      `</div>` +
+      `<div class="frame-scale-block" data-frame-target="env" style="margin-top:8px;font-size:0.78rem;color:var(--muted)">${escapeHtml(scaleNote)} · px/m=${escapeHtml(String(scalePx))} · H=${escapeHtml(frameEnv.scale_id_h)} V=${escapeHtml(frameEnv.scale_id_v)}</div>` +
       (qtyRows ? `<div style="margin-top:10px">${qtyRows}</div>` : "") +
       `</div>` +
       `<div class="section" style="margin-top:16px"><h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "Формулы" : "Formulas"}</h3>${formulasHtml}</div>` +
-      // construction_graph (variant A): host for GeoCompute.attachLawGraph + formula select
-      `<div class="section construction-graph-section" style="margin-top:16px" data-construction-graph="1" data-default-law-id="${escapeHtml(defaultLawId)}">` +
-      `<h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "График" : "Graph"}</h3>` +
-      (relatedLawOptions.length
-        ? `<label style="font-size:0.8rem;display:flex;gap:8px;align-items:center;margin-bottom:8px">` +
-          `<span class="pres-muted">${lang === "ru" ? "Формула" : "Formula"}</span>` +
-          `<select class="construction-graph-formula-select" style="font-size:0.85rem;max-width:100%">` +
-          relatedLawOptions
-            .map(function (o, i) {
-              return (
-                `<option value="${escapeHtml(o.id)}"${i === 0 ? " selected" : ""}>${escapeHtml(o.name)} (${escapeHtml(o.id)})</option>`
-              );
-            })
-            .join("") +
-          `</select></label>`
-        : `<div class="pres-muted" style="font-size:0.85rem">${lang === "ru" ? "Нет формулы для графика" : "No formula for graph"}</div>`) +
+      `<div class="section construction-graph-section" style="margin-top:16px" data-construction-graph="1" data-default-law-id="${escapeHtml(depLawId)}">` +
+      `<h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "График зависимости" : "Dependency graph"}</h3>` +
+      depSelect +
       `</div>` +
       `</div>`;
+
+    // 2) paint env axes + nodes on canvas (proto-style)
+    paintConstructionEnvCanvas(container, {
+      layoutModel: layoutModel,
+      Cflat: Cflat,
+      scalePx: scalePx,
+      unitFactorX: ufEnvH,
+      unitFactorY: ufEnvV,
+      lang: lang
+    });
+
+    // 3) attach law graph for selected dependency
+    if (GC && typeof GC.attachLawGraph === "function") {
+      const graphHost = container.querySelector("[data-construction-graph]");
+      if (graphHost) {
+        GC.attachLawGraph(graphHost, {
+          lawId: depLawId,
+          formulas: data.formulas || data.physi_formulas,
+          structures: data.structures || data.AST,
+          construction: Cflat,
+          components: data.components,
+          physiQuant: data.physi_quant,
+          lang: lang
+        });
+      }
+    }
+
+    // wire dep select → custom event for host (graph_dep_change)
+    const depEl = container.querySelector(".construction-graph-dep-select");
+    if (depEl) {
+      depEl.addEventListener("change", function () {
+        const lid = depEl.value;
+        const ev = new CustomEvent("fis-signal", {
+          bubbles: true,
+          detail: { type: "graph_dep_change", payload: { law_id: lid } }
+        });
+        container.dispatchEvent(ev);
+        // local re-attach if host does not refresh yet
+        if (GC && typeof GC.attachLawGraph === "function") {
+          const graphHost = container.querySelector("[data-construction-graph]");
+          if (graphHost) {
+            GC.attachLawGraph(graphHost, {
+              lawId: lid,
+              formulas: data.formulas || data.physi_formulas,
+              structures: data.structures || data.AST,
+              construction: Cflat,
+              components: data.components,
+              physiQuant: data.physi_quant,
+              lang: lang
+            });
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * Env canvas: Frame + drawAxes (proto insets) + nodes from layoutModel.
+   * Program positions = SI; axes labels use unitFactor (cm/m).
+   */
+  function paintConstructionEnvCanvas(container, opts) {
+    opts = opts || {};
+    const canvas = container.querySelector(".construction-env-canvas");
+    if (!canvas) return;
+    const GC = window.GeoCompute;
+    if (!GC || typeof GC.createFrame !== "function" || typeof GC.drawAxes !== "function") {
+      // fallback: show SVG if present
+      const fb = container.querySelector(".construction-env-svg-fallback");
+      if (fb) fb.style.display = "block";
+      canvas.style.display = "none";
+      return;
+    }
+    const W = canvas.width || 560;
+    const H = canvas.height || 320;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const scalePx = opts.scalePx != null ? Number(opts.scalePx) : 320;
+    const ufx = opts.unitFactorX != null ? opts.unitFactorX : 1;
+    const ufy = opts.unitFactorY != null ? opts.unitFactorY : 1;
+
+    // centre frame like proto paintEnv
+    const sx = scalePx;
+    const sy = scalePx;
+    const frame = GC.createFrame({
+      origin: [-W / (2 * sx), -H / (2 * sy)],
+      axes: { x: "right", y: "up" },
+      scale_x: sx,
+      scale_y: sy,
+      viewportW: W,
+      viewportH: H,
+      unit_factor_x: ufx,
+      unit_factor_y: ufy
+    });
+    const halfX = W / (2 * sx);
+    const halfY = H / (2 * sy);
+
+    ctx.fillStyle = "#171a21";
+    ctx.fillRect(0, 0, W, H);
+    GC.drawAxes(ctx, frame, {
+      xMin: -halfX,
+      xMax: halfX,
+      yMin: -halfY,
+      yMax: halfY,
+      unitFactorX: ufx,
+      unitFactorY: ufy,
+      xLabel: "x",
+      yLabel: "y",
+      targetTicksX: 8,
+      targetTicksY: 6,
+      grid: true
+    });
+
+    const layoutModel = opts.layoutModel;
+    if (!layoutModel || !layoutModel.nodes) return;
+
+    // nodes in layout are already in px relative to layout bbox — convert via SI r
+    const nodes = layoutModel.nodes || [];
+    nodes.forEach(function (n) {
+      const qs = n.quantities || {};
+      let rx = 0;
+      let ry = 0;
+      const rv = qs.radius_vector;
+      if (rv && Array.isArray(rv.value)) {
+        rx = Number(rv.value[0]) || 0;
+        ry = Number(rv.value[1]) || 0;
+      } else if (n.position) {
+        // layout px / scalePx → SI, then relative to frame origin (lab at 0)
+        rx = (Number(n.position[0]) || 0) / scalePx;
+        ry = (Number(n.position[1]) || 0) / scalePx;
+      }
+      const scr = GC.toScreen(frame, { x: rx, y: ry });
+      if (!scr) return;
+      ctx.beginPath();
+      ctx.fillStyle =
+        n.kind === "fixed_support"
+          ? "#e6a23c"
+          : n.kind === "elastic_element"
+            ? "#7c9cff"
+            : "#7cffb2";
+      ctx.arc(scr.x, scr.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#c5c9d1";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(n.label || n.id, scr.x + 8, scr.y - 4);
+    });
+
+    // edges from derived layout if present
+    (layoutModel.edges || []).forEach(function (e) {
+      if (e.x1 == null) return;
+      // edges stored in layout px — approximate via node ids
+      const a = nodes.find(function (n) {
+        return n.id === e.from;
+      });
+      const b = nodes.find(function (n) {
+        return n.id === e.to;
+      });
+      if (!a || !b) return;
+      function nodeSi(n) {
+        const qs = n.quantities || {};
+        const rv = qs.radius_vector;
+        if (rv && Array.isArray(rv.value)) {
+          return { x: Number(rv.value[0]) || 0, y: Number(rv.value[1]) || 0 };
+        }
+        return {
+          x: (Number(n.position[0]) || 0) / scalePx,
+          y: (Number(n.position[1]) || 0) / scalePx
+        };
+      }
+      const pa = GC.toScreen(frame, nodeSi(a));
+      const pb = GC.toScreen(frame, nodeSi(b));
+      if (!pa || !pb) return;
+      ctx.strokeStyle = "rgba(124,156,255,0.7)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pa.x, pa.y);
+      ctx.lineTo(pb.x, pb.y);
+      ctx.stroke();
+    });
   }
 
   function renderFormulaStub(container, projection, state, data) {

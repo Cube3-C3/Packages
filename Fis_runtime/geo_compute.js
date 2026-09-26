@@ -2,14 +2,19 @@
  * geo_compute.js — вычислительный слой геометрии (канон runtime).
  * Онтология сортов/ops: ../Geo_style/geo_core.json, geo_ops.json.
  *
- * Frame (единая координатная логика среда + график):
- *   createFrame / frameFromEnv / toScreen / fromScreen / setScale / setViewport
- *   E0 и др. kind=environment только предоставляют Frame; math y-up → screen через toScreen.
+ * ── Frame — единая основа (среда + график функций) ──────────────
+ *   createFrame / frameFromEnv / frameForPlot / toScreen / fromScreen
+ *   setScale / setViewport / plotInsets / mathToPlotScreen
+ *   E0 и др. kind=environment только предоставляют Frame (не особый случай).
+ *   origin = выбранная материальная точка однородной среды (сейчас [0,0]).
+ *   origin_corner default bottom_left → положительный квадрант (x→right, y→up).
+ *   Insets — отступы под шкалы/подписи; якоря осей позже наслоятся на тот же Frame.
+ *   Конструкции / реальные среды / оси — только поверх этого Frame, без параллельной СК.
  *
  * Кривые:
  *   eval / sample / nearest
  *   curveFromAst → { curve, mapping, rebuilt, domain, values }
- *   buildLawGraphPayload / attachLawGraph / drawPointsOnCanvas
+ *   buildLawGraphPayload / attachLawGraph / drawPointsOnCanvas (через Frame)
  *
  * Коэффициенты по умолчанию = 1 (пока).
  */
@@ -406,6 +411,20 @@
     return [];
   }
 
+  // AST.json (актуальная схема): без плоского списка structures — только
+  // schemes + aliases, дерево строится на лету через FisUnits.buildSchemeAst.
+  // units.js грузится раньше geo_compute.js (см. SCRIPTS в хосте), поэтому
+  // window.FisUnits тут уже доступен — переиспользуем его сборку, не дублируем.
+  function structFromAliases(raw, structureRef) {
+    const entry = raw && raw.aliases && raw.aliases[structureRef];
+    if (!entry) return null;
+    const FU = global.FisUnits;
+    if (!FU || typeof FU.buildSchemeAst !== "function") return null;
+    const ast = FU.buildSchemeAst(entry.scheme, entry.arity);
+    if (!ast) return null;
+    return { id: structureRef, scheme: entry.scheme, arity: entry.arity, ast: ast };
+  }
+
   /**
    * @returns {{ ok:boolean, status?:string, error?:string, points?:number[][], domain:number[] }}
    */
@@ -419,9 +438,10 @@
     }
 
     const structures = listStructures(structuresData);
-    const struct = structures.find(function (s) {
+    let struct = structures.find(function (s) {
       return s && s.id === structureRef;
     });
+    if (!struct) struct = structFromAliases(structuresData, structureRef);
     if (!struct || !struct.ast) {
       return {
         ok: false,
@@ -530,19 +550,18 @@
     );
   }
 
-  function drawPointsOnCanvas(canvas, points, domainX) {
+  /**
+   * Рисует кривую на canvas через общий Frame (frameForPlot + mathToPlotScreen).
+   * Та же СК, что у среды: origin = нижний левый угол видимого окна, y-up, bottom_left.
+   */
+  function drawPointsOnCanvas(canvas, points, domainX, opts) {
+    opts = opts || {};
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const W = canvas.width || 320;
-    const H = canvas.height || 200;
+    const W = canvas.width || 560;
+    const H = canvas.height || 320;
     canvas.width = W;
     canvas.height = H;
-    const padL = 36;
-    const padR = 12;
-    const padT = 12;
-    const padB = 28;
-    const plotW = W - padL - padR;
-    const plotH = H - padT - padB;
 
     let yMin = Infinity;
     let yMax = -Infinity;
@@ -564,44 +583,40 @@
     yMax += yPad;
     if (yMin > 0 && yMin < (yMax - yMin) * 0.25) yMin = 0;
 
-    const x0 = domainX[0];
-    const x1 = domainX[1];
-    function sx(x) {
-      return padL + ((x - x0) / (x1 - x0)) * plotW;
-    }
-    function sy(y) {
-      return padT + (1 - (y - yMin) / (yMax - yMin)) * plotH;
-    }
-    function fmt(v) {
-      if (!isFinite(v)) return "—";
-      const a = Math.abs(v);
-      if (a >= 100 || (a > 0 && a < 0.01)) return v.toExponential(1);
-      if (Math.abs(v - Math.round(v)) < 1e-6) return String(Math.round(v));
-      return v.toFixed(1);
-    }
+    const x0 = Array.isArray(domainX) ? Number(domainX[0]) : 0;
+    const x1 = Array.isArray(domainX) ? Number(domainX[1]) : 1;
+
+    // как frame_proto graph: полный canvas + origin shift под padL/padB
+    const labeled = frameForLabeledPlot({
+      domainX: [x0, x1],
+      yMin: yMin,
+      yMax: yMax,
+      W: W,
+      H: H,
+      unitFactorX: opts.unitFactorX,
+      unitFactorY: opts.unitFactorY,
+      unit_factor_x: opts.unit_factor_x || opts.unitFactorX,
+      unit_factor_y: opts.unit_factor_y || opts.unitFactorY
+    });
+    const frame = labeled.frame;
 
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = "#171a21";
     ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = "#8b93a7";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    const yAxis = sy(Math.max(yMin, Math.min(yMax, 0)));
-    ctx.moveTo(padL, yAxis);
-    ctx.lineTo(padL + plotW, yAxis);
-    ctx.moveTo(padL, padT);
-    ctx.lineTo(padL, padT + plotH);
-    ctx.stroke();
-
-    ctx.fillStyle = "#c5c9d1";
-    ctx.font = "12px ui-monospace, monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(String(x0), sx(x0), H - 8);
-    ctx.fillText(String(x1), sx(x1), H - 8);
-    ctx.textAlign = "right";
-    ctx.fillText(fmt(yMin), padL - 4, sy(yMin) + 3);
-    ctx.fillText(fmt(yMax), padL - 4, sy(yMax) + 3);
+    drawAxes(ctx, frame, {
+      xMin: x0,
+      xMax: x1,
+      yMin: yMin,
+      yMax: yMax,
+      unitFactorX: frame.unit_factor_x,
+      unitFactorY: frame.unit_factor_y,
+      xLabel: opts.xLabel || null,
+      yLabel: opts.yLabel || null,
+      targetTicksX: opts.targetTicksX || 8,
+      targetTicksY: opts.targetTicksY || 6,
+      grid: opts.grid !== false
+    });
 
     ctx.strokeStyle = "#7c9cff";
     ctx.lineWidth = 2.5;
@@ -609,14 +624,14 @@
     let started = false;
     for (let i = 0; i < points.length; i++) {
       const p = points[i];
-      if (!isFinite(p.x) || !isFinite(p.y)) continue;
-      const px = sx(p.x);
-      const py = sy(p.y);
+      if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
+      const scr = toScreen(frame, p);
+      if (!scr) continue;
       if (!started) {
-        ctx.moveTo(px, py);
+        ctx.moveTo(scr.x, scr.y);
         started = true;
       } else {
-        ctx.lineTo(px, py);
+        ctx.lineTo(scr.x, scr.y);
       }
     }
     ctx.stroke();
@@ -657,8 +672,222 @@
   }
 
   /**
-   * Собрать числовые величины конструкции (элементы + E0.g) → список {quantity, role, value}.
-   * componentsData опционален — подставляет default_value из шаблона E*.
+   * params[] шаблона E* + instance → [{ id, quantity, role, value, index, element }].
+   * id: явный или {elementId}.{role}; value instance перекрывает default.
+   */
+  /**
+   * Merge E*.params defaults + instance overrides/params.
+   * Thin instance: { id, component, overrides:{ role: value } }
+   * Legacy: full params[] still supported; overrides win by role.
+   */
+  function resolveElementParams(el, componentTemplate) {
+    const tmpl = componentTemplate || {};
+    const base = Array.isArray(tmpl.params) ? tmpl.params : [];
+    const elId = (el && el.id) || "el";
+    const overrides =
+      (el && el.overrides && typeof el.overrides === "object" && !Array.isArray(el.overrides))
+        ? el.overrides
+        : null;
+    const instList = Array.isArray(el && el.params) ? el.params : [];
+    const byRole = Object.create(null);
+    instList.forEach(function (p) {
+      if (!p) return;
+      const role = p.role || null;
+      if (role) byRole[role] = p;
+    });
+    const out = [];
+    const seen = Object.create(null);
+    base.forEach(function (b, i) {
+      if (!b || !b.quantity) return;
+      const role = b.role || null;
+      const inst = role && byRole[role] ? byRole[role] : null;
+      let val = b.default;
+      if (inst && inst.value !== undefined) val = inst.value;
+      if (overrides && role && Object.prototype.hasOwnProperty.call(overrides, role)) {
+        val = overrides[role];
+      }
+      const id =
+        (inst && inst.id) ||
+        (role ? elId + "." + role : elId + ".p" + i);
+      if (role) seen[role] = true;
+      out.push({
+        id: String(id),
+        quantity: String(b.quantity),
+        role: role ? String(role) : null,
+        value: Array.isArray(val) ? val.slice() : val,
+        index: i,
+        element: elId
+      });
+    });
+    // instance-only params not in template
+    instList.forEach(function (p, i) {
+      if (!p || !p.quantity) return;
+      const role = p.role || null;
+      if (role && seen[role]) return;
+      out.push({
+        id: String(p.id || (role ? elId + "." + role : elId + ".extra" + i)),
+        quantity: String(p.quantity),
+        role: role ? String(role) : null,
+        value: Array.isArray(p.value) ? p.value.slice() : p.value,
+        index: base.length + i,
+        element: elId
+      });
+    });
+    if (overrides) {
+      Object.keys(overrides).forEach(function (role) {
+        if (seen[role]) return;
+        // orphan override without template row — keep as Q-less only if needed later
+        out.push({
+          id: elId + "." + role,
+          quantity: null,
+          role: String(role),
+          value: Array.isArray(overrides[role])
+            ? overrides[role].slice()
+            : overrides[role],
+          index: out.length,
+          element: elId
+        });
+      });
+    }
+    return out;
+  }
+
+  /** Индекс всех слотов конструкции по id (elements + observer). */
+  function indexConstructionSlots(construction, componentsData) {
+    const comps =
+      (componentsData && (componentsData.components || componentsData)) || {};
+    const byId = Object.create(null);
+    function addEl(el) {
+      if (!el) return;
+      const list = resolveElementParams(el, comps[el.component] || {});
+      list.forEach(function (p) {
+        byId[p.id] = p;
+      });
+    }
+    (construction.elements || []).forEach(addEl);
+    if (construction.observer) addEl(construction.observer);
+    return byId;
+  }
+
+  /**
+   * Совпадение binding {quantity, role} со слотом из pool (по id link.params).
+   * role "length" принимает и "extension". Без role — первый quantity.
+   */
+  function matchSlot(binding, poolSlots, usedIds) {
+    if (!binding || typeof binding !== "object") return null;
+    const q = binding.quantity ? String(binding.quantity) : null;
+    if (!q) return null;
+    const wantRole = binding.role ? String(binding.role) : null;
+    const rolesOk = function (slotRole) {
+      if (!wantRole) return true;
+      if (slotRole === wantRole) return true;
+      if (wantRole === "length" && slotRole === "extension") return true;
+      if (wantRole === "extension" && slotRole === "length") return true;
+      return false;
+    };
+    // 1) exact quantity+role
+    for (let i = 0; i < poolSlots.length; i++) {
+      const s = poolSlots[i];
+      if (usedIds[s.id]) continue;
+      if (s.quantity === q && rolesOk(s.role)) return s;
+    }
+    // 2) quantity only if binding has no role
+    if (!wantRole) {
+      for (let i = 0; i < poolSlots.length; i++) {
+        const s = poolSlots[i];
+        if (usedIds[s.id]) continue;
+        if (s.quantity === q) return s;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * law.bindings → values по pool слотов (quantity+role). Вложенные {law} рекурсивно.
+   * returns { values: {O2: n, …}, meta, nested }
+   */
+  function matchLawToSlots(law, poolSlots, formulasById, usedIds) {
+    usedIds = usedIds || Object.create(null);
+    const out = { values: Object.create(null), meta: [], nested: [] };
+    if (!law || !law.bindings) return out;
+    const formulas = formulasById || {};
+
+    Object.keys(law.bindings)
+      .filter(function (k) {
+        return /^O\d+$/.test(k);
+      })
+      .sort(function (a, b) {
+        return Number(a.slice(1)) - Number(b.slice(1));
+      })
+      .forEach(function (oid) {
+        if (oid === "O1") return; // result
+        const b = law.bindings[oid];
+        if (!b || typeof b !== "object") return;
+        if (b.num != null && isFinite(Number(b.num))) {
+          out.values[oid] = Number(b.num);
+          out.meta.push({ operand: oid, source: "literal", value: out.values[oid] });
+          return;
+        }
+        if (b.law || b.law_id) {
+          const nestedId = b.law || b.law_id;
+          const nestedLaw = formulas[nestedId] || formulas[String(nestedId)];
+          if (nestedLaw) {
+            const nested = matchLawToSlots(nestedLaw, poolSlots, formulas, usedIds);
+            out.nested.push({ law: nestedId, result: nested });
+            // scalar from nested if single matched input used as Δl etc.
+            const keys = Object.keys(nested.values);
+            if (keys.length === 1) {
+              out.values[oid] = nested.values[keys[0]];
+              out.meta.push({
+                operand: oid,
+                source: "law:" + nestedId,
+                value: out.values[oid],
+                via: nested.meta
+              });
+            }
+          }
+          return;
+        }
+        if (b.quantity) {
+          const slot = matchSlot(b, poolSlots, usedIds);
+          if (slot) {
+            usedIds[slot.id] = true;
+            const num = scalarFromParamValue(slot.value);
+            if (num != null) {
+              out.values[oid] = num;
+              out.meta.push({
+                operand: oid,
+                source: "slot:" + slot.id,
+                quantity: slot.quantity,
+                role: slot.role,
+                value: num
+              });
+            }
+          }
+        }
+      });
+    return out;
+  }
+
+  function scalarFromParamValue(val) {
+    if (val == null) return null;
+    if (typeof val === "number" && isFinite(val)) return val;
+    if (Array.isArray(val) && val.length && isFinite(Number(val[0]))) return Number(val[0]);
+    return null;
+  }
+
+  function asVec3(val) {
+    if (Array.isArray(val) && val.length >= 3)
+      return [Number(val[0]) || 0, Number(val[1]) || 0, Number(val[2]) || 0];
+    if (Array.isArray(val) && val.length === 2)
+      return [Number(val[0]) || 0, Number(val[1]) || 0, 0];
+    if (typeof val === "number" && isFinite(val)) return [val, 0, 0];
+    return [0, 0, 0];
+  }
+
+  /**
+   * Собрать числовые величины конструкции (элементы + E0) → {quantity, role, value, element?}.
+   * Поддерживает Componovka params[] и legacy quantities{}.
    */
   function collectConstructionQuantityEntries(construction, componentsData) {
     const entries = [];
@@ -666,26 +895,48 @@
     const comps =
       (componentsData && (componentsData.components || componentsData)) || {};
 
-    // E0 / environment
     const envId = construction.environment || "E0";
     const envComp = comps[envId] || comps.E0 || {};
-    const gRaw = (envComp && envComp.g) || {};
-    const gVal =
-      gRaw.value != null
-        ? Number(gRaw.value)
-        : envComp.quantities && envComp.quantities.g && envComp.quantities.g.default_value != null
-          ? Number(envComp.quantities.g.default_value)
-          : 9.8;
+    // g from params (new) or legacy g/quantities
+    let gVal = 9.8;
+    const envParams = resolveElementParams({ params: envComp.params }, envComp);
+    envParams.forEach(function (p) {
+      if (p.quantity === "Q006") {
+        const s = scalarFromParamValue(p.value);
+        if (s != null) gVal = s;
+      }
+    });
+    if (envComp.g && envComp.g.value != null) gVal = Number(envComp.g.value);
     entries.push({
       key: "env.g",
-      quantity: String(gRaw.quantity || "Q006"),
-      role: gRaw.role || "free_fall_acceleration",
+      quantity: "Q006",
+      role: "free_fall_acceleration",
       value: gVal
     });
 
     (construction.elements || []).forEach(function (el) {
       if (!el) return;
       const comp = comps[el.component] || {};
+      // New Componovka path
+      if (Array.isArray(comp.params) || Array.isArray(el.params)) {
+        const resolved = resolveElementParams(el, comp);
+        resolved.forEach(function (p) {
+          const num = scalarFromParamValue(p.value);
+          if (num == null && !Array.isArray(p.value)) return;
+          entries.push({
+            key: p.id || ((el.id || "?") + ".p" + p.index),
+            quantity: p.quantity,
+            role: p.role || (Array.isArray(p.value) ? "radius_vector" : p.quantity),
+            value: num != null ? num : p.value,
+            element: el.id,
+            index: p.index,
+            id: p.id,
+            raw: p.value
+          });
+        });
+        return;
+      }
+      // Legacy quantities path
       const defaults = (comp && comp.quantities) || {};
       const inst = el.quantities || {};
       const keys = Object.keys(defaults).concat(Object.keys(inst));
@@ -706,11 +957,722 @@
           key: (el.id || "?") + "." + k,
           quantity: String(qid),
           role: v.role || d.role || k,
-          value: num
+          value: num,
+          element: el.id
         });
       });
     });
     return entries;
+  }
+
+  /**
+   * Links: { law, params: [slotId…] }. Runtime match (quantity,role) → law bindings.
+   * change: { slotId, value } | { role: "extension", value } | { force }
+   * Геометрия: radius_vector / natural_length / extension из тех же slot ids.
+   * returns { construction, derived, matched }
+   */
+  /**
+   * Resolve link instance → { law, params:[slotId…] }.
+   * Supports:
+   *   legacy: { law, params }
+   *   bindings: { port: elId | [elId…] }
+   *   of[]:    order = scheme.port_order; multi-port accepts elId | [elId…]
+   * LINK: schemes + aliases; chain L* → scheme.law (P*) → AST via formulas.
+   */
+  function resolveLinkInstance(link, linkPack, construction) {
+    if (!link) return null;
+    if (link.law && Array.isArray(link.params)) {
+      return { law: link.law, params: link.params.slice(), id: link.id || null };
+    }
+    const ref = link.structure_ref || link.link || link.scheme || null;
+    if (!ref) return null;
+    const pack = linkPack || {};
+    const schemes = pack.schemes || {};
+    const aliases = pack.aliases || {};
+    let schemeId = ref;
+    let scheme = schemes[ref] || null;
+    if (!scheme && aliases[ref]) {
+      schemeId = aliases[ref].scheme || aliases[ref];
+      scheme = schemes[schemeId] || null;
+    }
+    if (!scheme && (ref === "L_hooke" || schemeId === "hooke_segment")) {
+      scheme = {
+        law: "P014",
+        port_order: ["anchor", "spring", "end"],
+        ports: {
+          anchor: { param_roles: ["radius_vector"] },
+          spring: {
+            param_roles: [
+              "spring_constant",
+              "extension",
+              "natural_length",
+              "radius_vector"
+            ]
+          },
+          end: { param_roles: ["radius_vector"] }
+        }
+      };
+    }
+    if (!scheme && (ref === "L_newton" || schemeId === "newton_ii")) {
+      scheme = {
+        law: "P005",
+        port_order: ["mass", "springs"],
+        ports: {
+          mass: {
+            param_roles: ["mass", "acceleration", "force"]
+          },
+          springs: {
+            multi: true,
+            param_roles: ["spring_constant", "extension"]
+          }
+        }
+      };
+    }
+    if (!scheme || !scheme.law) return null;
+
+    const ports = scheme.ports || {};
+    const portOrder =
+      Array.isArray(scheme.port_order) && scheme.port_order.length
+        ? scheme.port_order.slice()
+        : Object.keys(ports);
+
+    // Build port → elId | [elId…] from of[] or bindings
+    const wiring = Object.create(null);
+    if (Array.isArray(link.of) && link.of.length) {
+      let oi = 0;
+      for (let pi = 0; pi < portOrder.length; pi++) {
+        const pname = portOrder[pi];
+        const spec = ports[pname] || {};
+        if (oi >= link.of.length) break;
+        if (spec.multi) {
+          const rest = link.of.slice(oi);
+          if (rest.length === 1 && Array.isArray(rest[0])) {
+            wiring[pname] = rest[0].slice();
+            oi += 1;
+          } else if (rest.length === 1 && typeof rest[0] === "string") {
+            wiring[pname] = [rest[0]];
+            oi += 1;
+          } else {
+            wiring[pname] = rest.filter(function (x) {
+              return typeof x === "string";
+            });
+            oi = link.of.length;
+          }
+        } else {
+          const v = link.of[oi++];
+          wiring[pname] = Array.isArray(v) ? v[0] : v;
+        }
+      }
+    } else if (link.bindings && typeof link.bindings === "object") {
+      Object.keys(link.bindings).forEach(function (k) {
+        wiring[k] = link.bindings[k];
+      });
+    }
+
+    // Emit slot ids: for P014 keep spring roles then radius chain (legacy order)
+    const params = [];
+    function pushRoles(elId, roles) {
+      if (!elId || !roles) return;
+      roles.forEach(function (role) {
+        params.push(elId + "." + role);
+      });
+    }
+    if (scheme.law === "P014") {
+      const springId = wiring.spring;
+      const anchorId = wiring.anchor;
+      const endId = wiring.end;
+      pushRoles(springId, (ports.spring && ports.spring.param_roles) || [
+        "spring_constant",
+        "extension",
+        "natural_length",
+        "radius_vector"
+      ]);
+      pushRoles(anchorId, (ports.anchor && ports.anchor.param_roles) || [
+        "radius_vector"
+      ]);
+      pushRoles(endId, (ports.end && ports.end.param_roles) || ["radius_vector"]);
+    } else if (scheme.law === "P005") {
+      const massId = wiring.mass;
+      pushRoles(massId, (ports.mass && ports.mass.param_roles) || [
+        "mass",
+        "acceleration",
+        "force"
+      ]);
+      let springs = wiring.springs;
+      if (springs == null && wiring.spring) springs = [wiring.spring];
+      if (!Array.isArray(springs)) springs = springs ? [springs] : [];
+      const sRoles =
+        (ports.springs && ports.springs.param_roles) ||
+        ["spring_constant", "extension"];
+      springs.forEach(function (sid) {
+        pushRoles(sid, sRoles);
+      });
+    } else {
+      portOrder.forEach(function (pname) {
+        const spec = ports[pname] || {};
+        const roles = spec.param_roles || [];
+        let targets = wiring[pname];
+        if (targets == null) return;
+        if (!Array.isArray(targets)) targets = [targets];
+        targets.forEach(function (elId) {
+          pushRoles(elId, roles);
+        });
+      });
+    }
+
+    return {
+      law: scheme.law,
+      params: params,
+      id: link.id || ref,
+      structure_ref: ref,
+      scheme: schemeId
+    };
+  }
+
+  /**
+   * Prefix element id in of[] / bindings entries.
+   */
+  function prefixOfEntry(entry, prefix) {
+    if (entry == null) return entry;
+    if (typeof entry === "string") return prefix + entry;
+    if (Array.isArray(entry)) {
+      return entry.map(function (x) {
+        return prefixOfEntry(x, prefix);
+      });
+    }
+    if (typeof entry === "object") {
+      // nested construction ref — leave for expandConstruction
+      if (entry.construction || entry.c) return entry;
+      const out = {};
+      Object.keys(entry).forEach(function (k) {
+        out[k] = prefixOfEntry(entry[k], prefix);
+      });
+      return out;
+    }
+    return entry;
+  }
+
+  /**
+   * Recursive flatten: include[] / elements[{construction, as, overrides}]
+   * → flat elements + links (ids prefixed). Like nested law in formulas.
+   * constructions index: opts.constructions | pack.constructs
+   */
+  function expandConstruction(construction, opts, stack) {
+    opts = opts || {};
+    stack = stack || [];
+    if (!construction) return construction;
+    const cid = construction.id || construction.construction || "?";
+    if (stack.indexOf(cid) >= 0) {
+      return {
+        id: cid,
+        name: construction.name,
+        layout: construction.layout,
+        environment: construction.environment || "E0",
+        elements: [],
+        links: [],
+        _cycle: true
+      };
+    }
+    const nextStack = stack.concat([cid]);
+
+    let list = null;
+    const raw =
+      opts.constructions ||
+      opts.constructs ||
+      (opts.pack && (opts.pack.constructs || opts.pack.constructions)) ||
+      null;
+    if (raw) {
+      list = Array.isArray(raw)
+        ? raw
+        : raw.constructions || raw.list || null;
+    }
+    const byId = Object.create(null);
+    if (Array.isArray(list)) {
+      list.forEach(function (c) {
+        if (c && c.id) byId[c.id] = c;
+      });
+    }
+
+    function findC(id) {
+      return byId[id] || null;
+    }
+
+    function applyOverridesToEl(el, ovAll) {
+      if (!el) return el;
+      const local = Object.create(null);
+      // ovAll keys: "elId.role" or "elId" → {role:value} or role on this el
+      if (!ovAll) return el;
+      const id = el.id;
+      const overrides = Object.assign({}, el.overrides || {});
+      Object.keys(ovAll).forEach(function (k) {
+        if (k === id && ovAll[k] && typeof ovAll[k] === "object" && !Array.isArray(ovAll[k])) {
+          Object.assign(overrides, ovAll[k]);
+          return;
+        }
+        const dot = k.indexOf(".");
+        if (dot > 0 && k.slice(0, dot) === id) {
+          overrides[k.slice(dot + 1)] = ovAll[k];
+        }
+      });
+      return {
+        id: el.id,
+        component: el.component,
+        construction: el.construction,
+        overrides: overrides,
+        params: el.params
+      };
+    }
+
+    const flatEls = [];
+    const flatLinks = [];
+    let environment = construction.environment || "E0";
+    let layout = construction.layout || "series_vertical";
+    let observer = construction.observer || null;
+
+    function ingest(src, prefix, ov) {
+      if (!src) return;
+      const expanded = expandConstruction(src, opts, nextStack);
+      if (expanded.environment) environment = expanded.environment;
+      if (expanded.layout) layout = expanded.layout;
+      (expanded.elements || []).forEach(function (el) {
+        let e = {
+          id: prefix + el.id,
+          component: el.component,
+          overrides: el.overrides ? Object.assign({}, el.overrides) : undefined,
+          params: el.params
+        };
+        e = applyOverridesToEl(
+          { id: el.id, component: e.component, overrides: e.overrides, params: e.params },
+          ov
+        );
+        e.id = prefix + el.id;
+        flatEls.push(e);
+      });
+      (expanded.links || []).forEach(function (lnk) {
+        const copy = {
+          id: lnk.id ? prefix + lnk.id : undefined,
+          structure_ref: lnk.structure_ref,
+          law: lnk.law,
+          params: lnk.params
+        };
+        if (Array.isArray(lnk.of)) {
+          copy.of = lnk.of.map(function (x) {
+            return prefixOfEntry(x, prefix);
+          });
+        }
+        if (lnk.bindings) {
+          copy.bindings = prefixOfEntry(lnk.bindings, prefix);
+        }
+        flatLinks.push(copy);
+      });
+      if (!observer && expanded.observer) {
+        observer = {
+          id: prefix + (expanded.observer.id || "obs"),
+          component: expanded.observer.component,
+          overrides: expanded.observer.overrides,
+          params: expanded.observer.params
+        };
+      }
+    }
+
+    // include[] at top level
+    (construction.include || []).forEach(function (inc) {
+      if (!inc) return;
+      const ref = inc.construction || inc.c || inc.id;
+      const as = inc.as != null ? String(inc.as) : ref ? ref + "_" : "u_";
+      const prefix = as && as.slice(-1) !== "_" ? as + "_" : as;
+      const src = findC(ref);
+      if (src) ingest(src, prefix, inc.overrides || null);
+    });
+
+    // elements: plain E* or nested construction
+    (construction.elements || []).forEach(function (el) {
+      if (!el) return;
+      const ref = el.construction || el.c || null;
+      if (ref) {
+        const as = el.as != null ? String(el.as) : el.id != null ? String(el.id) : ref;
+        const prefix = as && as.slice(-1) !== "_" ? as + "_" : as + "_";
+        const src = findC(ref);
+        if (src) ingest(src, prefix, el.overrides || null);
+        return;
+      }
+      flatEls.push({
+        id: el.id,
+        component: el.component,
+        overrides: el.overrides,
+        params: el.params
+      });
+    });
+
+    (construction.links || []).forEach(function (lnk) {
+      flatLinks.push(lnk);
+    });
+
+    return {
+      id: construction.id,
+      name: construction.name,
+      layout: layout,
+      environment: environment,
+      observer: observer,
+      elements: flatEls,
+      links: flatLinks
+    };
+  }
+
+  function applyConstructionLinks(construction, opts) {
+    opts = opts || {};
+    // full recursive flatten before physics
+    construction = expandConstruction(construction, opts, []);
+    const comps =
+      (opts.components && (opts.components.components || opts.components)) || {};
+    const change = opts.change || null;
+    const outDerived = [];
+    const formulasRaw = opts.formulas || opts.formulasData || null;
+    const formulasById = Object.create(null);
+    if (formulasRaw) {
+      const list = Array.isArray(formulasRaw)
+        ? formulasRaw
+        : formulasRaw.formulas || [];
+      list.forEach(function (law) {
+        if (!law) return;
+        const id = law.law_id || law.id;
+        if (id) formulasById[id] = law;
+      });
+    }
+    const linkPack =
+      opts.links ||
+      opts.LINK ||
+      (opts.pack && (opts.pack.links || opts.pack.LINK)) ||
+      null;
+
+    function expandEl(el) {
+      if (!el) return null;
+      const resolved = resolveElementParams(el, comps[el.component] || {});
+      return {
+        id: el.id,
+        component: el.component,
+        params: resolved.map(function (p) {
+          return {
+            id: p.id,
+            quantity: p.quantity,
+            role: p.role,
+            value: Array.isArray(p.value) ? p.value.slice() : p.value
+          };
+        })
+      };
+    }
+
+    const c = {
+      id: construction.id,
+      name: construction.name,
+      layout: construction.layout || "series_vertical",
+      environment: construction.environment || "E0",
+      observer: construction.observer ? expandEl(construction.observer) : null,
+      elements: (construction.elements || []).map(expandEl).filter(Boolean),
+      links: construction.links || []
+    };
+
+    function cloneParam(p) {
+      return {
+        id: p.id,
+        quantity: p.quantity,
+        role: p.role,
+        value: Array.isArray(p.value) ? p.value.slice() : p.value
+      };
+    }
+
+    function findEl(id) {
+      for (let i = 0; i < c.elements.length; i++) {
+        if (c.elements[i].id === id) return c.elements[i];
+      }
+      return null;
+    }
+
+    function setSlotValue(slotId, value) {
+      function patch(el) {
+        if (!el || !el.params) return false;
+        for (let i = 0; i < el.params.length; i++) {
+          const p = el.params[i];
+          const pid = p.id || (p.role ? el.id + "." + p.role : null);
+          if (pid === slotId || (p.role && el.id + "." + p.role === slotId)) {
+            el.params[i] = {
+              id: pid || p.id,
+              quantity: p.quantity,
+              role: p.role,
+              value: Array.isArray(value) ? value.slice() : value
+            };
+            return true;
+          }
+        }
+        return false;
+      }
+      for (let i = 0; i < c.elements.length; i++) {
+        if (patch(c.elements[i])) return true;
+      }
+      return patch(c.observer);
+    }
+
+    // apply change by slotId / role extension / force
+    if (change) {
+      if (change.slotId != null && change.value !== undefined) {
+        setSlotValue(change.slotId, change.value);
+      } else if (change.role === "extension" || change.delta_extension != null) {
+        const v =
+          change.value != null ? change.value : change.delta_extension;
+        // first extension slot in links or elements
+        const slots = indexConstructionSlots(c, comps);
+        Object.keys(slots).forEach(function (id) {
+          if (slots[id].role === "extension") setSlotValue(id, Number(v));
+        });
+      }
+    }
+
+    const layout = String(c.layout || "series_vertical");
+    const vertical =
+      layout === "series_vertical" ||
+      layout === "vertical" ||
+      layout === "parallel" ||
+      layout.indexOf("vertical") >= 0;
+
+    (c.links || []).forEach(function (rawLink) {
+      const link = resolveLinkInstance(rawLink, linkPack, c);
+      if (!link || !link.law) return;
+      const slotIds = Array.isArray(link.params) ? link.params : [];
+      const allSlots = indexConstructionSlots(c, comps);
+      const pool = slotIds
+        .map(function (id) {
+          return allSlots[id];
+        })
+        .filter(Boolean);
+
+      const law = formulasById[link.law] || null;
+      let matched = { values: {}, meta: [], nested: [] };
+      if (law) {
+        matched = matchLawToSlots(law, pool, formulasById, Object.create(null));
+      }
+
+      function elOf(slotId) {
+        if (!slotId) return null;
+        const i = String(slotId).indexOf(".");
+        return i > 0 ? slotId.slice(0, i) : slotId;
+      }
+
+      // g from environment E0
+      let g = 9.8;
+      const envComp = comps[c.environment || "E0"] || comps.E0 || {};
+      if (Array.isArray(envComp.params)) {
+        envComp.params.forEach(function (p) {
+          if (p.role === "free_fall_acceleration" || p.quantity === "Q006") {
+            const n = scalarFromParamValue(p.default != null ? p.default : p.value);
+            if (n != null) g = n;
+          }
+        });
+      }
+
+      // ── P014 Гук + геометрия от потолка ─────────────────
+      if (link.law === "P014") {
+        let k = null;
+        let L0 = null;
+        let deltaL = 0;
+        let extensionId = null;
+        const radiusSlots = [];
+        pool.forEach(function (s) {
+          if (s.role === "spring_constant") {
+            const n = scalarFromParamValue(s.value);
+            if (n != null) k = n;
+          } else if (s.role === "natural_length") {
+            const n = scalarFromParamValue(s.value);
+            if (n != null) L0 = n;
+          } else if (s.role === "extension" || s.role === "length") {
+            const n = scalarFromParamValue(s.value);
+            if (n != null) deltaL = n;
+            extensionId = s.id;
+          } else if (s.role === "radius_vector") {
+            radiusSlots.push(s);
+          }
+        });
+        if (matched.values.O3 != null && isFinite(matched.values.O3)) deltaL = matched.values.O3;
+        if (matched.values.O2 != null) k = matched.values.O2;
+        if (L0 == null) L0 = 0.2;
+
+        // equilibrium: Δl = mg/k (needs mass in construction, not only pool)
+        if (opts.equilibrium || (change && change.equilibrium)) {
+          const all = indexConstructionSlots(c, comps);
+          let m = null;
+          Object.keys(all).forEach(function (id) {
+            if (all[id].role === "mass") {
+              const n = scalarFromParamValue(all[id].value);
+              if (n != null) m = n;
+            }
+          });
+          if (m != null && k != null && k !== 0) {
+            deltaL = (m * g) / k;
+            if (extensionId) setSlotValue(extensionId, deltaL);
+          }
+        }
+
+        let forceOverride =
+          opts.force != null
+            ? Number(opts.force)
+            : change && change.force != null
+              ? Number(change.force)
+              : null;
+        if (forceOverride != null && k != null && k !== 0) {
+          deltaL = forceOverride / k;
+          if (extensionId) setSlotValue(extensionId, deltaL);
+        }
+
+        const F = k != null && isFinite(deltaL) ? k * deltaL : null;
+
+        // radius order in link.params: [ceiling?, spring.r…, end.r]
+        // anchor = ceiling || first; to = last (series: стык или mass)
+        let ceilingS = null;
+        const springSlots = [];
+        radiusSlots.forEach(function (s) {
+          const e = elOf(s.id);
+          if (e === "ceiling") ceilingS = s;
+          else if (e && String(e).indexOf("spring") === 0) springSlots.push(s);
+        });
+        const anchorS = ceilingS || radiusSlots[0] || null;
+        const endS =
+          radiusSlots.length > 0 ? radiusSlots[radiusSlots.length - 1] : null;
+        const fromR = anchorS ? asVec3(anchorS.value) : [0, 0, 0];
+        const fromRId = anchorS ? anchorS.id : null;
+        const toRId = endS && endS !== anchorS ? endS.id : null;
+        let toR = endS ? asVec3(endS.value) : [0, 0, 0];
+
+        if (springSlots.length && anchorS) {
+          const topSpring = springSlots[0];
+          if (topSpring.id !== toRId) setSlotValue(topSpring.id, fromR.slice());
+        }
+
+        if (toRId && fromRId) {
+          const newR = fromR.slice();
+          if (vertical) {
+            newR[0] = fromR[0];
+            newR[1] = fromR[1] - (L0 + deltaL);
+            newR[2] = fromR[2] || 0;
+          } else {
+            newR[0] = fromR[0] + (L0 + deltaL);
+            newR[1] = fromR[1];
+          }
+          setSlotValue(toRId, newR);
+          if (allSlots[toRId]) allSlots[toRId].value = newR.slice();
+          if (anchorS && allSlots[fromRId]) allSlots[fromRId].value = fromR.slice();
+          toR = newR;
+        }
+
+        outDerived.push({
+          link: link.id || link.law,
+          law: link.law,
+          from: elOf(fromRId) || "ceiling",
+          to: elOf(toRId) || "mass",
+          k: k,
+          L0: L0,
+          delta_l: deltaL,
+          F: F,
+          F_elastic: F,
+          axis: vertical ? "y" : "x",
+          slots: slotIds.slice(),
+          match: matched.meta
+        });
+        return;
+      }
+
+      // ── P005 Ньютон: F_net = mg − Σ k·Δl → a = F_net/m ──
+      if (link.law === "P005") {
+        let m = null;
+        let accelId = null;
+        let forceId = null;
+        let F_elastic = 0;
+        const ks = [];
+        const dls = [];
+        pool.forEach(function (s) {
+          if (s.role === "mass") {
+            const n = scalarFromParamValue(s.value);
+            if (n != null) m = n;
+          } else if (s.role === "acceleration") {
+            accelId = s.id;
+          } else if (s.role === "force") {
+            forceId = s.id;
+          } else if (s.role === "spring_constant") {
+            ks.push(scalarFromParamValue(s.value));
+          } else if (s.role === "extension" || s.role === "length") {
+            dls.push(scalarFromParamValue(s.value));
+          }
+        });
+        // pair k with dl in order
+        const nPair = Math.min(ks.length, dls.length);
+        const parallel = layout === "parallel";
+        if (nPair > 0) {
+          if (parallel) {
+            for (let i = 0; i < nPair; i++) {
+              if (ks[i] != null && dls[i] != null) F_elastic += ks[i] * dls[i];
+            }
+          } else {
+            // series: сила на груз = натяжение нижней пружины (последняя пара)
+            const i = nPair - 1;
+            if (ks[i] != null && dls[i] != null) F_elastic = ks[i] * dls[i];
+          }
+        } else {
+          const hookes = outDerived.filter(function (d) {
+            return d.law === "P014" && d.F_elastic != null;
+          });
+          if (parallel) {
+            hookes.forEach(function (d) {
+              F_elastic += d.F_elastic;
+            });
+          } else if (hookes.length) {
+            F_elastic = hookes[hookes.length - 1].F_elastic;
+          }
+        }
+        if (m == null || m === 0) {
+          outDerived.push({
+            link: link.id || link.law,
+            law: link.law,
+            error: "no mass",
+            slots: slotIds.slice(),
+            match: matched.meta
+          });
+          return;
+        }
+        const weight = m * g;
+        // вниз + : растяжение пружины растёт, когда weight > F_elastic
+        const F_net = weight - F_elastic;
+        const a = F_net / m;
+        if (forceId) setSlotValue(forceId, F_net);
+        if (accelId) setSlotValue(accelId, a);
+
+        outDerived.push({
+          link: link.id || link.law,
+          law: link.law,
+          from: "mass",
+          to: "mass",
+          m: m,
+          g: g,
+          weight: weight,
+          F_elastic: F_elastic,
+          F_net: F_net,
+          F: F_net,
+          a: a,
+          axis: "y",
+          slots: slotIds.slice(),
+          match: matched.meta
+        });
+        return;
+      }
+
+      // generic law: only match meta
+      outDerived.push({
+        link: link.id || link.law,
+        law: link.law,
+        slots: slotIds.slice(),
+        match: matched.meta,
+        values: matched.values
+      });
+    });
+
+    return { construction: c, derived: outDerived };
   }
 
   /**
@@ -722,6 +1684,15 @@
     opts = opts || {};
     const out = { values: Object.create(null), domain: null, meta: [] };
     if (!law || !law.bindings) return out;
+
+    // recursive flatten before reading slots
+    if (construction && typeof expandConstruction === "function") {
+      construction = expandConstruction(construction, {
+        constructions: opts.constructions,
+        constructs: opts.constructs,
+        pack: opts.pack
+      });
+    }
 
     const entries = collectConstructionQuantityEntries(
       construction,
@@ -839,8 +1810,8 @@
    * @param {object|array} opts.formulas — formulas pack
    * @param {string} opts.lawId
    * @param {string} [opts.structureRef] — если уже известен
-   * @param {object} [opts.construction] — Constructs item → values из величин
-   * @param {object} [opts.components] — physi_comps
+   * @param {object} [opts.construction] — pack.constructs item → values из величин
+   * @param {object} [opts.components] — Componovka/components (pack.components)
    * @param {object} [opts.physiQuant] — physi_quant (константы)
    * @param {object} [opts.values] — явный override операндов
    * @param {number[]} [opts.domain]
@@ -907,19 +1878,482 @@
     return payload;
   }
 
-  // ── Frame (единая координатная логика) ─────────────────
-  // Примитив: math-space (y-up) ↔ screen (y-down).
-  // E0 и плоскость графика — экземпляры одного сорта Frame.
-  // Масштабирование = изменение scale_x / scale_y.
+  // ── Frame — единая основа СК (среда + график функций) ──
+  // Math-space y-up ↔ screen y-down.
+  // origin = выбранная материальная точка однородной среды.
+  // origin_corner bottom_left → положительный квадрант.
+  // Дальнейшие наслоения (конструкции, реальные среды, оси/якоря) только поверх этого Frame.
+
+  /** Отступы plot-area под шкалы и подписи (screen px). Общие для среды и графиков. */
+  /** Как frame_proto graph: место под подписи осей и деления (не резать ticks). */
+  const DEFAULT_PLOT_INSETS = { left: 64, right: 36, top: 26, bottom: 36 };
+
+  function plotInsets(overrides) {
+    const d = DEFAULT_PLOT_INSETS;
+    if (!overrides) return { left: d.left, right: d.right, top: d.top, bottom: d.bottom };
+    return {
+      left: overrides.left != null ? Number(overrides.left) : d.left,
+      right: overrides.right != null ? Number(overrides.right) : d.right,
+      top: overrides.top != null ? Number(overrides.top) : d.top,
+      bottom: overrides.bottom != null ? Number(overrides.bottom) : d.bottom
+    };
+  }
+
+  /**
+   * Шкалы отображения (как frame_proto): геометрия Frame всегда SI;
+   * unitFactor = SI на 1 ед. подписи (1 → m, 0.01 → cm).
+   * Программно — абсолютные SI; человеку — relative к origin + toScale.
+   */
+  function niceStep(min, max, targetTicks) {
+    const span = Math.abs(max - min);
+    if (!(span > 0) || !isFinite(span)) return 1;
+    const raw = span / Math.max(2, targetTicks || 6);
+    const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    const n = raw / pow;
+    let step;
+    if (n <= 1.5) step = 1;
+    else if (n <= 3) step = 2;
+    else if (n <= 7) step = 5;
+    else step = 10;
+    return step * pow;
+  }
+
+  function formatTick(v, step) {
+    if (!isFinite(v)) return "—";
+    if (Math.abs(v) < 1e-12) return "0";
+    const a = Math.abs(v);
+    if (a >= 1e4 || (a > 0 && a < 1e-3)) return v.toExponential(1);
+    let d = 0;
+    if (step > 0 && isFinite(step)) {
+      const ls = Math.log10(step);
+      if (ls < 0) d = Math.min(4, Math.ceil(-ls));
+      const mant = step / Math.pow(10, Math.floor(ls));
+      if (mant < 1.5 && ls < 0) d = Math.min(4, d + 1);
+    }
+    if (d === 0) return String(Math.round(v));
+    return v.toFixed(d).replace(/\.?0+$/, "") || "0";
+  }
+
+  function ticksInRange(min, max, step) {
+    const out = [];
+    if (!(step > 0)) return out;
+    const start = Math.ceil((min - 1e-12) / step) * step;
+    for (let v = start; v <= max + 1e-9; v += step) {
+      if (v >= min - 1e-9 && v <= max + 1e-9) out.push(Number(v.toPrecision(12)));
+    }
+    return out;
+  }
+
+  /** SI → число в шкале (value_si / factor). factor = м на 1 ед. (0.01 для cm). */
+  function toScale(valueSi, unitFactor) {
+    const f = unitFactor != null && unitFactor > 0 ? unitFactor : 1;
+    const v = Number(valueSi);
+    if (!isFinite(v)) return v;
+    return v / f;
+  }
+
+  /** Число в шкале → SI. */
+  function fromScale(valueDisplay, unitFactor) {
+    const f = unitFactor != null && unitFactor > 0 ? unitFactor : 1;
+    const v = Number(valueDisplay);
+    if (!isFinite(v)) return v;
+    return v * f;
+  }
+
+  /**
+   * Абсолютная точка SI → относительная к origin Frame (математика СК).
+   * p: {x,y} | [x,y] | [x,y,z]
+   */
+  function relativeToFrame(frame, p) {
+    if (!frame || p == null) return null;
+    const ox = frame.origin ? Number(frame.origin[0]) || 0 : 0;
+    const oy = frame.origin ? Number(frame.origin[1]) || 0 : 0;
+    let x, y;
+    if (Array.isArray(p)) {
+      x = Number(p[0]) || 0;
+      y = Number(p[1]) || 0;
+    } else {
+      x = Number(p.x != null ? p.x : p[0]) || 0;
+      y = Number(p.y != null ? p.y : p[1]) || 0;
+    }
+    return { x: x - ox, y: y - oy };
+  }
+
+  /** Относительная точка СК → абсолютная SI. */
+  function absoluteFromFrame(frame, pRel) {
+    if (!frame || pRel == null) return null;
+    const ox = frame.origin ? Number(frame.origin[0]) || 0 : 0;
+    const oy = frame.origin ? Number(frame.origin[1]) || 0 : 0;
+    let x, y;
+    if (Array.isArray(pRel)) {
+      x = Number(pRel[0]) || 0;
+      y = Number(pRel[1]) || 0;
+    } else {
+      x = Number(pRel.x != null ? pRel.x : 0) || 0;
+      y = Number(pRel.y != null ? pRel.y : 0) || 0;
+    }
+    return { x: x + ox, y: y + oy };
+  }
+
+  /**
+   * Пространственная величина для человека: relative к СК + шкала.
+   * scalar SI → { value, unitFactor, kind:"scalar" }
+   * vector SI → { x, y, unitFactor, kind:"vector" }  (relative)
+   */
+  function spatialForHuman(frame, valueSi, opts) {
+    opts = opts || {};
+    const uf =
+      opts.unitFactor != null && opts.unitFactor > 0
+        ? opts.unitFactor
+        : frame && frame.unit_factor_x != null
+          ? frame.unit_factor_x
+          : 1;
+    if (valueSi == null) return null;
+    if (typeof valueSi === "number" || (typeof valueSi === "string" && isFinite(Number(valueSi)))) {
+      const abs = Number(valueSi);
+      // скаляр длины: без вычитания origin (это не точка), только шкала
+      return {
+        kind: "scalar",
+        value_si: abs,
+        value: toScale(abs, uf),
+        unitFactor: uf
+      };
+    }
+    const rel = relativeToFrame(frame, valueSi) || { x: 0, y: 0 };
+    return {
+      kind: "vector",
+      value_si: Array.isArray(valueSi)
+        ? valueSi.slice()
+        : [valueSi.x, valueSi.y, valueSi.z],
+      x: toScale(rel.x, uf),
+      y: toScale(rel.y, uf),
+      unitFactor: uf
+    };
+  }
+
+  /**
+   * Полноценные оси — 1:1 с frame_proto.html drawAxes.
+   * Frame = весь canvas (viewportW/H = CSS size); отступы подписи за счёт
+   * origin shift (см. frameForLabeledPlot), не clip plot-local.
+   * Геометрия SI; подписи = SI / unitFactor.
+   */
+  function drawAxes(ctx, frame, opts) {
+    opts = opts || {};
+    if (!ctx || !frame) return;
+    const W = frame.viewportW;
+    const H = frame.viewportH;
+    if (W == null || H == null) return;
+    const o = toScreen(frame, { x: 0, y: 0 });
+    if (!o) return;
+
+    function fromS(px, py) {
+      let sy = py;
+      if (frame.axes && frame.axes.y === "up" && frame.viewportH != null) {
+        sy = frame.viewportH - py;
+      }
+      return {
+        x: frame.origin[0] + px / frame.scale_x,
+        y: frame.origin[1] + sy / frame.scale_y
+      };
+    }
+    let xMin = Infinity,
+      xMax = -Infinity,
+      yMin = Infinity,
+      yMax = -Infinity;
+    [
+      { x: 0, y: 0 },
+      { x: W, y: 0 },
+      { x: 0, y: H },
+      { x: W, y: H }
+    ].forEach(function (c) {
+      const m = fromS(c.x, c.y);
+      if (m.x < xMin) xMin = m.x;
+      if (m.x > xMax) xMax = m.x;
+      if (m.y < yMin) yMin = m.y;
+      if (m.y > yMax) yMax = m.y;
+    });
+    if (opts.xMin != null) xMin = opts.xMin;
+    if (opts.xMax != null) xMax = opts.xMax;
+    if (opts.yMin != null) yMin = opts.yMin;
+    if (opts.yMax != null) yMax = opts.yMax;
+
+    // unitFactor: м на 1 ед. подписи (1 для m, 0.01 для cm).
+    const ufx =
+      opts.unitFactorX != null && opts.unitFactorX > 0
+        ? opts.unitFactorX
+        : frame.unit_factor_x != null && frame.unit_factor_x > 0
+          ? frame.unit_factor_x
+          : 1;
+    const ufy =
+      opts.unitFactorY != null && opts.unitFactorY > 0
+        ? opts.unitFactorY
+        : frame.unit_factor_y != null && frame.unit_factor_y > 0
+          ? frame.unit_factor_y
+          : 1;
+
+    const stepXdisp = niceStep(xMin / ufx, xMax / ufx, opts.targetTicksX || 8);
+    const stepYdisp = niceStep(yMin / ufy, yMax / ufy, opts.targetTicksY || 6);
+    const stepX = stepXdisp * ufx;
+    const stepY = stepYdisp * ufy;
+    const minorX = stepX / 5;
+    const minorY = stepY / 5;
+    const majorsX = ticksInRange(xMin, xMax, stepX);
+    const majorsY = ticksInRange(yMin, yMax, stepY);
+    const minorsX = ticksInRange(xMin, xMax, minorX);
+    const minorsY = ticksInRange(yMin, yMax, minorY);
+
+    // grid
+    if (opts.grid !== false) {
+      ctx.strokeStyle = "rgba(46,53,69,0.55)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      majorsX.forEach(function (xv) {
+        if (Math.abs(xv) < stepX * 1e-9) return;
+        const a = toScreen(frame, { x: xv, y: yMin });
+        const b = toScreen(frame, { x: xv, y: yMax });
+        if (a && b) {
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+        }
+      });
+      majorsY.forEach(function (yv) {
+        if (Math.abs(yv) < stepY * 1e-9) return;
+        const a = toScreen(frame, { x: xMin, y: yv });
+        const b = toScreen(frame, { x: xMax, y: yv });
+        if (a && b) {
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+        }
+      });
+      ctx.stroke();
+    }
+
+    // axis lines through origin (clipped to plot domain)
+    const x0 = toScreen(frame, { x: xMin, y: 0 });
+    const x1 = toScreen(frame, { x: xMax, y: 0 });
+    const y0 = toScreen(frame, { x: 0, y: yMin });
+    const y1 = toScreen(frame, { x: 0, y: yMax });
+    ctx.strokeStyle = "#9aa3b5";
+    ctx.fillStyle = "#9aa3b5";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (x0 && x1) {
+      ctx.moveTo(x0.x, x0.y);
+      ctx.lineTo(x1.x, x1.y);
+    }
+    if (y0 && y1) {
+      ctx.moveTo(y0.x, y0.y);
+      ctx.lineTo(y1.x, y1.y);
+    }
+    ctx.stroke();
+
+    function axisArrow(from, to) {
+      if (!from || !to) return;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 4) return;
+      const ux = dx / len;
+      const uy = dy / len;
+      const head = 9;
+      ctx.beginPath();
+      ctx.moveTo(to.x, to.y);
+      ctx.lineTo(
+        to.x - head * ux + head * 0.4 * uy,
+        to.y - head * uy - head * 0.4 * ux
+      );
+      ctx.lineTo(
+        to.x - head * ux - head * 0.4 * uy,
+        to.y - head * uy + head * 0.4 * ux
+      );
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (x0 && x1) axisArrow(x0, x1);
+    if (y0 && y1) axisArrow(y0, y1);
+
+    // minor ticks
+    ctx.strokeStyle = "#6b7385";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const tickMinor = 4;
+    const tickMajor = 8;
+    minorsX.forEach(function (xv) {
+      if (
+        majorsX.some(function (m) {
+          return Math.abs(m - xv) < minorX * 0.1;
+        })
+      )
+        return;
+      const p = toScreen(frame, { x: xv, y: 0 });
+      if (!p) return;
+      ctx.moveTo(p.x, p.y - tickMinor);
+      ctx.lineTo(p.x, p.y + tickMinor);
+    });
+    minorsY.forEach(function (yv) {
+      if (
+        majorsY.some(function (m) {
+          return Math.abs(m - yv) < minorY * 0.1;
+        })
+      )
+        return;
+      const p = toScreen(frame, { x: 0, y: yv });
+      if (!p) return;
+      ctx.moveTo(p.x - tickMinor, p.y);
+      ctx.lineTo(p.x + tickMinor, p.y);
+    });
+    ctx.stroke();
+
+    // major ticks + numeric labels
+    ctx.strokeStyle = "#c5c9d1";
+    ctx.fillStyle = "#c5c9d1";
+    ctx.lineWidth = 1.25;
+    ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.beginPath();
+    majorsX.forEach(function (xv) {
+      const p = toScreen(frame, { x: xv, y: 0 });
+      if (!p) return;
+      ctx.moveTo(p.x, p.y - tickMajor);
+      ctx.lineTo(p.x, p.y + tickMajor);
+      if (Math.abs(xv) < stepX * 1e-9) return;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const ty = Math.min(H - 2, p.y + tickMajor + 3);
+      ctx.fillText(formatTick(xv / ufx, stepXdisp), p.x, ty);
+    });
+    majorsY.forEach(function (yv) {
+      const p = toScreen(frame, { x: 0, y: yv });
+      if (!p) return;
+      ctx.moveTo(p.x - tickMajor, p.y);
+      ctx.lineTo(p.x + tickMajor, p.y);
+      if (Math.abs(yv) < stepY * 1e-9) return;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      const tx = Math.max(28, p.x - tickMajor - 6);
+      ctx.fillText(formatTick(yv / ufy, stepYdisp), tx, p.y);
+    });
+    ctx.stroke();
+
+    // origin «0»
+    if (o) {
+      ctx.fillStyle = "#8b93a7";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "top";
+      ctx.fillText("0", Math.max(28, o.x - 6), o.y + 4);
+    }
+
+    // axis name labels (explicit) — как в proto
+    ctx.fillStyle = "#e6e8ee";
+    ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+    if (opts.xLabel && x1) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(
+        opts.xLabel,
+        Math.min(W - 8, x1.x - 4),
+        Math.max(14, x1.y - 10)
+      );
+    }
+    if (opts.yLabel && y1) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(
+        opts.yLabel,
+        Math.min(W - 8, y1.x + 10),
+        Math.max(14, y1.y + 4)
+      );
+    }
+  }
+
+  /**
+   * Frame на весь canvas с отступами под подписи — как graph в frame_proto:
+   *   padL=64, padR=36, padT=26, padB=36
+   *   origin = [domain[0] - padL/scaleX, yMin - padB/scaleY]
+   *   viewport = (W, H) целиком → drawAxes не режет labels.
+   *
+   * returns { frame, insets, plotW, plotH, x0, x1, yMin, yMax, scaleX, scaleY }
+   */
+  function frameForLabeledPlot(opts) {
+    opts = opts || {};
+    const W = opts.W != null ? Number(opts.W) : 560;
+    const H = opts.H != null ? Number(opts.H) : 320;
+    const insets = plotInsets(opts.insets);
+    const padL = insets.left;
+    const padR = insets.right;
+    const padT = insets.top;
+    const padB = insets.bottom;
+    const plotW = Math.max(1, W - padL - padR);
+    const plotH = Math.max(1, H - padT - padB);
+
+    let x0 = 0;
+    let x1 = 1;
+    if (Array.isArray(opts.domainX) && opts.domainX.length >= 2) {
+      x0 = Number(opts.domainX[0]);
+      x1 = Number(opts.domainX[1]);
+      if (!isFinite(x0) || !isFinite(x1) || x1 === x0) {
+        x0 = 0;
+        x1 = 1;
+      }
+    }
+    let yMin = opts.yMin != null ? Number(opts.yMin) : 0;
+    let yMax = opts.yMax != null ? Number(opts.yMax) : 1;
+    if (!isFinite(yMin) || !isFinite(yMax) || yMax === yMin) {
+      yMin = 0;
+      yMax = 1;
+    }
+
+    const scaleX = plotW / (x1 - x0);
+    const scaleY = plotH / (yMax - yMin);
+    // proto: origin shifts so domain maps into padded plot area
+    const frame = createFrame({
+      origin: [x0 - padL / scaleX, yMin - padB / scaleY],
+      axes: { x: "right", y: "up" },
+      origin_corner: "bottom_left",
+      scale_x: scaleX,
+      scale_y: scaleY,
+      viewportW: W,
+      viewportH: H,
+      unit_factor_x: opts.unit_factor_x != null ? opts.unit_factor_x : opts.unitFactorX,
+      unit_factor_y: opts.unit_factor_y != null ? opts.unit_factor_y : opts.unitFactorY,
+      unit_scale_id_x: opts.unit_scale_id_x || opts.scaleIdX,
+      unit_scale_id_y: opts.unit_scale_id_y || opts.scaleIdY
+    });
+    return {
+      frame: frame,
+      insets: insets,
+      plotW: plotW,
+      plotH: plotH,
+      x0: x0,
+      x1: x1,
+      yMin: yMin,
+      yMax: yMax,
+      scaleX: scaleX,
+      scaleY: scaleY
+    };
+  }
 
   function createFrame(opts) {
     opts = opts || {};
-    const origin = Array.isArray(opts.origin) ? [Number(opts.origin[0]) || 0, Number(opts.origin[1]) || 0] : [0, 0];
+    const origin = Array.isArray(opts.origin)
+      ? [Number(opts.origin[0]) || 0, Number(opts.origin[1]) || 0]
+      : [0, 0];
     const axes = opts.axes || { x: "right", y: "up" };
     const scale_x = opts.scale_x != null ? Number(opts.scale_x) : 1;
     const scale_y = opts.scale_y != null ? Number(opts.scale_y) : 1;
     const viewportW = opts.viewportW != null ? Number(opts.viewportW) : null;
     const viewportH = opts.viewportH != null ? Number(opts.viewportH) : null;
+    const unit_factor_x =
+      opts.unit_factor_x != null
+        ? Number(opts.unit_factor_x)
+        : opts.unitFactorX != null
+          ? Number(opts.unitFactorX)
+          : 1;
+    const unit_factor_y =
+      opts.unit_factor_y != null
+        ? Number(opts.unit_factor_y)
+        : opts.unitFactorY != null
+          ? Number(opts.unitFactorY)
+          : unit_factor_x;
     return {
       sort: "Frame",
       origin: origin,
@@ -930,11 +2364,16 @@
       scale_x: isFinite(scale_x) && scale_x !== 0 ? scale_x : 1,
       scale_y: isFinite(scale_y) && scale_y !== 0 ? scale_y : 1,
       viewportW: viewportW,
-      viewportH: viewportH
+      viewportH: viewportH,
+      // display unit: SI meters per 1 label unit (1=m, 0.01=cm). Geometry stays SI.
+      unit_factor_x: isFinite(unit_factor_x) && unit_factor_x > 0 ? unit_factor_x : 1,
+      unit_factor_y: isFinite(unit_factor_y) && unit_factor_y > 0 ? unit_factor_y : 1,
+      unit_scale_id_x: opts.unit_scale_id_x || opts.scaleIdX || null,
+      unit_scale_id_y: opts.unit_scale_id_y || opts.scaleIdY || null
     };
   }
 
-  /** Frame из данных environment-компонента (E0 и т.п.). Не особый случай — просто провайдер Frame. */
+  /** Frame из данных environment-компонента (E0 и т.п.). Не особый случай — провайдер Frame. */
   function frameFromEnv(env, opts) {
     opts = opts || {};
     const e = env || {};
@@ -947,14 +2386,90 @@
       scale_x: opts.scale_x != null ? opts.scale_x : e.scale_x,
       scale_y: opts.scale_y != null ? opts.scale_y : e.scale_y,
       viewportW: opts.viewportW,
-      viewportH: opts.viewportH
+      viewportH: opts.viewportH,
+      unit_factor_x: opts.unit_factor_x != null ? opts.unit_factor_x : e.unit_factor_x,
+      unit_factor_y: opts.unit_factor_y != null ? opts.unit_factor_y : e.unit_factor_y,
+      unit_scale_id_x: opts.unit_scale_id_x || e.unit_scale_id_x,
+      unit_scale_id_y: opts.unit_scale_id_y || e.unit_scale_id_y
     });
   }
 
   /**
+   * Frame для plot-area (график функции или вид среды на canvas).
+   * origin math = нижний левый угол видимого окна (x0, yMin) — положительные значения вправо/вверх.
+   * scale подгоняется под W×H и insets. Тот же сорт Frame, что и у E0.
+   *
+   * opts: { domainX:[x0,x1], yMin, yMax, W, H, insets?, origin? }
+   *   origin — если задан, используется вместо [domainX[0], yMin] (смена материальной точки).
+   * returns { frame, insets, plotW, plotH, x0, x1, yMin, yMax }
+   */
+  function frameForPlot(opts) {
+    opts = opts || {};
+    const W = opts.W != null ? Number(opts.W) : 320;
+    const H = opts.H != null ? Number(opts.H) : 200;
+    const insets = plotInsets(opts.insets);
+    const plotW = Math.max(1, W - insets.left - insets.right);
+    const plotH = Math.max(1, H - insets.top - insets.bottom);
+
+    let x0 = 0;
+    let x1 = 1;
+    if (Array.isArray(opts.domainX) && opts.domainX.length >= 2) {
+      x0 = Number(opts.domainX[0]);
+      x1 = Number(opts.domainX[1]);
+      if (!isFinite(x0) || !isFinite(x1) || x1 === x0) {
+        x0 = 0;
+        x1 = 1;
+      }
+    }
+    let yMin = opts.yMin != null ? Number(opts.yMin) : 0;
+    let yMax = opts.yMax != null ? Number(opts.yMax) : 1;
+    if (!isFinite(yMin) || !isFinite(yMax) || yMax === yMin) {
+      yMin = 0;
+      yMax = 1;
+    }
+
+    const origin = Array.isArray(opts.origin)
+      ? [Number(opts.origin[0]) || 0, Number(opts.origin[1]) || 0]
+      : [x0, yMin];
+
+    const scale_x = plotW / (x1 - x0);
+    const scale_y = plotH / (yMax - yMin);
+
+    // viewport = plot-area size; toScreen даёт координаты относительно plot (0..plotW, plotH..0).
+    // mathToPlotScreen добавляет insets.left / insets.top.
+    const frame = createFrame({
+      origin: origin,
+      axes: { x: "right", y: "up" },
+      origin_corner: "bottom_left",
+      scale_x: scale_x,
+      scale_y: scale_y,
+      viewportW: plotW,
+      viewportH: plotH,
+      unit_factor_x: opts.unit_factor_x != null ? opts.unit_factor_x : opts.unitFactorX,
+      unit_factor_y: opts.unit_factor_y != null ? opts.unit_factor_y : opts.unitFactorY,
+      unit_scale_id_x: opts.unit_scale_id_x || opts.scaleIdX,
+      unit_scale_id_y: opts.unit_scale_id_y || opts.scaleIdY
+    });
+
+    return {
+      frame: frame,
+      insets: insets,
+      plotW: plotW,
+      plotH: plotH,
+      x0: x0,
+      x1: x1,
+      yMin: yMin,
+      yMax: yMax,
+      W: W,
+      H: H
+    };
+  }
+
+  /**
    * math Point → screen {x,y}.
-   * y-up frame + bottom_left origin → screen y = viewportH - (y - oy)*scale_y  (когда viewportH задан).
-   * Если viewportH нет — просто инверсия знака scale_y при axes.y=up (для относительных смещений).
+   * y-up + bottom_left + viewportH → sy = viewportH - (y - oy)*scale_y.
+   * Без viewportH — инверсия знака scale_y (относительные смещения).
+   * Insets не применяет — для plot используйте mathToPlotScreen.
    */
   function toScreen(frame, p) {
     if (!frame || !p) return null;
@@ -975,7 +2490,19 @@
     return { x: sx, y: sy };
   }
 
-  /** screen Point → math {x,y}. */
+  /**
+   * math → полный canvas screen с учётом insets (plot-area offset).
+   * plotCtx — результат frameForPlot (frame + insets).
+   */
+  function mathToPlotScreen(plotCtx, p) {
+    if (!plotCtx || !plotCtx.frame) return null;
+    const s = toScreen(plotCtx.frame, p);
+    if (!s) return null;
+    const ins = plotCtx.insets || DEFAULT_PLOT_INSETS;
+    return { x: s.x + ins.left, y: s.y + ins.top };
+  }
+
+  /** screen Point → math {x,y}. Insets не учитывает (plot-local screen). */
   function fromScreen(frame, px) {
     if (!frame || !px) return null;
     const ox = frame.origin[0];
@@ -1014,6 +2541,8 @@
   // ── публичный API ────────────────────────────────────────
 
   const GeoCompute = {
+    resolveLinkInstance: resolveLinkInstance,
+    expandConstruction: expandConstruction,
     eval: evalCurve,
     sample: sample,
     nearest: nearest,
@@ -1041,13 +2570,28 @@
     curveFromAst: curveFromAst,
     curveFromStructure: curveFromStructure,
 
-    // Frame — единая координатная логика (среда + график)
+    // Frame — единая основа СК (среда + график функций)
     createFrame: createFrame,
     frameFromEnv: frameFromEnv,
+    frameForPlot: frameForPlot,
+    frameForLabeledPlot: frameForLabeledPlot,
+    plotInsets: plotInsets,
+    DEFAULT_PLOT_INSETS: DEFAULT_PLOT_INSETS,
     toScreen: toScreen,
     fromScreen: fromScreen,
+    mathToPlotScreen: mathToPlotScreen,
     setScale: setScale,
     setViewport: setViewport,
+    // шкалы / оси (как frame_proto): SI absolute programmatically; display = relative + unit
+    toScale: toScale,
+    fromScale: fromScale,
+    niceStep: niceStep,
+    formatTick: formatTick,
+    ticksInRange: ticksInRange,
+    relativeToFrame: relativeToFrame,
+    absoluteFromFrame: absoluteFromFrame,
+    spatialForHuman: spatialForHuman,
+    drawAxes: drawAxes,
 
     // патч кривой для платформы
     buildLawGraphPayload: buildLawGraphPayload,
@@ -1056,7 +2600,11 @@
     attachLawGraph: attachLawGraph,
     drawPointsOnCanvas: drawPointsOnCanvas,
     collectConstructionQuantityEntries: collectConstructionQuantityEntries,
-    valuesFromLawAndConstruction: valuesFromLawAndConstruction
+    valuesFromLawAndConstruction: valuesFromLawAndConstruction,
+    resolveElementParams: resolveElementParams,
+    indexConstructionSlots: indexConstructionSlots,
+    matchLawToSlots: matchLawToSlots,
+    applyConstructionLinks: applyConstructionLinks
   };
 
   global.GeoCompute = GeoCompute;

@@ -1,0 +1,59 @@
+{
+  "schema_version": "0.2.0",
+  "id": "LINK",
+  "description": "Реестр связей (аналог AST). L* → scheme → law P* → AST A*. C*.links: { structure_ref, of:[elId…] } по port_order.",
+  "meta": {
+    "language_order": ["en", "ru"],
+    "id_prefix": "L",
+    "notes": [
+      "port_order — порядок of[] в C*; multi-порт принимает elId | [elId…].",
+      "ports[name].param_roles — какие величины с экземпляра идут в P*.",
+      "Цепочка: L* → scheme.law (P*) → formula structure_ref (A*)."
+    ]
+  },
+  "schemes": {
+    "hooke_segment": {
+      "name": ["Hooke segment", "сегмент Гука"],
+      "description": "якорь → пружина → конец. P014.",
+      "law": "P014",
+      "port_order": ["anchor", "spring", "end"],
+      "ports": {
+        "anchor": {
+          "param_roles": ["radius_vector"]
+        },
+        "spring": {
+          "component": "E001",
+          "param_roles": [
+            "spring_constant",
+            "extension",
+            "natural_length",
+            "radius_vector"
+          ]
+        },
+        "end": {
+          "param_roles": ["radius_vector"]
+        }
+      }
+    },
+    "newton_ii": {
+      "name": ["Newton II on mass", "II закон Ньютона на грузе"],
+      "description": "масса + одна/несколько пружин. P005.",
+      "law": "P005",
+      "port_order": ["mass", "springs"],
+      "ports": {
+        "mass": {
+          "component": "E002",
+          "param_roles": ["mass", "acceleration", "force"]
+        },
+        "springs": {
+          "multi": true,
+          "param_roles": ["spring_constant", "extension"]
+        }
+      }
+    }
+  },
+  "aliases": {
+    "L_hooke": { "scheme": "hooke_segment" },
+    "L_newton": { "scheme": "newton_ii" }
+  }
+}

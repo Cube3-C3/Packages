@@ -930,8 +930,8 @@
     const laws = getLawsList(formulasData);
 
     // «Замкнутый» закон: у него известен результат (O1 в bindings или через denotations)
-    // либо это уравнение. Частичная сборка вроде P222 (G·m1·m2) результата не имеет:
-    // единицу из неё не вывести (получится 1/кг² вместо Н·м²/кг²).
+    // либо это уравнение. Частичная сборка (напр. промежуточный product без результата)
+    // единицу не определяет: изолировать qid не получится.
     function hasResult(law) {
       if (law.kind === "equation" || law.structure_ref === "EQ") return true;
       return bindingsWithDefines(law, formulasData).O1 != null;
@@ -946,7 +946,6 @@
       return null;
     }
 
-    // defines_unit где-то во вложенных законах (по {law|law_id|formula})
     function nestedDefiner(law, stack) {
       const id = String(law.law_id || law.id || "");
       if (id && stack.indexOf(id) >= 0) return false;
@@ -963,14 +962,12 @@
       return false;
     }
 
-    // 1) сам закон определяет единицу и замкнут
     for (let i = 0; i < laws.length; i++) {
       const law = laws[i];
       if (!law || !hasResult(law)) continue;
       const oid = ownDefiner(law);
       if (oid != null) return { law: law, operandId: oid };
     }
-    // 2) defines_unit во вложенной сборке → берём замкнутый закон-родитель (P006 для P222)
     for (let i = 0; i < laws.length; i++) {
       const law = laws[i];
       if (!law || !hasResult(law)) continue;
@@ -985,24 +982,22 @@
    */
   function collectMulDivFactors(node, sign, out, bindings) {
     if (!node || typeof node !== "object") return;
-    if (node.empty) return;
-    if (node.ref) {
-      out.push({ ref: String(node.ref), power: sign });
-      return;
-    }
     if (node.operand_id) {
       out.push({ operand_id: node.operand_id, power: sign });
-      return;
-    }
-    // Δx и -x имеют ту же размерность, что и x
-    if (node.op === "delta" || node.op === "neg") {
-      const a = node.arg !== undefined ? node.arg : (node.args || [])[0];
-      collectMulDivFactors(a, sign, out, bindings);
       return;
     }
     if (node.op === "mul") {
       const args = node.args || [];
       for (let i = 0; i < args.length; i++) collectMulDivFactors(args[i], sign, out, bindings);
+      return;
+    }
+    if (node.ref) {
+      out.push({ ref: String(node.ref), power: sign });
+      return;
+    }
+    if (node.op === "delta" || node.op === "neg") {
+      const a = node.arg !== undefined ? node.arg : (node.args || [])[0];
+      collectMulDivFactors(a, sign, out, bindings);
       return;
     }
     if (node.op === "div") {
@@ -1128,14 +1123,7 @@
     if (!hit) return null;
     const law = hit.law;
 
-    // instantiateLaw разворачивает вложенные {law:..}/{structure_ref,..} биндинги,
-    // так что в AST остаются только ref-листья (раньше такие операнды молча терялись).
-    const inst = instantiateLaw(
-      law,
-      ctx.structuresData,
-      ctx.usagesData,
-      ctx.formulasData
-    );
+    const inst = instantiateLaw(law, ctx.structuresData, ctx.usagesData, ctx.formulasData);
     if (!inst || !inst.ast || inst.ast.op !== "eq") return null;
     const resolved = { id: inst.structure_ref, scheme: inst.scheme, arity: inst.arity, ast: inst.ast };
 
@@ -1412,8 +1400,14 @@
       }
 
       if (n && typeof n === "object" && n.ref) {
-        const body = n.symbol != null ? String(n.symbol) : primarySymbol(n.ref, n.role);
-        const s = emitSym(n.ref, esc(body));
+        const plain =
+          n.symbol != null ? String(n.symbol) : primarySymbol(n.ref, n.role);
+        const meta = quantityMeta(n.ref, physiQuant, usagesData);
+        const body = formatVectorSymbol(plain, meta.math_kind || meta.mathKind, {
+          format: isHtml ? "html" : "text",
+          escape: esc
+        });
+        const s = emitSym(n.ref, body);
         return [{ html: s, isNum: false, isOne: false, isDiv: inverted }];
       }
 
@@ -1526,8 +1520,16 @@
       if (typeof node !== "object") return esc(String(node));
 
       if (node.ref) {
-        const body = node.symbol != null ? String(node.symbol) : primarySymbol(node.ref, node.role);
-        return emitSym(node.ref, esc(body));
+        const plain =
+          node.symbol != null
+            ? String(node.symbol)
+            : primarySymbol(node.ref, node.role);
+        const meta = quantityMeta(node.ref, physiQuant, usagesData);
+        const body = formatVectorSymbol(plain, meta.math_kind || meta.mathKind, {
+          format: isHtml ? "html" : "text",
+          escape: esc
+        });
+        return emitSym(node.ref, body);
       }
 
       if (!node.op && (node.value != null || node.const != null || node.num != null)) {
@@ -2754,10 +2756,15 @@
   }
 
   /**
-   * Свод needs конструкции: formula_needs или вывод из elements[].quantities.
+   * Свод needs конструкции: formula_needs или вывод из thin/legacy elements.
+   * Thin: overrides:{role:value} → GeoCompute.resolveElementParams(el, componentTemplate)
+   *   (quantity берётся из E*.params, не из overrides).
    * count ≥ 2 — явные общие узлы (k₁, k₂…).
+   *
+   * @param {object} construction
+   * @param {object} [componentsData] pack.components | { components: { E*: … } }
    */
-  function collectConstructionNeeds(construction) {
+  function collectConstructionNeeds(construction, componentsData) {
     const byQid = Object.create(null);
     function add(qid, role, count) {
       if (!qid) return;
@@ -2767,7 +2774,23 @@
       if (role && byQid[qid].roles.indexOf(role) < 0) byQid[qid].roles.push(role);
     }
 
-    const declared = construction && construction.formula_needs;
+    let C = construction;
+    const GC = typeof globalThis !== "undefined" ? globalThis.GeoCompute : null;
+    // recursive include / nested C*
+    if (C && GC && typeof GC.expandConstruction === "function") {
+      try {
+        C = GC.expandConstruction(C, {
+          constructions:
+            (componentsData && componentsData._constructions) || null,
+          constructs: componentsData && componentsData._constructs,
+          pack: componentsData && componentsData._pack
+        });
+      } catch (e) {
+        C = construction;
+      }
+    }
+
+    const declared = C && C.formula_needs;
     if (Array.isArray(declared) && declared.length) {
       for (let i = 0; i < declared.length; i++) {
         const d = declared[i];
@@ -2780,20 +2803,69 @@
           add(d.quantity, d.role, cnt);
         }
       }
-    } else if (construction && Array.isArray(construction.elements)) {
+    } else if (C && Array.isArray(C.elements)) {
       const tallies = Object.create(null);
-      for (let i = 0; i < construction.elements.length; i++) {
-        const qs = (construction.elements[i] && construction.elements[i].quantities) || {};
+      function tally(qid, role) {
+        if (!qid) return;
+        if (!tallies[qid]) tallies[qid] = { count: 0, roles: [] };
+        tallies[qid].count += 1;
+        if (role && tallies[qid].roles.indexOf(role) < 0) tallies[qid].roles.push(role);
+      }
+
+      const comps =
+        (componentsData && (componentsData.components || componentsData)) || {};
+
+      for (let i = 0; i < C.elements.length; i++) {
+        const el = C.elements[i];
+        if (!el) continue;
+
+        // Thin / params: one path via GeoCompute.resolveElementParams (no duplicated merge)
+        const comp = comps[el.component] || {};
+        const useResolve =
+          GC &&
+          typeof GC.resolveElementParams === "function" &&
+          (el.overrides ||
+            Array.isArray(el.params) ||
+            Array.isArray(comp.params));
+
+        if (useResolve) {
+          const resolved = GC.resolveElementParams(el, comp) || [];
+          for (let j = 0; j < resolved.length; j++) {
+            const p = resolved[j];
+            if (p && p.quantity) tally(p.quantity, p.role || null);
+          }
+          continue;
+        }
+
+        // Componovka params without GC
+        if (Array.isArray(el.params)) {
+          for (let j = 0; j < el.params.length; j++) {
+            if (el.params[j] && el.params[j].quantity) {
+              tally(el.params[j].quantity, el.params[j].role || null);
+            }
+          }
+          continue;
+        }
+
+        // Component defaults when only {id, component} or overrides without GC
+        if (Array.isArray(comp.params)) {
+          for (let j = 0; j < comp.params.length; j++) {
+            const p = comp.params[j];
+            if (p && p.quantity) tally(p.quantity, p.role || null);
+          }
+          continue;
+        }
+
+        // legacy: elements[].quantities{role: {quantity, role}}
+        const qs = el.quantities || {};
         for (const k of Object.keys(qs)) {
           const q = qs[k];
-          if (!q || !q.quantity) continue;
-          if (!tallies[q.quantity]) tallies[q.quantity] = { count: 0, roles: [] };
-          tallies[q.quantity].count += 1;
-          if (q.role && tallies[q.quantity].roles.indexOf(q.role) < 0) {
-            tallies[q.quantity].roles.push(q.role);
-          }
+          if (q && q.quantity) tally(q.quantity, q.role || null);
         }
       }
+
+      // laws referenced on links (P*) — not quantities, skip here
+
       for (const qid of Object.keys(tallies)) {
         add(qid, null, tallies[qid].count);
         for (let r = 0; r < tallies[qid].roles.length; r++) {
@@ -2816,9 +2888,17 @@
    * Формулы для конструкции по formula_needs (quantity + role + count).
    * Закон: все quantity-binding ⊆ needs; score по совпадению role;
    * count≥2 — бонус за мульти-слоты / scheme sum|reciprocal_sum.
+   *
+   * @param {object} [componentsData] optional — нужен для thin overrides→quantity
    */
-  function formulasForConstruction(construction, formulasData, structuresData, usagesData) {
-    const needs = collectConstructionNeeds(construction);
+  function formulasForConstruction(
+    construction,
+    formulasData,
+    structuresData,
+    usagesData,
+    componentsData
+  ) {
+    const needs = collectConstructionNeeds(construction, componentsData);
     const needQ = needs.byQid;
     if (!Object.keys(needQ).length) return [];
 
@@ -2908,10 +2988,85 @@
 
 
   /**
-   * Метаданные величины (символ, константа?).
+   * math_kind key: scalar | vector | pseudovector | complex
+   */
+  function mathKindKey(mathKindOrQ) {
+    if (!mathKindOrQ) return "scalar";
+    if (typeof mathKindOrQ === "object" && !Array.isArray(mathKindOrQ)) {
+      const mk = mathKindOrQ.math_kind;
+      return Array.isArray(mk) ? String(mk[0] || "scalar") : String(mk || "scalar");
+    }
+    if (Array.isArray(mathKindOrQ)) return String(mathKindOrQ[0] || "scalar");
+    return String(mathKindOrQ || "scalar");
+  }
+
+  function isVectorMathKind(mathKindOrQ) {
+    const k = mathKindKey(mathKindOrQ);
+    return k === "vector" || k === "pseudovector";
+  }
+
+  /**
+   * Векторное обозначение: стрелка над базой (COMBINING RIGHT ARROW ABOVE U+20D7).
+   * HTML: <span class="sym-vec" data-math-kind="…">base⃗</span>rest
+   * text: base⃗rest
+   * Индексы/штрихи остаются после стрелки: v⃗₀, F⃗′
+   *
+   * @param {string} symbol plain symbol from usages
+   * @param {string|array|object} mathKindOrQ math_kind or quantity object
+   * @param {{ format?: "html"|"text", escape?: function }} options
+   */
+  function formatVectorSymbol(symbol, mathKindOrQ, options) {
+    options = options || {};
+    const isHtml = options.format !== "text";
+    const escFn =
+      typeof options.escape === "function"
+        ? options.escape
+        : function (s) {
+            s = String(s);
+            if (!isHtml) return s;
+            return s
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;");
+          };
+    const plain = symbol == null ? "" : String(symbol);
+    if (!plain) return plain;
+    if (!isVectorMathKind(mathKindOrQ)) {
+      return escFn(plain);
+    }
+    const kind = mathKindKey(mathKindOrQ);
+    // base = leading Latin/Greek/Cyrillic letters; rest = indices, primes, digits…
+    const m = plain.match(/^([A-Za-zΑ-Ωα-ωЁёА-Яа-я]+)([\s\S]*)$/);
+    const ARROW = "\u20D7";
+    let body;
+    if (m) {
+      body = escFn(m[1]) + ARROW + escFn(m[2]);
+    } else {
+      body = escFn(plain) + ARROW;
+    }
+    if (!isHtml) return body;
+    return (
+      '<span class="sym-vec" data-math-kind="' +
+      escFn(kind) +
+      '">' +
+      body +
+      "</span>"
+    );
+  }
+
+  /**
+   * Метаданные величины (символ, константа?, math_kind).
    */
   function quantityMeta(qid, physiQuant, usagesData) {
-    const meta = { id: qid, symbol: qid, isConstant: false, value: null };
+    const meta = {
+      id: qid,
+      symbol: qid,
+      isConstant: false,
+      value: null,
+      math_kind: null,
+      mathKind: "scalar"
+    };
     if (!qid || typeof qid !== "string") return meta;
     const ulist = usagesData && usagesData.usages ? usagesData.usages[qid] : null;
     if (Array.isArray(ulist) && ulist[0] && ulist[0].symbol != null) {
@@ -2928,6 +3083,10 @@
         if (node.value != null) {
           meta.value = node.value;
           meta.isConstant = true;
+        }
+        if (node.math_kind != null) {
+          meta.math_kind = node.math_kind;
+          meta.mathKind = mathKindKey(node.math_kind);
         }
         return;
       }
@@ -3244,6 +3403,9 @@
     pick: pick,
     astToDisplay: astToDisplay,
     formatFormula: formatFormula,
+    formatVectorSymbol: formatVectorSymbol,
+    isVectorMathKind: isVectorMathKind,
+    mathKindKey: mathKindKey,
     canonicalToPretty: canonicalToPretty,
     astToMonomialVector: astToMonomialVector,
     quantityMeta: quantityMeta,
@@ -3268,6 +3430,8 @@
     expandSideExpr: expandSideExpr,
     instantiateLaw: instantiateLaw,
     formulasUsing: formulasUsing,
+    collectConstructionNeeds: collectConstructionNeeds,
+    formulasForConstruction: formulasForConstruction,
     collectConstructionNeeds: collectConstructionNeeds,
     formulasForConstruction: formulasForConstruction,
     toSubscript: toSubscript,

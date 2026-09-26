@@ -1,0 +1,183 @@
+{
+  "schema_version": "0.1.0",
+  "id": "geo_aspects",
+  "description": "Реестр геометрических аспектов GA* — аналог physi_formulas для тел. Вычисляет объём, площади, диаметры и т.п. из параметров конструкторов Shape3 (sphere, parallelepiped, cylinder). structure_ref → схемы AST (product, power, …); bindings → params фигуры или константы (π).",
+  "meta": {
+    "language_order": ["en", "ru"],
+    "related": ["geo_core.json", "../Fis_data/AST.json", "../Fis_data/math_ops.json"],
+    "notes": [
+      "aspect = именованный выход (volume, surface_area, …), не физическая Q* (связь с Q позже через E* params).",
+      "shape — id конструктора geo_core (G3.sphere / G3.parallelepiped / G3.cylinder).",
+      "bindings: { param: name конструктора } | { const: M009 } (2π) | { num: n } | { law: GA* }.",
+      "Единицы не храним: Length в м, результаты в СИ (m³, m², m)."
+    ]
+  },
+  "aspects": [
+    {
+      "id": "GA_sphere_V",
+      "name": ["sphere volume", "объём шара"],
+      "shape": "G3.sphere",
+      "aspect": "volume",
+      "structure_ref": "product",
+      "arity": 3,
+      "bindings": [
+        { "num": 4 },
+        { "num": 3, "op": "div_into" },
+        { "const": "M001" },
+        { "param": "radius", "op": "pow", "exp": 3 }
+      ],
+      "expr_notes": "V = (4/3)·π·R³",
+      "notes": "M001 = π. Альтернатива: A_pow radius^3 + product с 4/3 π."
+    },
+    {
+      "id": "GA_sphere_S",
+      "name": ["sphere surface area", "площадь сферы"],
+      "shape": "G3.sphere",
+      "aspect": "surface_area",
+      "structure_ref": "product",
+      "arity": 3,
+      "bindings": [
+        { "num": 4 },
+        { "const": "M001" },
+        { "param": "radius", "op": "pow", "exp": 2 }
+      ],
+      "expr_notes": "S = 4·π·R²"
+    },
+    {
+      "id": "GA_sphere_D",
+      "name": ["sphere diameter", "диаметр шара"],
+      "shape": "G3.sphere",
+      "aspect": "diameter",
+      "structure_ref": "product",
+      "arity": 2,
+      "bindings": [
+        { "num": 2 },
+        { "param": "radius" }
+      ],
+      "expr_notes": "D = 2·R"
+    },
+    {
+      "id": "GA_box_V",
+      "name": ["parallelepiped volume", "объём параллелепипеда"],
+      "shape": "G3.parallelepiped",
+      "aspect": "volume",
+      "structure_ref": "product",
+      "arity": 3,
+      "bindings": [
+        { "param": "a" },
+        { "param": "b" },
+        { "param": "c" }
+      ],
+      "expr_notes": "V = a·b·c"
+    },
+    {
+      "id": "GA_box_S",
+      "name": ["parallelepiped surface area", "площадь поверхности параллелепипеда"],
+      "shape": "G3.parallelepiped",
+      "aspect": "surface_area",
+      "structure_ref": "product",
+      "arity": 2,
+      "bindings": [
+        { "num": 2 },
+        { "law": "GA_box_faces_sum" }
+      ],
+      "expr_notes": "S = 2·(ab+bc+ca)",
+      "notes": "Раскрывается через GA_box_faces_sum."
+    },
+    {
+      "id": "GA_box_faces_sum",
+      "name": ["sum of face areas", "сумма площадей граней"],
+      "shape": "G3.parallelepiped",
+      "aspect": "faces_sum",
+      "structure_ref": "sum",
+      "arity": 3,
+      "bindings": [
+        { "param": "a", "times": "b" },
+        { "param": "b", "times": "c" },
+        { "param": "c", "times": "a" }
+      ],
+      "expr_notes": "ab + bc + ca",
+      "notes": "Вспомогательный закон для S; product пар — упрощённая запись до полного AST compose."
+    },
+    {
+      "id": "GA_box_space_diag",
+      "name": ["space diagonal", "пространственная диагональ"],
+      "shape": "G3.parallelepiped",
+      "aspect": "space_diagonal",
+      "structure_ref": "AU_sqrt",
+      "bindings": [
+        { "law": "GA_box_diag_sq" }
+      ],
+      "expr_notes": "d = √(a²+b²+c²)"
+    },
+    {
+      "id": "GA_box_diag_sq",
+      "name": ["sum of squared edges", "сумма квадратов рёбер"],
+      "shape": "G3.parallelepiped",
+      "aspect": "diag_sq",
+      "structure_ref": "sum",
+      "arity": 3,
+      "bindings": [
+        { "param": "a", "op": "pow", "exp": 2 },
+        { "param": "b", "op": "pow", "exp": 2 },
+        { "param": "c", "op": "pow", "exp": 2 }
+      ],
+      "expr_notes": "a²+b²+c²"
+    },
+    {
+      "id": "GA_cyl_V",
+      "name": ["cylinder volume", "объём цилиндра"],
+      "shape": "G3.cylinder",
+      "aspect": "volume",
+      "structure_ref": "product",
+      "arity": 3,
+      "bindings": [
+        { "const": "M001" },
+        { "param": "radius", "op": "pow", "exp": 2 },
+        { "param": "height" }
+      ],
+      "expr_notes": "V = π·R²·h"
+    },
+    {
+      "id": "GA_cyl_base",
+      "name": ["cylinder base area", "площадь основания цилиндра"],
+      "shape": "G3.cylinder",
+      "aspect": "base_area",
+      "structure_ref": "product",
+      "arity": 2,
+      "bindings": [
+        { "const": "M001" },
+        { "param": "radius", "op": "pow", "exp": 2 }
+      ],
+      "expr_notes": "A = π·R²"
+    },
+    {
+      "id": "GA_cyl_lateral",
+      "name": ["cylinder lateral area", "боковая поверхность цилиндра"],
+      "shape": "G3.cylinder",
+      "aspect": "lateral_area",
+      "structure_ref": "product",
+      "arity": 3,
+      "bindings": [
+        { "num": 2 },
+        { "const": "M001" },
+        { "param": "radius" },
+        { "param": "height" }
+      ],
+      "expr_notes": "S_lat = 2·π·R·h"
+    },
+    {
+      "id": "GA_cyl_S",
+      "name": ["cylinder total surface", "полная поверхность цилиндра"],
+      "shape": "G3.cylinder",
+      "aspect": "surface_area",
+      "structure_ref": "sum",
+      "arity": 2,
+      "bindings": [
+        { "law": "GA_cyl_lateral" },
+        { "law": "GA_cyl_base", "scale": 2 }
+      ],
+      "expr_notes": "S = 2·π·R·h + 2·π·R²"
+    }
+  ]
+}

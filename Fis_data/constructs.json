@@ -1,0 +1,306 @@
+{
+  "schema_version": "0.9.0",
+  "description": "Thin E* + L* of[]; recursive include[] / elements[].construction → flatten (prefix ids). Defaults from components.",
+  "meta": {
+    "language_order": [
+      "en",
+      "ru"
+    ],
+    "id_prefix": "C",
+    "components_ref": "components.json",
+    "links_ref": "LINK.json",
+    "notes": [
+      "overrides: { role: value } — только отличия от E*.default.",
+      "links[].of — port_order; multi = elId | [elId…].",
+      "include[] | elements[{construction, as, overrides}] — рекурсивная сборка C* (как nested law).",
+      "C001 atom; C002 parallel; C003 series; C010 = include C001."
+    ]
+  },
+  "constructions": [
+    {
+      "id": "C001",
+      "name": [
+        "ceiling–spring–mass",
+        "потолок–пружина–груз"
+      ],
+      "layout": "series_vertical",
+      "environment": "E0",
+      "observer": {
+        "id": "obs",
+        "component": "E010"
+      },
+      "elements": [
+        {
+          "id": "ceiling",
+          "component": "E003",
+          "overrides": {
+            "radius_vector": [
+              0.5,
+              0.9,
+              0
+            ]
+          }
+        },
+        {
+          "id": "spring",
+          "component": "E001",
+          "overrides": {
+            "radius_vector": [
+              0.5,
+              0.9,
+              0
+            ],
+            "spring_constant": 100,
+            "natural_length": 0.2
+          }
+        },
+        {
+          "id": "mass",
+          "component": "E002",
+          "overrides": {
+            "radius_vector": [
+              0.5,
+              0.7,
+              0
+            ],
+            "mass": 0.5
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "link_hooke",
+          "structure_ref": "L_hooke",
+          "of": [
+            "ceiling",
+            "spring",
+            "mass"
+          ]
+        },
+        {
+          "id": "link_newton",
+          "structure_ref": "L_newton",
+          "of": [
+            "mass",
+            "spring"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C002",
+      "name": [
+        "vertical parallel: two springs–mass",
+        "вертикально параллельно: две пружины–груз"
+      ],
+      "layout": "parallel",
+      "environment": "E0",
+      "observer": {
+        "id": "obs",
+        "component": "E010"
+      },
+      "elements": [
+        {
+          "id": "ceiling",
+          "component": "E003",
+          "overrides": {
+            "radius_vector": [
+              0.5,
+              0.9,
+              0
+            ]
+          }
+        },
+        {
+          "id": "spring_a",
+          "component": "E001",
+          "overrides": {
+            "radius_vector": [
+              0.42,
+              0.9,
+              0
+            ],
+            "spring_constant": 80,
+            "natural_length": 0.2
+          }
+        },
+        {
+          "id": "spring_b",
+          "component": "E001",
+          "overrides": {
+            "radius_vector": [
+              0.58,
+              0.9,
+              0
+            ],
+            "spring_constant": 120,
+            "natural_length": 0.2
+          }
+        },
+        {
+          "id": "mass",
+          "component": "E002",
+          "overrides": {
+            "radius_vector": [
+              0.5,
+              0.7,
+              0
+            ],
+            "mass": 0.5
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "link_hooke_a",
+          "structure_ref": "L_hooke",
+          "of": [
+            "ceiling",
+            "spring_a",
+            "mass"
+          ]
+        },
+        {
+          "id": "link_hooke_b",
+          "structure_ref": "L_hooke",
+          "of": [
+            "ceiling",
+            "spring_b",
+            "mass"
+          ]
+        },
+        {
+          "id": "link_newton",
+          "structure_ref": "L_newton",
+          "of": [
+            "mass",
+            [
+              "spring_a",
+              "spring_b"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C003",
+      "name": [
+        "series springs: ceiling–s1–s2–mass",
+        "последовательно: потолок–пружина–пружина–груз"
+      ],
+      "layout": "series_vertical",
+      "environment": "E0",
+      "observer": {
+        "id": "obs",
+        "component": "E010"
+      },
+      "elements": [
+        {
+          "id": "ceiling",
+          "component": "E003",
+          "overrides": {
+            "radius_vector": [
+              0.5,
+              0.95,
+              0
+            ]
+          }
+        },
+        {
+          "id": "spring_1",
+          "component": "E001",
+          "overrides": {
+            "radius_vector": [
+              0.5,
+              0.95,
+              0
+            ],
+            "spring_constant": 100,
+            "natural_length": 0.15
+          }
+        },
+        {
+          "id": "spring_2",
+          "component": "E001",
+          "overrides": {
+            "radius_vector": [
+              0.5,
+              0.8,
+              0
+            ],
+            "spring_constant": 100,
+            "natural_length": 0.15
+          }
+        },
+        {
+          "id": "mass",
+          "component": "E002",
+          "overrides": {
+            "radius_vector": [
+              0.5,
+              0.65,
+              0
+            ],
+            "mass": 0.5
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "link_hooke_1",
+          "structure_ref": "L_hooke",
+          "of": [
+            "ceiling",
+            "spring_1",
+            "spring_2"
+          ]
+        },
+        {
+          "id": "link_hooke_2",
+          "structure_ref": "L_hooke",
+          "of": [
+            "spring_1",
+            "spring_2",
+            "mass"
+          ]
+        },
+        {
+          "id": "link_newton",
+          "structure_ref": "L_newton",
+          "of": [
+            "mass",
+            [
+              "spring_1",
+              "spring_2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C010",
+      "name": [
+        "composed lab: reuse C001",
+        "сборка: повторное использование C001"
+      ],
+      "layout": "series_vertical",
+      "environment": "E0",
+      "include": [
+        {
+          "construction": "C001",
+          "as": "main",
+          "overrides": {
+            "spring": {
+              "spring_constant": 150
+            },
+            "mass": {
+              "mass": 0.8
+            }
+          }
+        }
+      ],
+      "elements": [],
+      "links": []
+    }
+  ]
+}
