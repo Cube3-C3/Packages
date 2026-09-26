@@ -1,23 +1,16 @@
 /**
- * construct_layout.js — 2D раскладка элементов конструкции по логическим связям.
+ * construct_layout.js — 2D раскладка элементов конструкции.
  * Host: window.ConstructLayout
  *
- * Вход: construction (pack.constructs item) + пакет данных
- *   { relation_types, components (Componovka/components.json), assets, environment }
+ * Канон (Componovka): thin elements {id, component, overrides} + links {structure_ref:L*, of:[]}.
+ * Pack: { components, links|LINK, formulas, constructs }.
+ * Рекурсия: expandConstruction(include[] / elements[].construction) до layout.
  *
- * Канон компонентов — только Fis_data/Componovka/components.json (pack.components).
- * Старый путь Constructions/physi_comps не используется и не зеркалится.
+ * Legacy (не Componovka): relations[] + relation_types + ports — только если нет links/overrides.
+ * Порты / line_types в канон-пути не используются.
  *
- * Выход: layout model
- *   {
- *     origin, axes, frame (Geo Frame), bounds,
- *     nodes: [{ id, component, role, x, y, w, h, asset, anchor, quantities }],
- *     edges: [{ id, structure_ref, from, to, x1,y1,x2,y2 }]
- *   }
- *
- * Координаты — math-space Frame (y-up, origin bottom-left). E0 предоставляет Frame
- * через GeoCompute.frameFromEnv; toSVG → GeoCompute.toScreen. Линии port→port, не хранятся.
- * Требует: window.GeoCompute (загружать geo_compute.js до этого модуля).
+ * Выход: layout model { nodes, edges, bounds, derived, … }
+ * Требует: window.GeoCompute (scene_compute.js) до этого модуля.
  */
 (function (global) {
   "use strict";
@@ -280,11 +273,33 @@
   }
 
   /**
-   * Resolve quantities for an element instance:
-   * instance.quantities override component defaults; always keep quantity ID + value.
+   * Resolve quantities for an element instance.
+   * Prefer thin Componovka path (GeoCompute.resolveElementParams: defaults + overrides).
+   * Legacy: instance.quantities override component.quantities dict.
    */
   function resolveQuantities(el, comp) {
     const out = Object.create(null);
+    const GC = global.GeoCompute;
+    if (
+      GC &&
+      typeof GC.resolveElementParams === "function" &&
+      ((comp && Array.isArray(comp.params)) ||
+        (el && (el.overrides || Array.isArray(el.params))))
+    ) {
+      const list = GC.resolveElementParams(el, comp) || [];
+      list.forEach(function (p) {
+        if (!p || !p.role) return;
+        out[p.role] = {
+          quantity: p.quantity || null,
+          role: p.role,
+          value: p.value,
+          unit: null,
+          id: p.id,
+          symbol: p.role
+        };
+      });
+      if (Object.keys(out).length) return out;
+    }
     const defaults = (comp && comp.quantities) || {};
     const inst = (el && el.quantities) || {};
     const keys = Object.keys(defaults).concat(Object.keys(inst));
@@ -517,15 +532,34 @@
    */
   function isComponovka(construction) {
     if (!construction) return false;
-    if (Array.isArray(construction.links)) return true;
-    return (construction.elements || []).some(function (el) {
-      return el && Array.isArray(el.params);
-    });
+    if (Array.isArray(construction.links) && construction.links.length) return true;
+    if (Array.isArray(construction.include) && construction.include.length) return true;
+    // thin / overrides or nested construction refs — not legacy relations
+    if (
+      (construction.elements || []).some(function (el) {
+        return (
+          el &&
+          (el.overrides ||
+            Array.isArray(el.params) ||
+            el.construction ||
+            el.c)
+        );
+      })
+    ) {
+      return true;
+    }
+    // explicit legacy only when relations[] present without links
+    if (Array.isArray(construction.relations) && construction.relations.length) {
+      return false;
+    }
+    return false;
   }
 
   function componovkaNodeKind(comp) {
     const id = comp && comp.id;
     const name = ((comp && comp.name && (comp.name[1] || comp.name[0])) || "").toLowerCase();
+    if (id === "E003" || name.indexOf("потол") >= 0 || name.indexOf("ceiling") >= 0 ||
+        name.indexOf("опора") >= 0 || name.indexOf("support") >= 0) return "fixed_support";
     if (id === "E001" || name.indexOf("пружин") >= 0 || name.indexOf("spring") >= 0) return "elastic_element";
     if (id === "E002" || name.indexOf("груз") >= 0 || name.indexOf("брус") >= 0 ||
         name.indexOf("mass") >= 0 || name.indexOf("block") >= 0) return "rigid_body";
@@ -536,6 +570,9 @@
     const params = GC && typeof GC.resolveElementParams === "function"
       ? GC.resolveElementParams(el, comp)
       : (el && el.params) || [];
+    for (let i = 0; i < params.length; i++) {
+      if (params[i].role === "radius_vector") return params[i].value;
+    }
     for (let i = 0; i < params.length; i++) {
       if (params[i].quantity === "Q008" && Array.isArray(params[i].value)) return params[i].value;
     }
@@ -550,6 +587,17 @@
     const comps = getComponentsMap(pack && pack.components);
     const env = envFrame(comps, construction.environment || "E0");
     const GC = global.GeoCompute;
+    // recursive include[] / nested construction → flat elements+links
+    if (GC && typeof GC.expandConstruction === "function") {
+      construction = GC.expandConstruction(construction, {
+        constructions:
+          (pack && pack.constructs && pack.constructs.constructions) ||
+          (pack && pack.constructions) ||
+          null,
+        constructs: pack && pack.constructs,
+        pack: pack
+      });
+    }
     const observerId = construction.observer && construction.observer.id;
 
     const elements = (construction.elements || []).filter(function (el) {
@@ -559,6 +607,23 @@
     const posById = Object.create(null);
     const nodesOut = [];
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    function thinQuantities(el, comp) {
+      const out = Object.create(null);
+      if (!GC || typeof GC.resolveElementParams !== "function") return out;
+      const list = GC.resolveElementParams(el, comp) || [];
+      list.forEach(function (p) {
+        if (!p || !p.role) return;
+        out[p.role] = {
+          quantity: p.quantity,
+          role: p.role,
+          value: p.value,
+          symbol: p.role,
+          id: p.id
+        };
+      });
+      return out;
+    }
 
     elements.forEach(function (el) {
       const comp = comps[el.component] || {};
@@ -574,7 +639,7 @@
         id: el.id,
         component: el.component,
         role: null,
-        quantities: {},
+        quantities: thinQuantities(el, comp),
         kind: componovkaNodeKind(comp),
         ports_def: null,
         asset: null, src: null, anchor: [0, 0], opacity: 1, scale: 1,
@@ -590,12 +655,19 @@
     if (GC && typeof GC.applyConstructionLinks === "function") {
       const res = GC.applyConstructionLinks(construction, {
         components: pack && pack.components,
+        links: pack && (pack.links || pack.LINK),
+        formulas: pack && (pack.formulas || pack.physi_formulas),
+        constructions:
+          (pack && pack.constructs && pack.constructs.constructions) ||
+          (pack && pack.constructions) ||
+          null,
         change: options.change || null,
         delta_extension: options.delta_extension,
-        force: options.force
+        force: options.force,
+        equilibrium: options.equilibrium != null ? options.equilibrium : true
       });
       derived = res.derived || [];
-      // change сдвигает "to" вдоль связи — подтягиваем позицию узла из результата
+      // sync positions + thin quantities after physics
       (res.construction.elements || []).forEach(function (el) {
         if (!posById[el.id]) return;
         const r = componovkaR(el, comps[el.component] || {}, GC);
@@ -607,6 +679,10 @@
         n.x = p[0] - n.w / 2; n.y = p[1] - n.h / 2; n.position = p;
         minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x + n.w);
         minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y + n.h);
+        const el = (res.construction.elements || []).find(function (e) {
+          return e && e.id === n.id;
+        });
+        if (el) n.quantities = thinQuantities(el, comps[n.component] || {});
       });
     }
     // geometry of links + force vectors (spring → mass chain line; F on mass toward spring)
@@ -700,8 +776,12 @@
    * Main: construction → layout model (math coords, y up).
    */
   function layout(construction, pack, options) {
-    if (isComponovka(construction)) return layoutComponovka(construction, pack, options || {});
+    // Канон: links / thin / include → Componovka (без ports / relation_types).
+    if (isComponovka(construction)) {
+      return layoutComponovka(construction, pack, options || {});
+    }
 
+    // Legacy-only path (relations[] + ports) — не используется паспортом конструкций.
     options = options || {};
     const gapS = options.gapSeries != null ? options.gapSeries : GAP_SERIES;
     const gapP = options.gapParallel != null ? options.gapParallel : GAP_PARALLEL;
