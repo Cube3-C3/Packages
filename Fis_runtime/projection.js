@@ -1373,12 +1373,21 @@
     const ufx = opts.unitFactorX != null ? opts.unitFactorX : 1;
     const ufy = opts.unitFactorY != null ? opts.unitFactorY : 1;
 
-    // centre frame like proto paintEnv
+    // origin среды — левый нижний угол видимого окна (положительный квадрант)
     const sx = scalePx;
     const sy = scalePx;
+    const insets =
+      typeof GC.plotInsets === "function"
+        ? GC.plotInsets()
+        : { left: 64, right: 36, top: 26, bottom: 36 };
+    const plotW = Math.max(1, W - insets.left - insets.right);
+    const plotH = Math.max(1, H - insets.top - insets.bottom);
+    const xMax = plotW / sx;
+    const yMax = plotH / sy;
     const frame = GC.createFrame({
-      origin: [-W / (2 * sx), -H / (2 * sy)],
+      origin: [0 - insets.left / sx, 0 - insets.bottom / sy],
       axes: { x: "right", y: "up" },
+      origin_corner: "bottom_left",
       scale_x: sx,
       scale_y: sy,
       viewportW: W,
@@ -1386,16 +1395,14 @@
       unit_factor_x: ufx,
       unit_factor_y: ufy
     });
-    const halfX = W / (2 * sx);
-    const halfY = H / (2 * sy);
 
     ctx.fillStyle = "#171a21";
     ctx.fillRect(0, 0, W, H);
     GC.drawAxes(ctx, frame, {
-      xMin: -halfX,
-      xMax: halfX,
-      yMin: -halfY,
-      yMax: halfY,
+      xMin: 0,
+      xMax: xMax,
+      yMin: 0,
+      yMax: yMax,
       unitFactorX: ufx,
       unitFactorY: ufy,
       xLabel: "x",
