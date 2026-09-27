@@ -511,40 +511,46 @@
       .replace(/"/g, "&quot;");
   }
 
-  /** HTML-слот графика с data-points (патч в DOM). */
+  /** HTML-слот графика: лаконичное окно (canvas + тихая ошибка), без structure_ref/операндов. */
   function lawGraphSlotHtml(payload, meta) {
     meta = meta || {};
-    const lang = meta.lang || "ru";
-    const label = lang === "en" ? "Graph" : "График";
-    const structureRef = meta.structureRef || "";
     const lawId = meta.lawId || "";
-    const status = payload && payload.ok ? payload.status : (payload && payload.error) || "нет данных";
+    const ok = payload && payload.ok;
     const pointsAttr =
-      payload && payload.points ? escapeHtml(JSON.stringify(payload.points)) : "";
+      ok && payload.points ? escapeHtml(JSON.stringify(payload.points)) : "";
     const domainAttr = escapeHtml(JSON.stringify((payload && payload.domain) || [0, 4]));
+    const xLabel = meta.xLabel != null ? String(meta.xLabel) : "";
+    const yLabel = meta.yLabel != null ? String(meta.yLabel) : "";
+    const unitX = meta.unitSymbolX != null ? String(meta.unitSymbolX) : "";
+    const unitY = meta.unitSymbolY != null ? String(meta.unitSymbolY) : "";
+    const errMsg =
+      !ok && payload && payload.error
+        ? escapeHtml(String(payload.error))
+        : !ok
+          ? "—"
+          : "";
 
     return (
-      '<div class="section law-graph-slot">' +
-        '<div class="card law-graph-card">' +
-          '<div class="label">' +
-          label +
-          "</div>" +
-          '<div class="law-graph-host" data-law-graph="1"' +
-            ' data-structure-ref="' +
-            escapeHtml(structureRef) +
-            '"' +
-            ' data-law-id="' +
-            escapeHtml(String(lawId)) +
-            '"' +
-            (pointsAttr ? ' data-points="' + pointsAttr + '"' : "") +
-            ' data-domain="' +
-            domainAttr +
-            '">' +
-            '<canvas class="law-graph-canvas" width="320" height="200"></canvas>' +
-            '<div class="law-graph-msg">' +
-            escapeHtml(status) +
-            "</div>" +
-          "</div>" +
+      '<div class="law-graph-slot" style="margin:0">' +
+        '<div class="law-graph-host" data-law-graph="1"' +
+          ' data-law-id="' +
+          escapeHtml(String(lawId)) +
+          '"' +
+          (pointsAttr ? ' data-points="' + pointsAttr + '"' : "") +
+          ' data-domain="' +
+          domainAttr +
+          '"' +
+          (xLabel ? ' data-x-label="' + escapeHtml(xLabel) + '"' : "") +
+          (yLabel ? ' data-y-label="' + escapeHtml(yLabel) + '"' : "") +
+          (unitX ? ' data-unit-x="' + escapeHtml(unitX) + '"' : "") +
+          (unitY ? ' data-unit-y="' + escapeHtml(unitY) + '"' : "") +
+          ' style="background:#171a21;border-radius:8px;padding:0;width:560px;max-width:100%;height:320px;overflow:hidden;box-sizing:border-box;position:relative">' +
+          '<canvas class="law-graph-canvas" width="560" height="320" style="display:block;width:100%;height:100%"></canvas>' +
+          (errMsg
+            ? '<div class="law-graph-msg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted,#8b93a7);font-size:0.85rem;pointer-events:none">' +
+              errMsg +
+              "</div>"
+            : "") +
         "</div>" +
       "</div>"
     );
@@ -611,6 +617,8 @@
       yMax: yMax,
       unitFactorX: frame.unit_factor_x,
       unitFactorY: frame.unit_factor_y,
+      unitSymbolX: opts.unitSymbolX || null,
+      unitSymbolY: opts.unitSymbolY || null,
       xLabel: opts.xLabel || null,
       yLabel: opts.yLabel || null,
       targetTicksX: opts.targetTicksX || 8,
@@ -643,10 +651,11 @@
     hosts.forEach(function (host) {
       const canvas = host.querySelector("canvas.law-graph-canvas");
       if (!canvas) return;
-      canvas.width = 320;
-      canvas.height = 200;
+      canvas.width = 560;
+      canvas.height = 320;
       canvas.style.display = "block";
-      canvas.style.height = "200px";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
 
       const raw = host.getAttribute("data-points");
       if (!raw) return;
@@ -667,7 +676,12 @@
         if (d) domain = JSON.parse(d);
       } catch (e) { /* */ }
 
-      drawPointsOnCanvas(canvas, points, domain);
+      drawPointsOnCanvas(canvas, points, domain, {
+        xLabel: host.getAttribute("data-x-label") || null,
+        yLabel: host.getAttribute("data-y-label") || null,
+        unitSymbolX: host.getAttribute("data-unit-x") || null,
+        unitSymbolY: host.getAttribute("data-unit-y") || null
+      });
     });
   }
 
@@ -1855,10 +1869,28 @@
     if (payload && valueMeta) payload.valueMeta = valueMeta;
     if (payload && values) payload.values = values;
 
+    // axis captions (explicit or soft defaults); units — SI length unless overridden
+    let xLabel = opts.xLabel || null;
+    let yLabel = opts.yLabel || null;
+    if ((!xLabel || !yLabel) && law && law.bindings && typeof law.bindings === "object") {
+      const roles = [];
+      Object.keys(law.bindings).forEach(function (k) {
+        const b = law.bindings[k];
+        if (b && b.role) roles.push(String(b.role));
+      });
+      if (!xLabel && roles.length) xLabel = roles[roles.length - 1];
+      if (!yLabel) yLabel = "f";
+    }
+    if (!xLabel) xLabel = "x";
+    if (!yLabel) yLabel = "y";
+
     const html = lawGraphSlotHtml(payload, {
-      structureRef: structureRef,
       lawId: opts.lawId || "",
-      lang: opts.lang || "ru"
+      lang: opts.lang || "ru",
+      xLabel: xLabel,
+      yLabel: yLabel,
+      unitSymbolX: opts.unitSymbolX || null,
+      unitSymbolY: opts.unitSymbolY || null
     });
 
     // вставить в конец паспорта или контейнера (construction-graph host предпочтителен)
@@ -1886,7 +1918,7 @@
 
   /** Отступы plot-area под шкалы и подписи (screen px). Общие для среды и графиков. */
   /** Как frame_proto graph: место под подписи осей и деления (не резать ticks). */
-  const DEFAULT_PLOT_INSETS = { left: 64, right: 36, top: 26, bottom: 36 };
+  const DEFAULT_PLOT_INSETS = { left: 72, right: 40, top: 28, bottom: 40 };
 
   function plotInsets(overrides) {
     const d = DEFAULT_PLOT_INSETS;
@@ -1918,20 +1950,37 @@
     return step * pow;
   }
 
-  function formatTick(v, step) {
+  function formatTick(v, step, unitSym) {
     if (!isFinite(v)) return "—";
-    if (Math.abs(v) < 1e-12) return "0";
-    const a = Math.abs(v);
-    if (a >= 1e4 || (a > 0 && a < 1e-3)) return v.toExponential(1);
-    let d = 0;
-    if (step > 0 && isFinite(step)) {
-      const ls = Math.log10(step);
-      if (ls < 0) d = Math.min(4, Math.ceil(-ls));
-      const mant = step / Math.pow(10, Math.floor(ls));
-      if (mant < 1.5 && ls < 0) d = Math.min(4, d + 1);
+    if (Math.abs(v) < 1e-12) {
+      return unitSym ? "0 " + unitSym : "0";
     }
-    if (d === 0) return String(Math.round(v));
-    return v.toFixed(d).replace(/\.?0+$/, "") || "0";
+    const a = Math.abs(v);
+    let num;
+    if (a >= 1e4 || (a > 0 && a < 1e-3)) {
+      num = v.toExponential(1);
+    } else {
+      let d = 0;
+      if (step > 0 && isFinite(step)) {
+        const ls = Math.log10(step);
+        if (ls < 0) d = Math.min(4, Math.ceil(-ls));
+        const mant = step / Math.pow(10, Math.floor(ls));
+        if (mant < 1.5 && ls < 0) d = Math.min(4, d + 1);
+      }
+      num = d === 0 ? String(Math.round(v)) : v.toFixed(d).replace(/\.?0+$/, "") || "0";
+    }
+    return unitSym ? num + " " + unitSym : num;
+  }
+
+  /** Символ длины по unit_factor (SI м на 1 ед. подписи). */
+  function lengthUnitSymbol(unitFactor) {
+    const f = unitFactor != null ? Number(unitFactor) : 1;
+    if (!isFinite(f) || f <= 0) return "m";
+    if (Math.abs(f - 0.01) < 1e-12) return "cm";
+    if (Math.abs(f - 0.001) < 1e-12) return "mm";
+    if (Math.abs(f - 1000) < 1e-9) return "km";
+    if (Math.abs(f - 1) < 1e-12) return "m";
+    return "";
   }
 
   function ticksInRange(min, max, step) {
@@ -2204,7 +2253,17 @@
     });
     ctx.stroke();
 
-    // major ticks + numeric labels
+    // unit symbols on scale numbers (explicit or derived from length factor)
+    const unitSymX =
+      opts.unitSymbolX != null && String(opts.unitSymbolX)
+        ? String(opts.unitSymbolX)
+        : lengthUnitSymbol(ufx);
+    const unitSymY =
+      opts.unitSymbolY != null && String(opts.unitSymbolY)
+        ? String(opts.unitSymbolY)
+        : lengthUnitSymbol(ufy);
+
+    // major ticks + numeric labels (+ units)
     ctx.strokeStyle = "#c5c9d1";
     ctx.fillStyle = "#c5c9d1";
     ctx.lineWidth = 1.25;
@@ -2219,7 +2278,7 @@
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       const ty = Math.min(H - 2, p.y + tickMajor + 3);
-      ctx.fillText(formatTick(xv / ufx, stepXdisp), p.x, ty);
+      ctx.fillText(formatTick(xv / ufx, stepXdisp, unitSymX), p.x, ty);
     });
     majorsY.forEach(function (yv) {
       const p = toScreen(frame, { x: 0, y: yv });
@@ -2229,39 +2288,40 @@
       if (Math.abs(yv) < stepY * 1e-9) return;
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      const tx = Math.max(28, p.x - tickMajor - 6);
-      ctx.fillText(formatTick(yv / ufy, stepYdisp), tx, p.y);
+      const tx = Math.max(36, p.x - tickMajor - 6);
+      ctx.fillText(formatTick(yv / ufy, stepYdisp, unitSymY), tx, p.y);
     });
     ctx.stroke();
 
-    // origin «0»
+    // origin «0» (+ unit if any)
     if (o) {
       ctx.fillStyle = "#8b93a7";
       ctx.textAlign = "right";
       ctx.textBaseline = "top";
-      ctx.fillText("0", Math.max(28, o.x - 6), o.y + 4);
+      const zeroLabel = unitSymX ? "0 " + unitSymX : "0";
+      ctx.fillText(zeroLabel, Math.max(36, o.x - 6), o.y + 4);
     }
 
-    // axis name labels (explicit) — как в proto
+    // axis name labels (name · unit)
     ctx.fillStyle = "#e6e8ee";
     ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
-    if (opts.xLabel && x1) {
-      ctx.textAlign = "left";
-      ctx.textBaseline = "bottom";
-      ctx.fillText(
-        opts.xLabel,
-        Math.min(W - 8, x1.x - 4),
-        Math.max(14, x1.y - 10)
-      );
+    function axisCaption(name, unitSym) {
+      const n = name != null && String(name) ? String(name) : "";
+      const u = unitSym != null && String(unitSym) ? String(unitSym) : "";
+      if (n && u) return n + ", " + u;
+      return n || (u ? u : "");
     }
-    if (opts.yLabel && y1) {
+    const xCap = axisCaption(opts.xLabel, unitSymX);
+    const yCap = axisCaption(opts.yLabel, unitSymY);
+    if (xCap && x1) {
       ctx.textAlign = "left";
       ctx.textBaseline = "bottom";
-      ctx.fillText(
-        opts.yLabel,
-        Math.min(W - 8, y1.x + 10),
-        Math.max(14, y1.y + 4)
-      );
+      ctx.fillText(xCap, Math.min(W - 8, x1.x - 4), Math.max(14, x1.y - 10));
+    }
+    if (yCap && y1) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(yCap, Math.min(W - 8, y1.x + 10), Math.max(14, y1.y + 4));
     }
   }
 

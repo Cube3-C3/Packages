@@ -1203,13 +1203,14 @@
       });
     }
 
-    // 3) dependency menu options (package handler if present)
-    let depOptions = [
-      { id: "P014", label: lang === "en" ? "Hooke · F(x)" : "Гук · F(x)" },
-      { id: "P008", label: lang === "en" ? "U(x)" : "U(x)" },
-      { id: "P005", label: lang === "en" ? "Newton II" : "Ньютон II" }
-    ];
-    if (window.FisPackage && typeof window.FisPackage.handlers === "function") {
+    // 3) dependency menu — FisPackage.choiceOptions("graphable_law"), не отдельный список
+    let depOptions = [];
+    if (window.FisPackage && typeof window.FisPackage.choiceOptions === "function") {
+      depOptions = window.FisPackage.choiceOptions(data, "graphable_law", {
+        lang: lang,
+        construction: Cflat
+      }) || [];
+    } else if (window.FisPackage && typeof window.FisPackage.handlers === "function") {
       try {
         const h = window.FisPackage.handlers(data);
         if (h && typeof h.graph_dependency_menu === "function") {
@@ -1218,10 +1219,21 @@
         }
       } catch (e) { /* keep defaults */ }
     }
+    if (!depOptions.length) {
+      depOptions = [
+        { id: "P014", value: "P014", label: lang === "en" ? "Hooke · F(x)" : "Гук · F(x)" },
+        { id: "P008", value: "P008", label: lang === "en" ? "U(x)" : "U(x)" },
+        { id: "P005", value: "P005", label: lang === "en" ? "Newton II" : "Ньютон II" }
+      ];
+    }
+    depOptions = depOptions.map(function (o) {
+      const id = o.value != null ? o.value : o.id;
+      return { id: id, value: id, label: o.label || o.name || id };
+    });
     let depLawId = frameGraph.dep_law_id || "P014";
     if (
       !depOptions.some(function (o) {
-        return o.id === depLawId;
+        return o.id === depLawId || o.value === depLawId;
       })
     ) {
       depLawId = depOptions[0] ? depOptions[0].id : depLawId;
@@ -1373,12 +1385,21 @@
     const ufx = opts.unitFactorX != null ? opts.unitFactorX : 1;
     const ufy = opts.unitFactorY != null ? opts.unitFactorY : 1;
 
-    // centre frame like proto paintEnv
+    // origin среды — левый нижний угол видимого окна (положительный квадрант)
     const sx = scalePx;
     const sy = scalePx;
+    const insets =
+      typeof GC.plotInsets === "function"
+        ? GC.plotInsets()
+        : { left: 64, right: 36, top: 26, bottom: 36 };
+    const plotW = Math.max(1, W - insets.left - insets.right);
+    const plotH = Math.max(1, H - insets.top - insets.bottom);
+    const xMax = plotW / sx;
+    const yMax = plotH / sy;
     const frame = GC.createFrame({
-      origin: [-W / (2 * sx), -H / (2 * sy)],
+      origin: [0 - insets.left / sx, 0 - insets.bottom / sy],
       axes: { x: "right", y: "up" },
+      origin_corner: "bottom_left",
       scale_x: sx,
       scale_y: sy,
       viewportW: W,
@@ -1386,16 +1407,14 @@
       unit_factor_x: ufx,
       unit_factor_y: ufy
     });
-    const halfX = W / (2 * sx);
-    const halfY = H / (2 * sy);
 
     ctx.fillStyle = "#171a21";
     ctx.fillRect(0, 0, W, H);
     GC.drawAxes(ctx, frame, {
-      xMin: -halfX,
-      xMax: halfX,
-      yMin: -halfY,
-      yMax: halfY,
+      xMin: 0,
+      xMax: xMax,
+      yMin: 0,
+      yMax: yMax,
       unitFactorX: ufx,
       unitFactorY: ufy,
       xLabel: "x",
