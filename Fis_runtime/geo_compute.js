@@ -2616,7 +2616,7 @@
     const unitSymX = resolveAxisUnitSym(opts.unitSymbolX, ufx);
     const unitSymY = resolveAxisUnitSym(opts.unitSymbolY, ufy);
 
-    // major ticks + numeric labels (+ units)
+    // major ticks + numeric labels (units only in the axis caption, not duplicated on ticks)
     ctx.strokeStyle = "#c5c9d1";
     ctx.fillStyle = "#c5c9d1";
     ctx.lineWidth = 1.25;
@@ -2631,7 +2631,7 @@
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       const ty = Math.min(H - 2, p.y + tickMajor + 3);
-      ctx.fillText(formatTick(xv / ufx, stepXdisp, unitSymX), p.x, ty);
+      ctx.fillText(formatTick(xv / ufx, stepXdisp, ""), p.x, ty);
     });
     majorsY.forEach(function (yv) {
       const p = toScreen(frame, { x: 0, y: yv });
@@ -2642,16 +2642,16 @@
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       const tx = Math.max(36, p.x - tickMajor - 6);
-      ctx.fillText(formatTick(yv / ufy, stepYdisp, unitSymY), tx, p.y);
+      ctx.fillText(formatTick(yv / ufy, stepYdisp, ""), tx, p.y);
     });
     ctx.stroke();
 
-    // origin «0» (+ unit if any)
+    // origin «0» (no unit: it is in the axis caption)
     if (o) {
       ctx.fillStyle = "#8b93a7";
       ctx.textAlign = "right";
       ctx.textBaseline = "top";
-      const zeroLabel = unitSymX ? "0 " + unitSymX : "0";
+      const zeroLabel = "0";
       ctx.fillText(zeroLabel, Math.max(36, o.x - 6), o.y + 4);
     }
 
