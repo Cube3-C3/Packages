@@ -1,6 +1,6 @@
 {
-  "schema_version": "0.9.3",
-  "description": "elements: { E*: [ {id, overrides}, … ] } — instances grouped by component type. Recursive include[] → flatten. Defaults from components.json.",
+  "schema_version": "0.9.4",
+  "description": "elements: { E*: [ {id, overrides}, … ] }. links: { id, law:P*, of:{ port: elId | [elId…] } } — без LINK; величины с компонентов → формула.",
   "meta": {
     "language_order": [
       "en",
@@ -8,12 +8,11 @@
     ],
     "id_prefix": "C",
     "components_ref": "components.json",
-    "links_ref": "LINK.json",
     "notes": [
-      "elements: { \"E001\": [ {id, overrides}, … ], \"E002\": […], … } — ключ = тип E*, значение = инстансы.",
-      "overrides: { role: value } — только отличия от E*.default (components.json).",
-      "links[].of — port_order; multi = elId | [elId…].",
-      "include[] — рекурсивная сборка C* (как nested law).",
+      "elements: { \"E001\": [ {id, overrides}, … ], … } — ключ = тип E*.",
+      "links: { id, law, of:{ port: elId | [elId…] } } — напрямую P*; без structure_ref / LINK.",
+      "P014 of: { anchor, spring, end }; P005 of: { mass, springs: elId|[…] }.",
+      "include[] — рекурсивная сборка C*.",
       "C001 atom; C002 parallel; C003 series; C010 = include C001."
     ]
   },
@@ -35,7 +34,11 @@
           {
             "id": "ceiling",
             "overrides": {
-              "radius_vector": [0.5, 0.9, 0]
+              "radius_vector": [
+                0.5,
+                0.9,
+                0
+              ]
             }
           }
         ],
@@ -43,7 +46,11 @@
           {
             "id": "spring",
             "overrides": {
-              "radius_vector": [0.5, 0.9, 0],
+              "radius_vector": [
+                0.5,
+                0.9,
+                0
+              ],
               "spring_constant": 100,
               "natural_length": 0.2
             }
@@ -53,7 +60,11 @@
           {
             "id": "mass",
             "overrides": {
-              "radius_vector": [0.5, 0.7, 0],
+              "radius_vector": [
+                0.5,
+                0.7,
+                0
+              ],
               "mass": 0.5
             }
           }
@@ -62,13 +73,22 @@
       "links": [
         {
           "id": "link_hooke",
-          "structure_ref": "L_hooke",
-          "of": ["ceiling", "spring", "mass"]
+          "law": "P014",
+          "of": {
+            "anchor": "ceiling",
+            "spring": "spring",
+            "end": "mass"
+          }
         },
         {
           "id": "link_newton",
-          "structure_ref": "L_newton",
-          "of": ["mass", "spring"]
+          "law": "P005",
+          "of": {
+            "mass": "mass",
+            "springs": [
+              "spring"
+            ]
+          }
         }
       ]
     },
@@ -89,7 +109,11 @@
           {
             "id": "ceiling",
             "overrides": {
-              "radius_vector": [0.5, 0.9, 0]
+              "radius_vector": [
+                0.5,
+                0.9,
+                0
+              ]
             }
           }
         ],
@@ -97,7 +121,11 @@
           {
             "id": "spring_a",
             "overrides": {
-              "radius_vector": [0.42, 0.9, 0],
+              "radius_vector": [
+                0.42,
+                0.9,
+                0
+              ],
               "spring_constant": 80,
               "natural_length": 0.2
             }
@@ -105,7 +133,11 @@
           {
             "id": "spring_b",
             "overrides": {
-              "radius_vector": [0.58, 0.9, 0],
+              "radius_vector": [
+                0.58,
+                0.9,
+                0
+              ],
               "spring_constant": 120,
               "natural_length": 0.2
             }
@@ -115,7 +147,11 @@
           {
             "id": "mass",
             "overrides": {
-              "radius_vector": [0.5, 0.7, 0],
+              "radius_vector": [
+                0.5,
+                0.7,
+                0
+              ],
               "mass": 0.5
             }
           }
@@ -124,18 +160,32 @@
       "links": [
         {
           "id": "link_hooke_a",
-          "structure_ref": "L_hooke",
-          "of": ["ceiling", "spring_a", "mass"]
+          "law": "P014",
+          "of": {
+            "anchor": "ceiling",
+            "spring": "spring_a",
+            "end": "mass"
+          }
         },
         {
           "id": "link_hooke_b",
-          "structure_ref": "L_hooke",
-          "of": ["ceiling", "spring_b", "mass"]
+          "law": "P014",
+          "of": {
+            "anchor": "ceiling",
+            "spring": "spring_b",
+            "end": "mass"
+          }
         },
         {
           "id": "link_newton",
-          "structure_ref": "L_newton",
-          "of": ["mass", ["spring_a", "spring_b"]]
+          "law": "P005",
+          "of": {
+            "mass": "mass",
+            "springs": [
+              "spring_a",
+              "spring_b"
+            ]
+          }
         }
       ]
     },
@@ -156,7 +206,11 @@
           {
             "id": "ceiling",
             "overrides": {
-              "radius_vector": [0.5, 0.95, 0]
+              "radius_vector": [
+                0.5,
+                0.95,
+                0
+              ]
             }
           }
         ],
@@ -164,7 +218,11 @@
           {
             "id": "spring_1",
             "overrides": {
-              "radius_vector": [0.5, 0.95, 0],
+              "radius_vector": [
+                0.5,
+                0.95,
+                0
+              ],
               "spring_constant": 100,
               "natural_length": 0.15
             }
@@ -172,7 +230,11 @@
           {
             "id": "spring_2",
             "overrides": {
-              "radius_vector": [0.5, 0.8, 0],
+              "radius_vector": [
+                0.5,
+                0.8,
+                0
+              ],
               "spring_constant": 100,
               "natural_length": 0.15
             }
@@ -182,7 +244,11 @@
           {
             "id": "mass",
             "overrides": {
-              "radius_vector": [0.5, 0.65, 0],
+              "radius_vector": [
+                0.5,
+                0.65,
+                0
+              ],
               "mass": 0.5
             }
           }
@@ -191,18 +257,32 @@
       "links": [
         {
           "id": "link_hooke_1",
-          "structure_ref": "L_hooke",
-          "of": ["ceiling", "spring_1", "spring_2"]
+          "law": "P014",
+          "of": {
+            "anchor": "ceiling",
+            "spring": "spring_1",
+            "end": "spring_2"
+          }
         },
         {
           "id": "link_hooke_2",
-          "structure_ref": "L_hooke",
-          "of": ["spring_1", "spring_2", "mass"]
+          "law": "P014",
+          "of": {
+            "anchor": "spring_1",
+            "spring": "spring_2",
+            "end": "mass"
+          }
         },
         {
           "id": "link_newton",
-          "structure_ref": "L_newton",
-          "of": ["mass", ["spring_1", "spring_2"]]
+          "law": "P005",
+          "of": {
+            "mass": "mass",
+            "springs": [
+              "spring_1",
+              "spring_2"
+            ]
+          }
         }
       ]
     },
