@@ -1074,63 +1074,157 @@
    * returns { construction, derived, matched }
    */
   /**
-   * Resolve link instance → { law, params:[slotId…] }.
-   * Supports:
-   *   legacy: { law, params }
-   *   bindings: { port: elId | [elId…] }
-   *   of[]:    order = scheme.port_order; multi-port accepts elId | [elId…]
-   * LINK: schemes + aliases; chain L* → scheme.law (P*) → AST via formulas.
+   * Port → roles for formula-centric links (no LINK registry).
+   * of: { port: elId | [elId…] } + law:P* → slot ids el.role.
+   */
+  const LAW_PORTS = {
+    P014: {
+      port_order: ["anchor", "spring", "end"],
+      ports: {
+        anchor: { param_roles: ["radius_vector"] },
+        spring: {
+          param_roles: [
+            "spring_constant",
+            "extension",
+            "natural_length",
+            "radius_vector"
+          ]
+        },
+        end: { param_roles: ["radius_vector"] }
+      }
+    },
+    P005: {
+      port_order: ["mass", "springs"],
+      ports: {
+        mass: { param_roles: ["mass", "acceleration", "force"] },
+        springs: { multi: true, param_roles: ["spring_constant", "extension"] }
+      }
+    }
+  };
+
+  /**
+   * Resolve C*.links → { law, params:[slotId…], id, of }.
+   * Primary: { law:P*, of:{ port: elId | [elId…] } } — без LINK.
+   * Legacy: structure_ref L* + of[] + optional LINK pack.
    */
   function resolveLinkInstance(link, linkPack, construction) {
     if (!link) return null;
     if (link.law && Array.isArray(link.params)) {
       return { law: link.law, params: link.params.slice(), id: link.id || null };
     }
+
+    function pushRoles(params, elId, roles) {
+      if (!elId || !roles) return;
+      roles.forEach(function (role) {
+        params.push(elId + "." + role);
+      });
+    }
+
+    function emitFromScheme(lawId, scheme, wiring, idHint) {
+      if (!scheme || !lawId) return null;
+      const ports = scheme.ports || {};
+      const portOrder =
+        Array.isArray(scheme.port_order) && scheme.port_order.length
+          ? scheme.port_order.slice()
+          : Object.keys(ports);
+      const params = [];
+      if (lawId === "P014") {
+        pushRoles(
+          params,
+          wiring.spring,
+          (ports.spring && ports.spring.param_roles) || [
+            "spring_constant",
+            "extension",
+            "natural_length",
+            "radius_vector"
+          ]
+        );
+        pushRoles(
+          params,
+          wiring.anchor,
+          (ports.anchor && ports.anchor.param_roles) || ["radius_vector"]
+        );
+        pushRoles(
+          params,
+          wiring.end,
+          (ports.end && ports.end.param_roles) || ["radius_vector"]
+        );
+      } else if (lawId === "P005") {
+        pushRoles(
+          params,
+          wiring.mass,
+          (ports.mass && ports.mass.param_roles) || [
+            "mass",
+            "acceleration",
+            "force"
+          ]
+        );
+        let springs = wiring.springs;
+        if (springs == null && wiring.spring) springs = [wiring.spring];
+        if (!Array.isArray(springs)) springs = springs ? [springs] : [];
+        const sRoles =
+          (ports.springs && ports.springs.param_roles) ||
+          ["spring_constant", "extension"];
+        springs.forEach(function (sid) {
+          pushRoles(params, sid, sRoles);
+        });
+      } else {
+        portOrder.forEach(function (pname) {
+          const spec = ports[pname] || {};
+          const roles = spec.param_roles || [];
+          let targets = wiring[pname];
+          if (targets == null) return;
+          if (!Array.isArray(targets)) targets = [targets];
+          targets.forEach(function (elId) {
+            pushRoles(params, elId, roles);
+          });
+        });
+      }
+      return {
+        law: lawId,
+        params: params,
+        id: idHint || link.id || lawId,
+        of: wiring
+      };
+    }
+
+    // Primary: law + named of { port: elId | [elId…] }
+    if (link.law && link.of && typeof link.of === "object" && !Array.isArray(link.of)) {
+      const lawId = String(link.law);
+      const scheme = LAW_PORTS[lawId] || null;
+      const wiring = Object.create(null);
+      Object.keys(link.of).forEach(function (k) {
+        wiring[k] = link.of[k];
+      });
+      if (!scheme) {
+        return { law: lawId, params: [], id: link.id || lawId, of: wiring };
+      }
+      return emitFromScheme(lawId, scheme, wiring, link.id);
+    }
+
+    // Legacy: structure_ref L* + of[] / bindings + optional LINK
     const ref = link.structure_ref || link.link || link.scheme || null;
-    if (!ref) return null;
+    if (!ref && !link.law) return null;
     const pack = linkPack || {};
     const schemes = pack.schemes || {};
     const aliases = pack.aliases || {};
     let schemeId = ref;
-    let scheme = schemes[ref] || null;
-    if (!scheme && aliases[ref]) {
+    let scheme = (ref && schemes[ref]) || null;
+    if (!scheme && ref && aliases[ref]) {
       schemeId = aliases[ref].scheme || aliases[ref];
       scheme = schemes[schemeId] || null;
     }
-    if (!scheme && (ref === "L_hooke" || schemeId === "hooke_segment")) {
-      scheme = {
-        law: "P014",
-        port_order: ["anchor", "spring", "end"],
-        ports: {
-          anchor: { param_roles: ["radius_vector"] },
-          spring: {
-            param_roles: [
-              "spring_constant",
-              "extension",
-              "natural_length",
-              "radius_vector"
-            ]
-          },
-          end: { param_roles: ["radius_vector"] }
-        }
-      };
+    let lawId = link.law || (scheme && scheme.law) || null;
+    if (!scheme && (ref === "L_hooke" || schemeId === "hooke_segment" || lawId === "P014")) {
+      lawId = "P014";
+      scheme = LAW_PORTS.P014;
     }
-    if (!scheme && (ref === "L_newton" || schemeId === "newton_ii")) {
-      scheme = {
-        law: "P005",
-        port_order: ["mass", "springs"],
-        ports: {
-          mass: {
-            param_roles: ["mass", "acceleration", "force"]
-          },
-          springs: {
-            multi: true,
-            param_roles: ["spring_constant", "extension"]
-          }
-        }
-      };
+    if (!scheme && (ref === "L_newton" || schemeId === "newton_ii" || lawId === "P005")) {
+      lawId = "P005";
+      scheme = LAW_PORTS.P005;
     }
-    if (!scheme || !scheme.law) return null;
+    if (!scheme && lawId && LAW_PORTS[lawId]) scheme = LAW_PORTS[lawId];
+    if (!scheme || !lawId) return null;
 
     const ports = scheme.ports || {};
     const portOrder =
@@ -1138,7 +1232,6 @@
         ? scheme.port_order.slice()
         : Object.keys(ports);
 
-    // Build port → elId | [elId…] from of[] or bindings
     const wiring = Object.create(null);
     if (Array.isArray(link.of) && link.of.length) {
       let oi = 0;
@@ -1169,66 +1262,15 @@
       Object.keys(link.bindings).forEach(function (k) {
         wiring[k] = link.bindings[k];
       });
-    }
-
-    // Emit slot ids: for P014 keep spring roles then radius chain (legacy order)
-    const params = [];
-    function pushRoles(elId, roles) {
-      if (!elId || !roles) return;
-      roles.forEach(function (role) {
-        params.push(elId + "." + role);
-      });
-    }
-    if (scheme.law === "P014") {
-      const springId = wiring.spring;
-      const anchorId = wiring.anchor;
-      const endId = wiring.end;
-      pushRoles(springId, (ports.spring && ports.spring.param_roles) || [
-        "spring_constant",
-        "extension",
-        "natural_length",
-        "radius_vector"
-      ]);
-      pushRoles(anchorId, (ports.anchor && ports.anchor.param_roles) || [
-        "radius_vector"
-      ]);
-      pushRoles(endId, (ports.end && ports.end.param_roles) || ["radius_vector"]);
-    } else if (scheme.law === "P005") {
-      const massId = wiring.mass;
-      pushRoles(massId, (ports.mass && ports.mass.param_roles) || [
-        "mass",
-        "acceleration",
-        "force"
-      ]);
-      let springs = wiring.springs;
-      if (springs == null && wiring.spring) springs = [wiring.spring];
-      if (!Array.isArray(springs)) springs = springs ? [springs] : [];
-      const sRoles =
-        (ports.springs && ports.springs.param_roles) ||
-        ["spring_constant", "extension"];
-      springs.forEach(function (sid) {
-        pushRoles(sid, sRoles);
-      });
-    } else {
-      portOrder.forEach(function (pname) {
-        const spec = ports[pname] || {};
-        const roles = spec.param_roles || [];
-        let targets = wiring[pname];
-        if (targets == null) return;
-        if (!Array.isArray(targets)) targets = [targets];
-        targets.forEach(function (elId) {
-          pushRoles(elId, roles);
-        });
+    } else if (link.of && typeof link.of === "object") {
+      Object.keys(link.of).forEach(function (k) {
+        wiring[k] = link.of[k];
       });
     }
 
-    return {
-      law: scheme.law,
-      params: params,
-      id: link.id || ref,
-      structure_ref: ref,
-      scheme: schemeId
-    };
+    const resolved = emitFromScheme(lawId, scheme, wiring, link.id || ref);
+    if (resolved && ref) resolved.structure_ref = ref;
+    return resolved;
   }
 
   /**
@@ -2616,7 +2658,7 @@
     const unitSymX = resolveAxisUnitSym(opts.unitSymbolX, ufx);
     const unitSymY = resolveAxisUnitSym(opts.unitSymbolY, ufy);
 
-    // major ticks + numeric labels (units only in the axis caption, not duplicated on ticks)
+    // major ticks + numeric labels (+ units)
     ctx.strokeStyle = "#c5c9d1";
     ctx.fillStyle = "#c5c9d1";
     ctx.lineWidth = 1.25;
@@ -2631,7 +2673,7 @@
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       const ty = Math.min(H - 2, p.y + tickMajor + 3);
-      ctx.fillText(formatTick(xv / ufx, stepXdisp, ""), p.x, ty);
+      ctx.fillText(formatTick(xv / ufx, stepXdisp, unitSymX), p.x, ty);
     });
     majorsY.forEach(function (yv) {
       const p = toScreen(frame, { x: 0, y: yv });
@@ -2642,16 +2684,16 @@
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       const tx = Math.max(36, p.x - tickMajor - 6);
-      ctx.fillText(formatTick(yv / ufy, stepYdisp, ""), tx, p.y);
+      ctx.fillText(formatTick(yv / ufy, stepYdisp, unitSymY), tx, p.y);
     });
     ctx.stroke();
 
-    // origin «0» (no unit: it is in the axis caption)
+    // origin «0» (+ unit if any)
     if (o) {
       ctx.fillStyle = "#8b93a7";
       ctx.textAlign = "right";
       ctx.textBaseline = "top";
-      const zeroLabel = "0";
+      const zeroLabel = unitSymX ? "0 " + unitSymX : "0";
       ctx.fillText(zeroLabel, Math.max(36, o.x - 6), o.y + 4);
     }
 
