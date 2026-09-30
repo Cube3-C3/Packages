@@ -2,9 +2,9 @@
  * construct_layout.js — 2D раскладка элементов конструкции.
  * Host: window.ConstructLayout
  *
- * Канон (Componovka): thin elements {id, component, overrides} + links {structure_ref:L*, of:[]}.
- * Pack: { components, links|LINK, formulas, constructs }.
- * Рекурсия: expandConstruction(include[] / elements[].construction) до layout.
+ * Канон (Componovka): elements = { E*: [ {id, overrides}, … ] } (или legacy-массив).
+ * links {structure_ref:L*, of:[]}. Pack: { components, links|LINK, formulas, constructs }.
+ * Рекурсия: expandConstruction(include[] / nested construction) до layout.
  *
  * Legacy (не Componovka): relations[] + relation_types + ports — только если нет links/overrides.
  * Порты / line_types в канон-пути не используются.
@@ -54,6 +54,47 @@
     return (compsData && compsData.components) || {};
   }
 
+  /** E* type: explicit component or infer from instance id (thin elements). */
+  function componentOf(el) {
+    if (!el) return null;
+    const GC = global.GeoCompute;
+    if (GC && typeof GC.componentOf === "function") return GC.componentOf(el);
+    if (el.component) return String(el.component);
+    const id = String(el.id || "").toLowerCase();
+    if (!id) return null;
+    if (id === "ceiling" || id.indexOf("ceiling") === 0 || id === "support") return "E003";
+    if (id === "mass" || id.indexOf("mass") === 0 || id === "block" || id.indexOf("block") === 0)
+      return "E002";
+    if (id.indexOf("spring") >= 0) return "E001";
+    if (id === "obs" || id.indexOf("observer") === 0) return "E010";
+    return null;
+  }
+
+  /** Flat elements: array or { E*: [ {id, overrides}, … ] }. */
+  function elementsList(construction) {
+    const GC = global.GeoCompute;
+    if (GC && typeof GC.elementsList === "function") return GC.elementsList(construction);
+    const raw = construction && construction.elements;
+    if (Array.isArray(raw)) {
+      return raw.filter(Boolean).map(function (el) {
+        return Object.assign({}, el, { component: componentOf(el) || el.component });
+      });
+    }
+    if (raw && typeof raw === "object") {
+      const out = [];
+      Object.keys(raw).forEach(function (ekey) {
+        const list = raw[ekey];
+        if (!Array.isArray(list)) return;
+        list.forEach(function (el) {
+          if (!el) return;
+          out.push(Object.assign({}, el, { component: ekey }));
+        });
+      });
+      return out;
+    }
+    return [];
+  }
+
   function getAssetsMap(assetsData) {
     return (assetsData && assetsData.assets) || {};
   }
@@ -88,7 +129,8 @@
    */
   function portWorld(n, portId, compsMap) {
     const c = nodeCenter(n);
-    const comp = compsMap && n.component ? compsMap[n.component] : null;
+    const cid = n.component || componentOf(n);
+    const comp = compsMap && cid ? compsMap[cid] : null;
     const ports = (n.ports_def) || (comp && comp.ports) || null;
     let nx = 0, ny = 0;
     if (portId && ports && ports[portId]) {
@@ -323,10 +365,10 @@
   /** Build adjacency from relations (binary S1–S2). */
   function buildGraph(construction, typesMap) {
     const nodes = Object.create(null);
-    (construction.elements || []).forEach(function (el) {
+    elementsList(construction).forEach(function (el) {
       nodes[el.id] = {
         id: el.id,
-        component: el.component,
+        component: componentOf(el) || el.component,
         role: el.role || null,
         quantities: el.quantities || {},
         next: [],
@@ -534,9 +576,14 @@
     if (!construction) return false;
     if (Array.isArray(construction.links) && construction.links.length) return true;
     if (Array.isArray(construction.include) && construction.include.length) return true;
+    // elements as { E*: […] } object form
+    const rawEls = construction.elements;
+    if (rawEls && !Array.isArray(rawEls) && typeof rawEls === "object" && Object.keys(rawEls).length) {
+      return true;
+    }
     // thin / overrides or nested construction refs — not legacy relations
     if (
-      (construction.elements || []).some(function (el) {
+      elementsList(construction).some(function (el) {
         return (
           el &&
           (el.overrides ||
@@ -600,7 +647,7 @@
     }
     const observerId = construction.observer && construction.observer.id;
 
-    const elements = (construction.elements || []).filter(function (el) {
+    const elements = elementsList(construction).filter(function (el) {
       return el && el.id !== observerId;
     });
 
@@ -626,7 +673,8 @@
     }
 
     elements.forEach(function (el) {
-      const comp = comps[el.component] || {};
+      const cid = componentOf(el) || el.component;
+      const comp = comps[cid] || {};
       const r = componovkaR(el, comp, GC);
       const cx = (Number(r[0]) || 0) * pxPerMeter;
       const cy = (Number(r[1]) || 0) * pxPerMeter;
@@ -637,7 +685,7 @@
       minY = Math.min(minY, y); maxY = Math.max(maxY, y + h);
       nodesOut.push({
         id: el.id,
-        component: el.component,
+        component: cid,
         role: null,
         quantities: thinQuantities(el, comp),
         kind: componovkaNodeKind(comp),
@@ -670,7 +718,8 @@
       // sync positions + thin quantities after physics
       (res.construction.elements || []).forEach(function (el) {
         if (!posById[el.id]) return;
-        const r = componovkaR(el, comps[el.component] || {}, GC);
+        const cid = componentOf(el) || el.component;
+        const r = componovkaR(el, comps[cid] || {}, GC);
         posById[el.id] = [(Number(r[0]) || 0) * pxPerMeter, (Number(r[1]) || 0) * pxPerMeter];
       });
       nodesOut.forEach(function (n) {
@@ -682,7 +731,11 @@
         const el = (res.construction.elements || []).find(function (e) {
           return e && e.id === n.id;
         });
-        if (el) n.quantities = thinQuantities(el, comps[n.component] || {});
+        if (el) {
+          const cid = componentOf(el) || el.component || n.component;
+          n.component = cid;
+          n.quantities = thinQuantities(el, comps[cid] || {});
+        }
       });
     }
     // geometry of links + force vectors (spring → mass chain line; F on mass toward spring)
@@ -724,8 +777,9 @@
     // weight mg on each mass-like node (E002)
     const g = (env.g && env.g.value != null) ? Number(env.g.value) : 9.8;
     elements.forEach(function (el) {
-      const comp = comps[el.component] || {};
-      if (String(el.component) !== "E002" && !(comp.name && String(comp.name[0]).indexOf("mass") >= 0)) return;
+      const cid = componentOf(el) || el.component;
+      const comp = comps[cid] || {};
+      if (String(cid) !== "E002" && !(comp.name && String(comp.name[0]).indexOf("mass") >= 0)) return;
       const p = posById[el.id];
       if (!p) return;
       let m = 0.5;
@@ -817,7 +871,7 @@
     // sizes + explicit positions (center in local plane)
     const sizes = Object.create(null);
     const elById = Object.create(null);
-    (construction.elements || []).forEach(function (el) {
+    elementsList(construction).forEach(function (el) {
       elById[el.id] = el;
     });
     order.forEach(function (id) {

@@ -1160,11 +1160,18 @@
         ) || [];
     } else {
       const qids = Object.create(null);
-      (Cflat.elements || []).forEach(function (el) {
+      const flatEls =
+        GC && typeof GC.elementsList === "function"
+          ? GC.elementsList(Cflat)
+          : Cflat.elements || [];
+      flatEls.forEach(function (el) {
         if (GC && typeof GC.resolveElementParams === "function") {
           const comps =
             (data.components && data.components.components) || data.components || {};
-          const listP = GC.resolveElementParams(el, comps[el.component] || {});
+          const cid =
+            (typeof GC.componentOf === "function" && GC.componentOf(el)) ||
+            el.component;
+          const listP = GC.resolveElementParams(el, comps[cid] || {});
           listP.forEach(function (p) {
             if (p.quantity) qids[p.quantity] = true;
           });
@@ -1316,18 +1323,23 @@
     });
 
     // 3) attach law graph for selected dependency
+    function graphAttachOpts(lawId) {
+      return {
+        lawId: lawId,
+        formulas: data.formulas || data.physi_formulas,
+        structures: data.structures || data.AST,
+        construction: Cflat,
+        components: data.components,
+        physiQuant: data.physi_quant,
+        units: data.units,
+        usages: data.usages,
+        lang: lang
+      };
+    }
     if (GC && typeof GC.attachLawGraph === "function") {
       const graphHost = container.querySelector("[data-construction-graph]");
       if (graphHost) {
-        GC.attachLawGraph(graphHost, {
-          lawId: depLawId,
-          formulas: data.formulas || data.physi_formulas,
-          structures: data.structures || data.AST,
-          construction: Cflat,
-          components: data.components,
-          physiQuant: data.physi_quant,
-          lang: lang
-        });
+        GC.attachLawGraph(graphHost, graphAttachOpts(depLawId));
       }
     }
 
@@ -1345,15 +1357,7 @@
         if (GC && typeof GC.attachLawGraph === "function") {
           const graphHost = container.querySelector("[data-construction-graph]");
           if (graphHost) {
-            GC.attachLawGraph(graphHost, {
-              lawId: lid,
-              formulas: data.formulas || data.physi_formulas,
-              structures: data.structures || data.AST,
-              construction: Cflat,
-              components: data.components,
-              physiQuant: data.physi_quant,
-              lang: lang
-            });
+            GC.attachLawGraph(graphHost, graphAttachOpts(lid));
           }
         }
       });
@@ -1417,6 +1421,8 @@
       yMax: yMax,
       unitFactorX: ufx,
       unitFactorY: ufy,
+      spatialFrame: true,
+      inferLengthUnit: true,
       xLabel: "x",
       yLabel: "y",
       targetTicksX: 8,

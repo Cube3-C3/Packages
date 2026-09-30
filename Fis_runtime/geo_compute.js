@@ -519,10 +519,18 @@
     const pointsAttr =
       ok && payload.points ? escapeHtml(JSON.stringify(payload.points)) : "";
     const domainAttr = escapeHtml(JSON.stringify((payload && payload.domain) || [0, 4]));
-    const xLabel = meta.xLabel != null ? String(meta.xLabel) : "";
-    const yLabel = meta.yLabel != null ? String(meta.yLabel) : "";
-    const unitX = meta.unitSymbolX != null ? String(meta.unitSymbolX) : "";
-    const unitY = meta.unitSymbolY != null ? String(meta.unitSymbolY) : "";
+    // null label/unit = unknown (omit attr); never invent metres from factor
+    const xLabel = meta.xLabel != null && meta.xLabel !== "" ? String(meta.xLabel) : "";
+    const yLabel = meta.yLabel != null && meta.yLabel !== "" ? String(meta.yLabel) : "";
+    const unitX =
+      meta.unitSymbolX != null && meta.unitSymbolX !== ""
+        ? String(meta.unitSymbolX)
+        : "";
+    const unitY =
+      meta.unitSymbolY != null && meta.unitSymbolY !== ""
+        ? String(meta.unitSymbolY)
+        : "";
+    const inferLen = meta.inferLengthUnit === true ? "1" : "0";
     const errMsg =
       !ok && payload && payload.error
         ? escapeHtml(String(payload.error))
@@ -539,6 +547,9 @@
           (pointsAttr ? ' data-points="' + pointsAttr + '"' : "") +
           ' data-domain="' +
           domainAttr +
+          '"' +
+          ' data-infer-length="' +
+          inferLen +
           '"' +
           (xLabel ? ' data-x-label="' + escapeHtml(xLabel) + '"' : "") +
           (yLabel ? ' data-y-label="' + escapeHtml(yLabel) + '"' : "") +
@@ -617,8 +628,10 @@
       yMax: yMax,
       unitFactorX: frame.unit_factor_x,
       unitFactorY: frame.unit_factor_y,
-      unitSymbolX: opts.unitSymbolX || null,
-      unitSymbolY: opts.unitSymbolY || null,
+      unitSymbolX: opts.unitSymbolX,
+      unitSymbolY: opts.unitSymbolY,
+      inferLengthUnit: opts.inferLengthUnit === true,
+      spatialFrame: opts.spatialFrame === true,
       xLabel: opts.xLabel || null,
       yLabel: opts.yLabel || null,
       targetTicksX: opts.targetTicksX || 8,
@@ -676,13 +689,87 @@
         if (d) domain = JSON.parse(d);
       } catch (e) { /* */ }
 
+      const inferLen = host.getAttribute("data-infer-length") === "1";
       drawPointsOnCanvas(canvas, points, domain, {
         xLabel: host.getAttribute("data-x-label") || null,
         yLabel: host.getAttribute("data-y-label") || null,
-        unitSymbolX: host.getAttribute("data-unit-x") || null,
-        unitSymbolY: host.getAttribute("data-unit-y") || null
+        // empty attr → null (unknown), not metres
+        unitSymbolX: host.hasAttribute("data-unit-x")
+          ? host.getAttribute("data-unit-x")
+          : null,
+        unitSymbolY: host.hasAttribute("data-unit-y")
+          ? host.getAttribute("data-unit-y")
+          : null,
+        inferLengthUnit: inferLen
       });
     });
+  }
+
+  /**
+   * E* for thin instance { id, overrides } (component optional).
+   * ceiling→E003, spring*→E001, mass→E002, obs→E010; else el.component.
+   */
+  function componentOf(el) {
+    if (!el) return null;
+    if (el.component) return String(el.component);
+    const id = String(el.id || "").toLowerCase();
+    if (!id) return null;
+    if (id === "ceiling" || id.indexOf("ceiling") === 0 || id === "support")
+      return "E003";
+    if (id === "mass" || id.indexOf("mass") === 0 || id === "block" || id.indexOf("block") === 0)
+      return "E002";
+    if (id.indexOf("spring") >= 0) return "E001";
+    if (id === "obs" || id.indexOf("observer") === 0) return "E010";
+    return null;
+  }
+
+  /**
+   * Normalize construction.elements → flat [{id, overrides, component}, …].
+   * Accepts array (legacy) or object by E*: { "E001": [ {id, overrides}, … ], … }.
+   */
+  function elementsList(constructionOrElements) {
+    let raw = constructionOrElements;
+    if (raw && !Array.isArray(raw) && typeof raw === "object" && raw.elements !== undefined) {
+      raw = raw.elements;
+    }
+    if (raw == null) return [];
+    if (Array.isArray(raw)) {
+      return raw.filter(Boolean).map(function (el) {
+        return {
+          id: el.id,
+          component: componentOf(el) || el.component || null,
+          overrides: el.overrides,
+          params: el.params,
+          construction: el.construction,
+          as: el.as,
+          role: el.role,
+          quantities: el.quantities
+        };
+      });
+    }
+    if (typeof raw === "object") {
+      const out = [];
+      Object.keys(raw).forEach(function (ekey) {
+        const list = raw[ekey];
+        if (!Array.isArray(list)) return;
+        const isE = /^E\d+/i.test(ekey) || ekey === "E0";
+        list.forEach(function (el) {
+          if (!el) return;
+          out.push({
+            id: el.id,
+            component: isE ? String(ekey) : componentOf(el) || el.component || null,
+            overrides: el.overrides,
+            params: el.params,
+            construction: el.construction,
+            as: el.as,
+            role: el.role,
+            quantities: el.quantities
+          });
+        });
+      });
+      return out;
+    }
+    return [];
   }
 
   /**
@@ -691,13 +778,14 @@
    */
   /**
    * Merge E*.params defaults + instance overrides/params.
-   * Thin instance: { id, component, overrides:{ role: value } }
+   * Thin instance: { id, overrides:{ role: value } } (+ optional component).
    * Legacy: full params[] still supported; overrides win by role.
    */
   function resolveElementParams(el, componentTemplate) {
     const tmpl = componentTemplate || {};
     const base = Array.isArray(tmpl.params) ? tmpl.params : [];
     const elId = (el && el.id) || "el";
+
     const overrides =
       (el && el.overrides && typeof el.overrides === "object" && !Array.isArray(el.overrides))
         ? el.overrides
@@ -773,12 +861,12 @@
     const byId = Object.create(null);
     function addEl(el) {
       if (!el) return;
-      const list = resolveElementParams(el, comps[el.component] || {});
+      const list = resolveElementParams(el, comps[componentOf(el)] || {});
       list.forEach(function (p) {
         byId[p.id] = p;
       });
     }
-    (construction.elements || []).forEach(addEl);
+    elementsList(construction).forEach(addEl);
     if (construction.observer) addEl(construction.observer);
     return byId;
   }
@@ -928,9 +1016,9 @@
       value: gVal
     });
 
-    (construction.elements || []).forEach(function (el) {
+    elementsList(construction).forEach(function (el) {
       if (!el) return;
-      const comp = comps[el.component] || {};
+      const comp = comps[componentOf(el)] || {};
       // New Componovka path
       if (Array.isArray(comp.params) || Array.isArray(el.params)) {
         const resolved = resolveElementParams(el, comp);
@@ -1230,7 +1318,7 @@
       });
       return {
         id: el.id,
-        component: el.component,
+        component: componentOf(el) || el.component,
         construction: el.construction,
         overrides: overrides,
         params: el.params
@@ -1251,7 +1339,7 @@
       (expanded.elements || []).forEach(function (el) {
         let e = {
           id: prefix + el.id,
-          component: el.component,
+          component: componentOf(el) || el.component,
           overrides: el.overrides ? Object.assign({}, el.overrides) : undefined,
           params: el.params
         };
@@ -1282,7 +1370,7 @@
       if (!observer && expanded.observer) {
         observer = {
           id: prefix + (expanded.observer.id || "obs"),
-          component: expanded.observer.component,
+          component: componentOf(expanded.observer) || expanded.observer.component,
           overrides: expanded.observer.overrides,
           params: expanded.observer.params
         };
@@ -1299,8 +1387,8 @@
       if (src) ingest(src, prefix, inc.overrides || null);
     });
 
-    // elements: plain E* or nested construction
-    (construction.elements || []).forEach(function (el) {
+    // elements: plain E* (array or {E*:[…]}) or nested construction
+    elementsList(construction).forEach(function (el) {
       if (!el) return;
       const ref = el.construction || el.c || null;
       if (ref) {
@@ -1312,7 +1400,7 @@
       }
       flatEls.push({
         id: el.id,
-        component: el.component,
+        component: componentOf(el) || el.component,
         overrides: el.overrides,
         params: el.params
       });
@@ -1361,10 +1449,11 @@
 
     function expandEl(el) {
       if (!el) return null;
-      const resolved = resolveElementParams(el, comps[el.component] || {});
+      const cid = componentOf(el) || el.component;
+      const resolved = resolveElementParams(el, comps[cid] || {});
       return {
         id: el.id,
-        component: el.component,
+        component: cid,
         params: resolved.map(function (p) {
           return {
             id: p.id,
@@ -1382,7 +1471,7 @@
       layout: construction.layout || "series_vertical",
       environment: construction.environment || "E0",
       observer: construction.observer ? expandEl(construction.observer) : null,
-      elements: (construction.elements || []).map(expandEl).filter(Boolean),
+      elements: elementsList(construction).map(expandEl).filter(Boolean),
       links: construction.links || []
     };
 
@@ -1783,9 +1872,11 @@
       }
     });
 
-    // domain hint: если аргумент — длина/координата, возьмём масштаб от L в конструкции
+    // domain hint: free operand quantity (incl. nested law → Q008 etc.)
     const inBind = law.bindings[inputOperandId];
-    if (inBind && inBind.quantity === "Q008") {
+    const inSem = resolveBindingSemantics(inBind, opts.formulas, 0);
+    const inQ = (inSem && inSem.quantity) || (inBind && inBind.quantity) || null;
+    if (inQ === "Q008") {
       const lens = byQ["Q008"] || [];
       let maxL = 0;
       lens.forEach(function (e) {
@@ -1812,6 +1903,239 @@
       if ((l.law_id || l.id) === lawId) return l;
     }
     return null;
+  }
+
+  /** denotation law_id → {quantity, role?} via FisUnits or formulas.denotations */
+  function denotationForLawLocal(formulas, lawId) {
+    const FU = global.FisUnits;
+    if (FU && typeof FU.denotationForLaw === "function") {
+      return FU.denotationForLaw(formulas, lawId);
+    }
+    if (!formulas || !lawId) return null;
+    const den = formulas.denotations;
+    if (!den || typeof den !== "object") return null;
+    const want = String(lawId);
+    const keys = Object.keys(den);
+    for (let i = 0; i < keys.length; i++) {
+      const qid = keys[i];
+      const list = den[qid];
+      if (!Array.isArray(list)) continue;
+      for (let j = 0; j < list.length; j++) {
+        const e = list[j];
+        if (e && String(e.law_id) === want) {
+          const out = { quantity: qid };
+          if (e.role) out.role = e.role;
+          return out;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Binding → { quantity, role } вдоль того же пути, что и graph operand:
+   * quantity/role напрямую; {law} → denotation nested law; иначе первичный quantity nested.
+   * Не «последний role среди всех bindings».
+   */
+  function resolveBindingSemantics(binding, formulas, depth) {
+    if (depth == null) depth = 0;
+    if (!binding || typeof binding !== "object" || depth > 8) return null;
+    if (binding.quantity) {
+      return {
+        quantity: String(binding.quantity),
+        role: binding.role != null ? String(binding.role) : null
+      };
+    }
+    const lid = binding.law || binding.law_id || binding.formula || null;
+    if (!lid) return null;
+    const nested = findLawById(formulas, String(lid));
+    if (!nested) return null;
+    const den = denotationForLawLocal(formulas, String(lid));
+    if (den && den.quantity) {
+      return {
+        quantity: String(den.quantity),
+        role: den.role != null ? String(den.role) : null
+      };
+    }
+    // unary / helper law without denotation: walk bindings for quantity (prefer last O*)
+    const binds = nested.bindings || {};
+    const oids = Object.keys(binds)
+      .filter(function (k) {
+        return /^O\d+$/.test(k);
+      })
+      .sort(function (a, b) {
+        return Number(a.slice(1)) - Number(b.slice(1));
+      });
+    for (let i = oids.length - 1; i >= 0; i--) {
+      const sub = resolveBindingSemantics(binds[oids[i]], formulas, depth + 1);
+      if (sub && sub.quantity) return sub;
+    }
+    return null;
+  }
+
+  function dimensionForQuantity(physiQuant, qid) {
+    if (!qid || !physiQuant) return null;
+    const want = String(qid);
+    function walk(node) {
+      if (!node) return null;
+      if (Array.isArray(node)) {
+        for (let i = 0; i < node.length; i++) {
+          const r = walk(node[i]);
+          if (r) return r;
+        }
+        return null;
+      }
+      if (typeof node !== "object") return null;
+      if (node.id === want && node.dimension) return node.dimension;
+      if (node[want] && node[want].dimension) return node[want].dimension;
+      const keys = Object.keys(node);
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (k === "id" || k === "dimension" || k === "meta") continue;
+        const r = walk(node[k]);
+        if (r) return r;
+      }
+      return null;
+    }
+    return walk(physiQuant.quantities || physiQuant);
+  }
+
+  function unitSymbolForQuantity(qid, opts) {
+    opts = opts || {};
+    if (!qid) return null;
+    const lang = opts.lang || "ru";
+    const FU = global.FisUnits;
+    const dim = dimensionForQuantity(opts.physiQuant, qid);
+    if (FU && typeof FU.formatUnitForQuantity === "function" && dim) {
+      try {
+        const r = FU.formatUnitForQuantity(qid, dim, {
+          unitsData: opts.units,
+          formulasData: opts.formulas,
+          structuresData: opts.structures,
+          quantData: opts.physiQuant,
+          lang: lang
+        });
+        if (r && r.symbol) return String(r.symbol);
+      } catch (e) { /* */ }
+    }
+    if (FU && typeof FU.formatUnit === "function" && dim) {
+      try {
+        const r = FU.formatUnit(dim, opts.units, lang);
+        if (r && r.symbol) return String(r.symbol);
+      } catch (e) { /* */ }
+    }
+    // coherent SI root symbols only when dim known — never invent "m" without dim
+    if (dim) {
+      const SI_ROOT = {
+        "[1]": "1",
+        "[L]": "m",
+        "[M]": "kg",
+        "[T]": "s",
+        "[I]": "A",
+        "[Θ]": "K",
+        "[N]": "mol",
+        "[J]": "cd",
+        "[L T^{-2}]": "m/s²",
+        "[L T^{-1}]": "m/s",
+        "[M L T^{-2}]": "N",
+        "[M L^2 T^{-2}]": "J",
+        "[M T^{-2}]": "N/m",
+        "[T^{-1}]": "Hz"
+      };
+      if (SI_ROOT[dim]) return SI_ROOT[dim];
+    }
+    return null;
+  }
+
+  function symbolForQuantityRole(qid, role, usages, lang) {
+    if (!qid || !usages) return null;
+    const table = usages.usages || usages;
+    const list = table[qid];
+    if (!Array.isArray(list) || !list.length) return null;
+    if (role) {
+      for (let i = 0; i < list.length; i++) {
+        if (list[i] && list[i].role === role && list[i].symbol != null) {
+          return String(list[i].symbol);
+        }
+      }
+    }
+    if (list[0] && list[0].symbol != null) return String(list[0].symbol);
+    return null;
+  }
+
+  /**
+   * Семантика осей law-graph до presentation.
+   * x = free AST operand (last O*); y = O1 denotation of the law.
+   * Returns { x, y, inputOperandId, outputOperandId }
+   *   x/y: { quantity, role, label, unitSymbol } | null fields when unresolved
+   */
+  function resolveGraphAxes(law, opts) {
+    opts = opts || {};
+    const formulas = opts.formulas;
+    const emptyAxis = function () {
+      return { quantity: null, role: null, label: null, unitSymbol: null };
+    };
+    const out = {
+      x: emptyAxis(),
+      y: emptyAxis(),
+      inputOperandId: null,
+      outputOperandId: "O1"
+    };
+    if (!law || !law.bindings) return out;
+
+    const operandIds = Object.keys(law.bindings)
+      .filter(function (k) {
+        return /^O\d+$/.test(k);
+      })
+      .sort(function (a, b) {
+        return Number(a.slice(1)) - Number(b.slice(1));
+      });
+    if (!operandIds.length) return out;
+
+    const inputOperandId = operandIds[operandIds.length - 1];
+    out.inputOperandId = inputOperandId;
+
+    // X: semantics of the free operand binding (same id graph builder samples)
+    const xSem = resolveBindingSemantics(law.bindings[inputOperandId], formulas, 0);
+    if (xSem) {
+      out.x.quantity = xSem.quantity;
+      out.x.role = xSem.role;
+    }
+
+    // Y: denotation of this law (O1), not a guessed binding role
+    const lid = law.law_id || law.id;
+    const yDen = denotationForLawLocal(formulas, lid);
+    if (yDen && yDen.quantity) {
+      out.y.quantity = String(yDen.quantity);
+      out.y.role = yDen.role != null ? String(yDen.role) : null;
+    } else if (law.bindings.O1) {
+      const ySem = resolveBindingSemantics(law.bindings.O1, formulas, 0);
+      if (ySem) {
+        out.y.quantity = ySem.quantity;
+        out.y.role = ySem.role;
+      }
+    }
+
+    function finishAxis(axis) {
+      if (!axis.quantity) return;
+      const sym = symbolForQuantityRole(
+        axis.quantity,
+        axis.role,
+        opts.usages,
+        opts.lang
+      );
+      axis.label = sym || axis.role || null;
+      axis.unitSymbol = unitSymbolForQuantity(axis.quantity, {
+        lang: opts.lang,
+        physiQuant: opts.physiQuant,
+        units: opts.units,
+        formulas: formulas,
+        structures: opts.structures
+      });
+    }
+    finishAxis(out.x);
+    finishAxis(out.y);
+    return out;
   }
 
   /**
@@ -1852,7 +2176,8 @@
     if (law && opts.construction) {
       const auto = valuesFromLawAndConstruction(law, opts.construction, {
         components: opts.components,
-        physiQuant: opts.physiQuant
+        physiQuant: opts.physiQuant,
+        formulas: opts.formulas
       });
       valueMeta = auto.meta;
       if (auto.values && Object.keys(auto.values).length) {
@@ -1869,28 +2194,53 @@
     if (payload && valueMeta) payload.valueMeta = valueMeta;
     if (payload && values) payload.values = values;
 
-    // axis captions (explicit or soft defaults); units — SI length unless overridden
-    let xLabel = opts.xLabel || null;
-    let yLabel = opts.yLabel || null;
-    if ((!xLabel || !yLabel) && law && law.bindings && typeof law.bindings === "object") {
-      const roles = [];
-      Object.keys(law.bindings).forEach(function (k) {
-        const b = law.bindings[k];
-        if (b && b.role) roles.push(String(b.role));
-      });
-      if (!xLabel && roles.length) xLabel = roles[roles.length - 1];
-      if (!yLabel) yLabel = "f";
-    }
-    if (!xLabel) xLabel = "x";
-    if (!yLabel) yLabel = "y";
+    // axes: resolve quantity semantics first, then presentation (no role heuristics)
+    const axes = law
+      ? resolveGraphAxes(law, {
+          formulas: opts.formulas,
+          physiQuant: opts.physiQuant,
+          units: opts.units,
+          usages: opts.usages,
+          structures: opts.structures,
+          lang: opts.lang || "ru"
+        })
+      : null;
+    if (payload && axes) payload.axes = axes;
+
+    const xLabel =
+      opts.xLabel != null
+        ? opts.xLabel
+        : axes && axes.x
+          ? axes.x.label
+          : null;
+    const yLabel =
+      opts.yLabel != null
+        ? opts.yLabel
+        : axes && axes.y
+          ? axes.y.label
+          : null;
+    // explicit null unit = unknown (never infer metres for law graph)
+    const unitSymbolX =
+      opts.unitSymbolX !== undefined
+        ? opts.unitSymbolX
+        : axes && axes.x
+          ? axes.x.unitSymbol
+          : null;
+    const unitSymbolY =
+      opts.unitSymbolY !== undefined
+        ? opts.unitSymbolY
+        : axes && axes.y
+          ? axes.y.unitSymbol
+          : null;
 
     const html = lawGraphSlotHtml(payload, {
       lawId: opts.lawId || "",
       lang: opts.lang || "ru",
       xLabel: xLabel,
       yLabel: yLabel,
-      unitSymbolX: opts.unitSymbolX || null,
-      unitSymbolY: opts.unitSymbolY || null
+      unitSymbolX: unitSymbolX,
+      unitSymbolY: unitSymbolY,
+      inferLengthUnit: false
     });
 
     // вставить в конец паспорта или контейнера (construction-graph host предпочтителен)
@@ -2253,15 +2603,18 @@
     });
     ctx.stroke();
 
-    // unit symbols on scale numbers (explicit or derived from length factor)
-    const unitSymX =
-      opts.unitSymbolX != null && String(opts.unitSymbolX)
-        ? String(opts.unitSymbolX)
-        : lengthUnitSymbol(ufx);
-    const unitSymY =
-      opts.unitSymbolY != null && String(opts.unitSymbolY)
-        ? String(opts.unitSymbolY)
-        : lengthUnitSymbol(ufy);
+    // unit symbols: explicit string wins; null/"" = unknown; infer m only for spatial frame
+    function resolveAxisUnitSym(explicit, factor) {
+      if (explicit != null && String(explicit) !== "") return String(explicit);
+      if (explicit === null || explicit === "") return "";
+      // explicit === undefined
+      if (opts.spatialFrame === true || opts.inferLengthUnit === true) {
+        return lengthUnitSymbol(factor);
+      }
+      return "";
+    }
+    const unitSymX = resolveAxisUnitSym(opts.unitSymbolX, ufx);
+    const unitSymY = resolveAxisUnitSym(opts.unitSymbolY, ufy);
 
     // major ticks + numeric labels (+ units)
     ctx.strokeStyle = "#c5c9d1";
@@ -2658,10 +3011,14 @@
     lawGraphSlotHtml: lawGraphSlotHtml,
     paintLawGraphHosts: paintLawGraphHosts,
     attachLawGraph: attachLawGraph,
+    resolveGraphAxes: resolveGraphAxes,
+    resolveBindingSemantics: resolveBindingSemantics,
     drawPointsOnCanvas: drawPointsOnCanvas,
     collectConstructionQuantityEntries: collectConstructionQuantityEntries,
     valuesFromLawAndConstruction: valuesFromLawAndConstruction,
     resolveElementParams: resolveElementParams,
+    componentOf: componentOf,
+    elementsList: elementsList,
     indexConstructionSlots: indexConstructionSlots,
     matchLawToSlots: matchLawToSlots,
     applyConstructionLinks: applyConstructionLinks
