@@ -1,6 +1,6 @@
 {
-  "schema_version": "0.9.0",
-  "description": "Thin E* + L* of[]; recursive include[] / elements[].construction → flatten (prefix ids). Defaults from components.",
+  "schema_version": "0.9.3",
+  "description": "elements: { E*: [ {id, overrides}, … ] } — instances grouped by component type. Recursive include[] → flatten. Defaults from components.json.",
   "meta": {
     "language_order": [
       "en",
@@ -10,9 +10,10 @@
     "components_ref": "components.json",
     "links_ref": "LINK.json",
     "notes": [
-      "overrides: { role: value } — только отличия от E*.default.",
+      "elements: { \"E001\": [ {id, overrides}, … ], \"E002\": […], … } — ключ = тип E*, значение = инстансы.",
+      "overrides: { role: value } — только отличия от E*.default (components.json).",
       "links[].of — port_order; multi = elId | [elId…].",
-      "include[] | elements[{construction, as, overrides}] — рекурсивная сборка C* (как nested law).",
+      "include[] — рекурсивная сборка C* (как nested law).",
       "C001 atom; C002 parallel; C003 series; C010 = include C001."
     ]
   },
@@ -29,61 +30,45 @@
         "id": "obs",
         "component": "E010"
       },
-      "elements": [
-        {
-          "id": "ceiling",
-          "component": "E003",
-          "overrides": {
-            "radius_vector": [
-              0.5,
-              0.9,
-              0
-            ]
+      "elements": {
+        "E003": [
+          {
+            "id": "ceiling",
+            "overrides": {
+              "radius_vector": [0.5, 0.9, 0]
+            }
           }
-        },
-        {
-          "id": "spring",
-          "component": "E001",
-          "overrides": {
-            "radius_vector": [
-              0.5,
-              0.9,
-              0
-            ],
-            "spring_constant": 100,
-            "natural_length": 0.2
+        ],
+        "E001": [
+          {
+            "id": "spring",
+            "overrides": {
+              "radius_vector": [0.5, 0.9, 0],
+              "spring_constant": 100,
+              "natural_length": 0.2
+            }
           }
-        },
-        {
-          "id": "mass",
-          "component": "E002",
-          "overrides": {
-            "radius_vector": [
-              0.5,
-              0.7,
-              0
-            ],
-            "mass": 0.5
+        ],
+        "E002": [
+          {
+            "id": "mass",
+            "overrides": {
+              "radius_vector": [0.5, 0.7, 0],
+              "mass": 0.5
+            }
           }
-        }
-      ],
+        ]
+      },
       "links": [
         {
           "id": "link_hooke",
           "structure_ref": "L_hooke",
-          "of": [
-            "ceiling",
-            "spring",
-            "mass"
-          ]
+          "of": ["ceiling", "spring", "mass"]
         },
         {
           "id": "link_newton",
           "structure_ref": "L_newton",
-          "of": [
-            "mass",
-            "spring"
-          ]
+          "of": ["mass", "spring"]
         }
       ]
     },
@@ -99,86 +84,58 @@
         "id": "obs",
         "component": "E010"
       },
-      "elements": [
-        {
-          "id": "ceiling",
-          "component": "E003",
-          "overrides": {
-            "radius_vector": [
-              0.5,
-              0.9,
-              0
-            ]
+      "elements": {
+        "E003": [
+          {
+            "id": "ceiling",
+            "overrides": {
+              "radius_vector": [0.5, 0.9, 0]
+            }
           }
-        },
-        {
-          "id": "spring_a",
-          "component": "E001",
-          "overrides": {
-            "radius_vector": [
-              0.42,
-              0.9,
-              0
-            ],
-            "spring_constant": 80,
-            "natural_length": 0.2
+        ],
+        "E001": [
+          {
+            "id": "spring_a",
+            "overrides": {
+              "radius_vector": [0.42, 0.9, 0],
+              "spring_constant": 80,
+              "natural_length": 0.2
+            }
+          },
+          {
+            "id": "spring_b",
+            "overrides": {
+              "radius_vector": [0.58, 0.9, 0],
+              "spring_constant": 120,
+              "natural_length": 0.2
+            }
           }
-        },
-        {
-          "id": "spring_b",
-          "component": "E001",
-          "overrides": {
-            "radius_vector": [
-              0.58,
-              0.9,
-              0
-            ],
-            "spring_constant": 120,
-            "natural_length": 0.2
+        ],
+        "E002": [
+          {
+            "id": "mass",
+            "overrides": {
+              "radius_vector": [0.5, 0.7, 0],
+              "mass": 0.5
+            }
           }
-        },
-        {
-          "id": "mass",
-          "component": "E002",
-          "overrides": {
-            "radius_vector": [
-              0.5,
-              0.7,
-              0
-            ],
-            "mass": 0.5
-          }
-        }
-      ],
+        ]
+      },
       "links": [
         {
           "id": "link_hooke_a",
           "structure_ref": "L_hooke",
-          "of": [
-            "ceiling",
-            "spring_a",
-            "mass"
-          ]
+          "of": ["ceiling", "spring_a", "mass"]
         },
         {
           "id": "link_hooke_b",
           "structure_ref": "L_hooke",
-          "of": [
-            "ceiling",
-            "spring_b",
-            "mass"
-          ]
+          "of": ["ceiling", "spring_b", "mass"]
         },
         {
           "id": "link_newton",
           "structure_ref": "L_newton",
-          "of": [
-            "mass",
-            [
-              "spring_a",
-              "spring_b"
-            ]
-          ]
+          "of": ["mass", ["spring_a", "spring_b"]]
         }
       ]
     },
@@ -194,86 +151,58 @@
         "id": "obs",
         "component": "E010"
       },
-      "elements": [
-        {
-          "id": "ceiling",
-          "component": "E003",
-          "overrides": {
-            "radius_vector": [
-              0.5,
-              0.95,
-              0
-            ]
+      "elements": {
+        "E003": [
+          {
+            "id": "ceiling",
+            "overrides": {
+              "radius_vector": [0.5, 0.95, 0]
+            }
           }
-        },
-        {
-          "id": "spring_1",
-          "component": "E001",
-          "overrides": {
-            "radius_vector": [
-              0.5,
-              0.95,
-              0
-            ],
-            "spring_constant": 100,
-            "natural_length": 0.15
+        ],
+        "E001": [
+          {
+            "id": "spring_1",
+            "overrides": {
+              "radius_vector": [0.5, 0.95, 0],
+              "spring_constant": 100,
+              "natural_length": 0.15
+            }
+          },
+          {
+            "id": "spring_2",
+            "overrides": {
+              "radius_vector": [0.5, 0.8, 0],
+              "spring_constant": 100,
+              "natural_length": 0.15
+            }
           }
-        },
-        {
-          "id": "spring_2",
-          "component": "E001",
-          "overrides": {
-            "radius_vector": [
-              0.5,
-              0.8,
-              0
-            ],
-            "spring_constant": 100,
-            "natural_length": 0.15
+        ],
+        "E002": [
+          {
+            "id": "mass",
+            "overrides": {
+              "radius_vector": [0.5, 0.65, 0],
+              "mass": 0.5
+            }
           }
-        },
-        {
-          "id": "mass",
-          "component": "E002",
-          "overrides": {
-            "radius_vector": [
-              0.5,
-              0.65,
-              0
-            ],
-            "mass": 0.5
-          }
-        }
-      ],
+        ]
+      },
       "links": [
         {
           "id": "link_hooke_1",
           "structure_ref": "L_hooke",
-          "of": [
-            "ceiling",
-            "spring_1",
-            "spring_2"
-          ]
+          "of": ["ceiling", "spring_1", "spring_2"]
         },
         {
           "id": "link_hooke_2",
           "structure_ref": "L_hooke",
-          "of": [
-            "spring_1",
-            "spring_2",
-            "mass"
-          ]
+          "of": ["spring_1", "spring_2", "mass"]
         },
         {
           "id": "link_newton",
           "structure_ref": "L_newton",
-          "of": [
-            "mass",
-            [
-              "spring_1",
-              "spring_2"
-            ]
-          ]
+          "of": ["mass", ["spring_1", "spring_2"]]
         }
       ]
     },
@@ -299,7 +228,7 @@
           }
         }
       ],
-      "elements": [],
+      "elements": {},
       "links": []
     }
   ]
