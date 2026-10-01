@@ -39,7 +39,7 @@
   }
 
   function validateIndex(index) {
-    if (!index || typeof index !== "object") return fail("INDEX_TYPE", "Index must be an object.");
+    if (!index || typeof index !== "object" || Array.isArray(index)) return fail("INDEX_TYPE", "Index must be an object.");
     const kind = String(index.kind || "");
     if (!["event", "membership", "coordinate"].includes(kind)) {
       return fail("INDEX_KIND", "Unknown index kind: " + kind);
@@ -56,17 +56,23 @@
     if (kind === "coordinate" && index.axis == null) {
       return fail("INDEX_AXIS", "coordinate index requires axis.");
     }
+    if (kind === "coordinate" && !index.frame_id) {
+      return fail("INDEX_FRAME", "coordinate index requires frame_id.");
+    }
 
     return ok(clone(index));
   }
 
   function normalizeIndexes(indexes) {
-    if (indexes == null) return [];
+    if (indexes == null) return ok([]);
     const list = Array.isArray(indexes) ? indexes : [indexes];
     const out = [];
     for (let i = 0; i < list.length; i++) {
       const r = validateIndex(list[i]);
       if (!r.ok) return r;
+      if (out.some((index) => index.kind === r.value.kind)) {
+        return fail("INDEX_DUPLICATE", "Only one index of each kind is allowed.");
+      }
       out.push(r.value);
     }
     return ok(out);
@@ -155,10 +161,14 @@
 
     return ok({
       quantity_id: String(spec.quantity_id),
-      role: spec.role || null,
+      role: spec.role != null ? String(spec.role) : null,
       arity: arity,
       operator: spec.operator || null,
-      indexes: indexResult.value
+      indexes: indexResult.value,
+      ...(Object.prototype.hasOwnProperty.call(spec, "value") ? { value: clone(spec.value) } : {}),
+      ...(spec.frame_id != null ? { frame_id: String(spec.frame_id) } : {}),
+      ...(spec.application_point != null ? { application_point: clone(spec.application_point) } : {}),
+      ...(spec.provenance != null ? { provenance: clone(spec.provenance) } : {})
     });
   }
 
@@ -232,7 +242,7 @@
       quantity_id: String(spec.quantity_id),
       law_id: spec.law_id || null,
       operand_id: spec.operand_id || null,
-      role: spec.role || null,
+      role: spec.role != null ? String(spec.role) : null,
       indexes: indexes
     });
   }
@@ -241,30 +251,32 @@
    * Find construction occurrences of a quantity. This is deliberately a
    * pure matcher: formula selection remains in the existing package.
    */
-  function findQuantityOccurrences(construction, quantityId) {
+  function findQuantityOccurrences(construction, quantityId, componentsData) {
     const out = [];
-    const elements = construction && Array.isArray(construction.elements)
-      ? construction.elements
-      : [];
-
+    const GC = global.GeoCompute;
+    const raw = construction && construction.elements;
+    const elements = GC && GC.elementsList
+      ? GC.elementsList(construction)
+      : Array.isArray(raw) ? raw : Object.keys(raw || {}).flatMap((type) =>
+          (raw[type] || []).map((el) => Object.assign({}, el, { component: type })));
+    const comps = (componentsData && (componentsData.components || componentsData)) || {};
     elements.forEach((element) => {
-      const quantities = element && element.quantities || {};
-      Object.keys(quantities).forEach((key) => {
-        const q = quantities[key];
-        if (!q || q.quantity !== quantityId) return;
+      let params = GC && GC.resolveElementParams
+        ? GC.resolveElementParams(element, comps[element.component] || {})
+        : element.params || [];
+      // Keep the legacy quantities dictionary usable alongside thin params.
+      const quantities = element.quantities || {};
+      params = params.concat(Object.keys(quantities).map((key) =>
+        Object.assign({ role: key }, quantities[key])));
+      params.forEach((q) => {
+        if (!q || String(q.quantity) !== String(quantityId)) return;
         const bound = bindMembership(
-          { quantity_id: quantityId, role: q.role || null },
-          {
-            construction_id: construction.id,
-            element_id: element.id,
-            port: q.port,
-            role: q.role
-          }
+          { quantity_id: String(quantityId), role: q.role || null, value: q.value },
+          { construction_id: construction.id, element_id: element.id, port: q.port }
         );
         if (bound.ok) out.push(bound.value);
       });
     });
-
     return out;
   }
 
@@ -274,7 +286,7 @@
    * If a law binding points to the same quantity more than once, every
    * construction occurrence is returned; count/role filtering stays explicit.
    */
-  function linkLawToConstruction(law, construction) {
+  function linkLawToConstruction(law, construction, componentsData) {
     if (!law || !law.law_id) {
       return fail("LAW_ID", "law_id is required.");
     }
@@ -293,8 +305,9 @@
 
       const occurrences = findQuantityOccurrences(
         construction,
-        String(binding.quantity)
-      );
+        String(binding.quantity),
+        componentsData
+      ).filter((o) => !binding.role || o.role === binding.role);
 
       occurrences.forEach((occurrence) => {
         links.push({
@@ -315,22 +328,22 @@
   }
 
   function occurrenceKey(occurrence) {
-    if (!occurrence || !occurrence.quantity_id) return null;
-    const parts = [String(occurrence.quantity_id)];
-    (occurrence.indexes || []).forEach((index) => {
-      if (!index || !index.kind) return;
-      if (index.kind === "membership") {
-        parts.push("m:" + String(index.construction_id));
-        if (index.element_id != null) parts.push("e:" + String(index.element_id));
-        if (index.relation_id != null) parts.push("r:" + String(index.relation_id));
-        if (index.port != null) parts.push("p:" + String(index.port));
-      } else if (index.kind === "event") {
-        parts.push("t:" + String(index.event_id));
-      } else if (index.kind === "coordinate") {
-        parts.push("c:" + String(index.frame_id || "_") + ":" + String(index.axis));
+    const normalized = makeOccurrence(occurrence);
+    if (!normalized.ok) return null;
+    function canonical(value) {
+      if (Array.isArray(value)) return value.map(canonical);
+      if (value && typeof value === "object") {
+        const out = {};
+        Object.keys(value).sort().forEach((key) => {
+          if (value[key] !== undefined) out[key] = canonical(value[key]);
+        });
+        return out;
       }
-    });
-    return parts.join("|");
+      return value;
+    }
+    const o = normalized.value;
+    return JSON.stringify([o.quantity_id, o.role, o.frame_id || null,
+      o.indexes.slice().sort((a, b) => a.kind.localeCompare(b.kind)).map(canonical)]);
   }
 
   const Mechanics = {
@@ -351,3 +364,4 @@
   global.Mechanics = Mechanics;
   if (typeof module !== "undefined" && module.exports) module.exports = Mechanics;
 })(typeof window !== "undefined" ? window : globalThis);
+

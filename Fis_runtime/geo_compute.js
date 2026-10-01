@@ -763,6 +763,8 @@
             construction: el.construction,
             as: el.as,
             role: el.role,
+            geometry: el.geometry,
+            rotation: el.rotation,
             quantities: el.quantities
           });
         });
@@ -1363,7 +1365,9 @@
         component: componentOf(el) || el.component,
         construction: el.construction,
         overrides: overrides,
-        params: el.params
+        params: el.params,
+        geometry: el.geometry,
+        rotation: el.rotation
       };
     }
 
@@ -1383,10 +1387,12 @@
           id: prefix + el.id,
           component: componentOf(el) || el.component,
           overrides: el.overrides ? Object.assign({}, el.overrides) : undefined,
-          params: el.params
+          params: el.params,
+          geometry: el.geometry,
+          rotation: el.rotation
         };
         e = applyOverridesToEl(
-          { id: el.id, component: e.component, overrides: e.overrides, params: e.params },
+          { id: el.id, component: e.component, overrides: e.overrides, params: e.params, geometry: e.geometry, rotation: e.rotation },
           ov
         );
         e.id = prefix + el.id;
@@ -1397,12 +1403,14 @@
           id: lnk.id ? prefix + lnk.id : undefined,
           structure_ref: lnk.structure_ref,
           law: lnk.law,
-          params: lnk.params
+          params: lnk.params,
+          anchors: lnk.anchors
         };
-        if (Array.isArray(lnk.of)) {
-          copy.of = lnk.of.map(function (x) {
-            return prefixOfEntry(x, prefix);
-          });
+        if (lnk.of && typeof lnk.of === "object") {
+          copy.of = prefixOfEntry(lnk.of, prefix);
+        }
+        if (Array.isArray(lnk.params)) {
+          copy.params = lnk.params.map(function (id) { return prefix + id; });
         }
         if (lnk.bindings) {
           copy.bindings = prefixOfEntry(lnk.bindings, prefix);
@@ -1444,7 +1452,9 @@
         id: el.id,
         component: componentOf(el) || el.component,
         overrides: el.overrides,
-        params: el.params
+        params: el.params,
+        geometry: el.geometry,
+        rotation: el.rotation
       });
     });
 
@@ -3072,3 +3082,4 @@
     module.exports = GeoCompute;
   }
 })(typeof window !== "undefined" ? window : globalThis);
+

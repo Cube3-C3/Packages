@@ -18,7 +18,7 @@ test('thin defaults and role overrides preserve source data', () => {
   assert.equal(p.find(x => x.role === 'extension').value, 0);
   assert.equal(JSON.stringify(c), before);
 });
-test('legacy link computation is characterized for C001/C002/C003/C010', () => {
+test('legacy link computation is characterized for C001/C002/C003', () => {
   const r = runtime(), pack = data();
   for (const [id, elastic] of [['C001', 4.9], ['C002', 9.8], ['C003', 4.9]]) {
     const res = r.GeoCompute.applyConstructionLinks(construction(pack, id), { ...pack, constructions: pack.constructs.constructions, equilibrium: true });
@@ -34,8 +34,8 @@ test('include expansion prefixes participants and applies local overrides', () =
   const c = r.GeoCompute.expandConstruction(construction(pack, 'C010'), { constructions: pack.constructs.constructions });
   assert.deepEqual(plain(c.elements.map(e => e.id)), ['main_ceiling', 'main_spring', 'main_mass']);
   assert.equal(c.elements.find(e => e.id === 'main_spring').overrides.spring_constant, 150);
-  // Baseline defect: named of{} is discarded by include expansion.
-  assert.equal(c.links[0].of, undefined);
+  // Regression after address fix: preserve named participants through include.
+  assert.equal(c.links[0].of.end, "main_mass");
 });
 test('recursive P014/P291 AST and output semantics are retained', () => {
   const r = runtime(), pack = data(), law = pack.formulas.formulas.find(l => l.law_id === 'P014');
