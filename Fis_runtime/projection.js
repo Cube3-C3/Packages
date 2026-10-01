@@ -1068,12 +1068,19 @@
         formulas: data.formulas || data.physi_formulas,
         constructs: data.constructs,
         constructions: list,
+        structures: data.structures || data.AST,
+        physi_quant: data.physi_quant,
+        units: data.units,
         usages: data.usages
       };
+      const physicalState = state.physical_state || (window.PhysicalState
+        ? window.PhysicalState.compute(C, pack, {event_id: state.event_id || "initial"}) : null);
       layoutModel = window.ConstructLayout.layout(Cflat, pack, {
         pxPerMeter: scalePx,
-        equilibrium: true
+        physicalState: physicalState,
+        equilibrium: !physicalState
       });
+      if (physicalState) Cflat = physicalState.construction;
       if (layoutModel && typeof window.ConstructLayout.toSVG === "function") {
         svgHtml = window.ConstructLayout.toSVG(layoutModel, {
           viewportW: 560,
@@ -1091,7 +1098,7 @@
       if (
         GC &&
         typeof GC.spatialForHuman === "function" &&
-        (role === "radius_vector" || Array.isArray(v))
+        role === "radius_vector"
       ) {
         const frame = GC.createFrame({
           origin: [0, 0],
@@ -1108,6 +1115,10 @@
             "]"
           );
         }
+      }
+      if (Array.isArray(v)) {
+        const unit = unitSymbolForQid(q.quantity, data, lang);
+        return "[" + v.map(function(n){return Number(n).toPrecision(4);}).join(", ") + "] " + unit;
       }
       if (typeof v === "number" && isFinite(v)) {
         if (
@@ -1303,6 +1314,8 @@
         : "") +
       `</div>` +
       `<div class="frame-scale-block" data-frame-target="env" style="margin-top:8px;font-size:0.78rem;color:var(--muted)">${escapeHtml(scaleNote)} · px/m=${escapeHtml(String(scalePx))} · H=${escapeHtml(frameEnv.scale_id_h)} V=${escapeHtml(frameEnv.scale_id_v)}</div>` +
+      (layoutModel && layoutModel.physicalState && layoutModel.physicalState.diagnostics.length
+        ? `<div class="empty">${layoutModel.physicalState.diagnostics.map(function(d){return escapeHtml((d.relation_id || d.element_id || "") + ": " + d.code);}).join("<br>")}</div>` : "") +
       (qtyRows ? `<div style="margin-top:10px">${qtyRows}</div>` : "") +
       `</div>` +
       `<div class="section" style="margin-top:16px"><h3 style="font-size:0.8rem;color:var(--muted);margin:0 0 8px">${lang === "ru" ? "Формулы" : "Formulas"}</h3>${formulasHtml}</div>` +
@@ -1435,6 +1448,26 @@
 
     // nodes in layout are already in px relative to layout bbox — convert via SI r
     const nodes = layoutModel.nodes || [];
+    if (layoutModel.physicalState) {
+      function screen(p) { return GC.toScreen(frame,{x:p[0]/scalePx,y:p[1]/scalePx}); }
+      nodes.forEach(function(n) {
+        const pts=(n.contour || []).map(screen);if(!pts.length)return;
+        ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+        pts.slice(1).forEach(function(p){ctx.lineTo(p.x,p.y);});
+        if(n.shape_sort === "Shape2")ctx.closePath();
+        ctx.strokeStyle="#7c9cff";ctx.fillStyle="rgba(124,156,255,0.15)";ctx.stroke();
+        if(n.shape_sort === "Shape2")ctx.fill();
+        ctx.fillStyle="#c5c9d1";ctx.fillText(n.id,pts[0].x+6,pts[0].y-6);
+      });
+      (layoutModel.edges || []).forEach(function(e) {
+        const a=screen([e.x1,e.y1]),b=screen([e.x2,e.y2]);
+        ctx.strokeStyle="#dc6262";ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+        const angle=Math.atan2(b.y-a.y,b.x-a.x);
+        ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-8*Math.cos(angle-.4),b.y-8*Math.sin(angle-.4));
+        ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-8*Math.cos(angle+.4),b.y-8*Math.sin(angle+.4));ctx.stroke();
+      });
+      return;
+    }
     nodes.forEach(function (n) {
       const qs = n.quantities || {};
       let rx = 0;
@@ -1647,4 +1680,5 @@
     primarySymbol
   };
 })();
+
 

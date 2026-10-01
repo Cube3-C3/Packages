@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.9.1",
+  "schema_version": "0.9.2",
   "description": "E* params {quantity, role, default}. E003 = неподвижная опора/потолок (поверхность). Канон Componovka only.",
   "meta": {
     "language_order": [
@@ -11,7 +11,8 @@
     "notes": [
       "params[]: { quantity, role, default } — СИ.",
       "E003 fixed_support: только radius_vector (закреплено).",
-      "C* thin: {id, component, overrides:{role:value}}; links: {structure_ref:L*, of:[elId…] } via LINK.json."
+      "C* thin: {id, component, overrides:{role:value}}; links: {id, law:P*, of:{…}}; LINK.json remains a legacy adapter.",
+      "geometry: Geo_style descriptor in SI; named attachment is a geometric reference, not a link port. PhysicalState computes the spring axis from attachment occurrences."
     ]
   },
   "components": {
@@ -84,7 +85,17 @@
           "role": "extension",
           "default": 0
         }
-      ]
+      ],
+      "geometry": {
+        "constructor": "point",
+        "anchors": {
+          "attachment": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
     },
     "E002": {
       "id": "E002",
@@ -118,7 +129,19 @@
           "role": "force",
           "default": 0
         }
-      ]
+      ],
+      "geometry": {
+        "constructor": "rect",
+        "width": 0.1,
+        "height": 0.1,
+        "anchors": {
+          "attachment": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
     },
     "E003": {
       "id": "E003",
@@ -137,7 +160,19 @@
             0
           ]
         }
-      ]
+      ],
+      "geometry": {
+        "constructor": "rect",
+        "width": 0.3,
+        "height": 0.03,
+        "anchors": {
+          "attachment": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
     },
     "E010": {
       "id": "E010",

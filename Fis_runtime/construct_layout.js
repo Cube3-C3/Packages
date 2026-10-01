@@ -829,7 +829,40 @@
   /**
    * Main: construction → layout model (math coords, y up).
    */
+  /** Projection adapter: state is the sole source of positions, contours and forces. */
+  function fromPhysicalState(state, options) {
+    options = options || {};
+    const px = options.pxPerMeter == null ? DEFAULT_PX_PER_M : Number(options.pxPerMeter);
+    const fs = options.forceScale == null ? 0.02 : Number(options.forceScale);
+    if (!(px > 0 && Number.isFinite(px) && fs > 0 && Number.isFinite(fs))) throw new Error("INVALID_PROJECTION_SCALE");
+    const nodes = Object.values(state.instances).filter(i => i.geometry).map(function (i) {
+      const position = i.transform.position.map(v => v * px), contour = i.geometry.contour.map(p => [p.value[0]*px,p.value[1]*px]);
+      const xs=contour.map(p=>p[0]), ys=contour.map(p=>p[1]);
+      const quantities={}; Object.entries(i.quantities).forEach(function ([role,o]) {
+        quantities[role]={quantity:o.quantity_id,role,value:o.value,id:i.id+"."+role,occurrence_key:o.key};
+      });
+      return {id:i.id,component:i.component,position,quantities,contour,
+        x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys),
+        shape_sort:i.geometry.sort,kind:i.component==="E001"?"elastic_element":i.component==="E003"?"fixed_support":"rigid_body"};
+    });
+    const edges=[];
+    Object.values(state.occurrences).forEach(function(o){
+      if(o.quantity_id!=="Q004" || !Array.isArray(o.value) || !o.magnitude) return;
+      const membership=o.indexes.find(i=>i.kind==="membership"),instance=state.instances[membership.element_id];
+      if(!instance || !instance.geometry) return;
+      const at=o.application_point || instance.geometry.anchors.center;
+      const p=at.value;
+      edges.push({id:o.key,occurrence_key:o.key,kind:"vector",role:"force",
+        x1:p[0]*px,y1:p[1]*px,x2:(p[0]+o.value[0]*fs)*px,y2:(p[1]+o.value[1]*fs)*px,
+        label:o.role+" = "+o.magnitude.toFixed(2)+" N"});
+    });
+    const xs=nodes.flatMap(n=>n.contour.map(p=>p[0])),ys=nodes.flatMap(n=>n.contour.map(p=>p[1]));
+    return {id:state.construction_id,nodes,edges,derived:state.derived,physicalState:state,frame:global.GeoCompute.createFrame(Object.assign({},state.frame,{origin:state.frame.origin.map(v=>v*px),scale_x:1,scale_y:1})),origin:[0,0],
+      bounds:{x:Math.min(0,...xs),y:Math.min(0,...ys),w:Math.max(0,...xs),h:Math.max(0,...ys)},rotation_deg:0};
+  }
+
   function layout(construction, pack, options) {
+    if (options && options.physicalState) return fromPhysicalState(options.physicalState, options);
     // Канон: links / thin / include → Componovka (без ports / relation_types).
     if (isComponovka(construction)) {
       return layoutComponovka(construction, pack, options || {});
@@ -1314,6 +1347,14 @@
     });
 
     (layoutModel.nodes || []).forEach(function (n) {
+      if (n.contour) {
+        const pts=n.contour.map(function(p){return sx(p[0])+","+syPt(p[1]);}).join(" ");
+        if(n.shape_sort==="Shape2") parts.push('<polygon points="'+pts+'" fill="#e4e4e7" stroke="#52525b" stroke-width="2"/>');
+        else if(n.contour.length>1) parts.push('<polyline points="'+pts+'" fill="none" stroke="#2563eb" stroke-width="2"/>');
+        else parts.push('<circle cx="'+sx(n.position[0])+'" cy="'+syPt(n.position[1])+'" r="4" fill="#52525b"/>');
+        if(showLabels) parts.push('<text x="'+sx(n.position[0])+'" y="'+(syPt(n.position[1])+16)+'" font-size="10">'+String(n.id).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];})+'</text>');
+        return;
+      }
       const x = sx(n.x);
       const y = syTop(n.y, n.h);
       const cx = x + n.w / 2;
@@ -1368,6 +1409,7 @@
   }
 
   global.ConstructLayout = {
+    fromPhysicalState: fromPhysicalState,
     layout: layout,
     layoutById: layoutById,
     rotate: rotate,
@@ -1377,3 +1419,4 @@
     orderSeries: orderSeries
   };
 })(typeof window !== "undefined" ? window : globalThis);
+
