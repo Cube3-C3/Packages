@@ -1,0 +1,260 @@
+{
+  "schema_version": "1.0.0",
+  "id": "physi_coefficients",
+  "description": "Компактный обратный индекс безразмерных коэффициентных выражений формул fis_data. Включает полный множитель, например (2*k+1)/2, а не только числовую часть. Не является новым реестром физических законов.",
+  "source": {
+    "formulas": "physi_formulas.json",
+    "formulas_sha": "7a1ed63df375a7b39358e25df41a0d75f54d50d9",
+    "ast": "AST.json",
+    "quantities": "physi_quant.json",
+    "usages": "usages.json"
+  },
+  "semantics": {
+    "key": "Нормализованное безразмерное коэффициентное выражение. Символы k, sin(alpha), cos(alpha), omega*t и т. п. не считаются числовыми константами.",
+    "relation": "Для каждого индекса i: numerator[i] = coefficient * denominator[i], при сохранении роли, условий и области определения исходной формулы. Для kind=equation равенство определено законом.",
+    "numerators": "P###( #defined | #expr | #lhs ) — определяемая величина, выражение или левая часть исходной формулы.",
+    "denominators": "P###(#expr | #rhs) или Q###.role — размерностная основа; 1 для полностью безразмерного выражения; составные основы указываются как ссылки-композиции.",
+    "pairing": "numerators[i] и denominators[i] относятся к одной формуле; порядок массивов параллельный.",
+    "normalization": "Размерностные множители не включаются в ключ; безразмерные параметры и функции включаются целиком. Суммы размерных слагаемых не раскладываются на отдельные коэффициенты.",
+    "mathematical_constants": "M009 (2π) нормализуется как 2*pi без десятичного приближения.",
+    "equation_notice": "Для явно записанных EQ сохраняется отношение lhs/rhs=1 как утверждение закона, а не как автоматическое сокращение независимых физических сущностей.",
+    "not_covered": "Доказательство физической эквивалентности разных законов, ОДЗ и зависимости коэффициентов от контекста выполняет Matchin, а не этот индекс."
+  },
+  "entries_count": 72,
+  "coefficients": {
+    "1": {
+      "numerators": [
+        "P110#defined",
+        "P111#defined",
+        "P210#expr",
+        "P211#expr",
+        "P212#expr",
+        "P213#expr",
+        "P214#expr",
+        "P215#expr",
+        "P001#defined",
+        "P003#defined",
+        "P004#defined",
+        "P005#defined",
+        "P035#defined",
+        "P036#defined",
+        "P011#defined",
+        "P014#defined",
+        "P009#defined",
+        "P025#defined",
+        "P027#defined",
+        "P019#defined",
+        "P020#defined",
+        "P013#defined",
+        "P018#defined",
+        "P030#defined",
+        "P029#defined",
+        "P220#expr",
+        "P221#expr",
+        "P222#expr",
+        "P006#defined",
+        "P230#expr",
+        "P240#expr",
+        "P002#defined",
+        "P241#expr",
+        "P242#expr",
+        "P250#expr",
+        "P251#expr",
+        "P252#expr",
+        "P253#expr",
+        "P270#expr",
+        "P271#expr",
+        "P273#expr",
+        "P274#expr",
+        "P280#expr",
+        "P010#lhs",
+        "P290#expr",
+        "P291#expr",
+        "P012#lhs",
+        "P022#lhs",
+        "P031#lhs",
+        "P032#lhs"
+      ],
+      "denominators": [
+        "P110#expr",
+        "P111#expr",
+        "P210#expr",
+        "P211#expr",
+        "P212#expr",
+        "P213#expr",
+        "P214#expr",
+        "P215#expr",
+        "P001#expr",
+        "P003#expr",
+        "P004#expr",
+        "P005#expr",
+        "P035#expr",
+        "P036#expr",
+        "P011#expr",
+        "P014#expr",
+        "P009#expr",
+        "P025#expr",
+        "P027#expr",
+        "P019#expr",
+        "P020#expr",
+        "P013#expr",
+        "P018#expr",
+        "P030#expr",
+        "P029#expr",
+        "P220#expr",
+        "P221#expr",
+        "P222#expr",
+        "P006#expr",
+        "P230#expr",
+        "P240#expr",
+        "P002#expr",
+        "P241#expr",
+        "P242#expr",
+        "P250#expr",
+        "P251#expr",
+        "P252#expr",
+        "P253#expr",
+        "P270#expr",
+        "P271#expr",
+        "P273#expr",
+        "P274#expr",
+        "P280#expr",
+        "P010#rhs",
+        "P290#expr",
+        "P291#expr",
+        "P012#rhs",
+        "P022#rhs",
+        "P031#rhs",
+        "P032#rhs"
+      ]
+    },
+    "2": {
+      "numerators": [
+        "P231#expr"
+      ],
+      "denominators": [
+        "P230#expr"
+      ]
+    },
+    "-1": {
+      "numerators": [
+        "P028#defined"
+      ],
+      "denominators": [
+        "P242#expr"
+      ]
+    },
+    "(2*k+1)/2": {
+      "numerators": [
+        "P034#defined"
+      ],
+      "denominators": [
+        "Q008.wavelength"
+      ]
+    },
+    "1/2": {
+      "numerators": [
+        "P112#defined",
+        "P007#defined",
+        "P008#defined"
+      ],
+      "denominators": [
+        "P211#expr",
+        "P213#expr",
+        "P215#expr"
+      ]
+    },
+    "2*k": {
+      "numerators": [
+        "P200#expr"
+      ],
+      "denominators": [
+        "1"
+      ]
+    },
+    "2*k+1": {
+      "numerators": [
+        "P201#expr",
+        "P202#expr"
+      ],
+      "denominators": [
+        "1",
+        "Q008.wavelength"
+      ]
+    },
+    "2*pi": {
+      "numerators": [
+        "P015#defined",
+        "P016#defined"
+      ],
+      "denominators": [
+        "P251#expr",
+        "P253#expr"
+      ]
+    },
+    "2/3": {
+      "numerators": [
+        "P021#defined"
+      ],
+      "denominators": [
+        "P230#expr"
+      ]
+    },
+    "cos(alpha)": {
+      "numerators": [
+        "P281#expr",
+        "P026#defined"
+      ],
+      "denominators": [
+        "1",
+        "P280#expr"
+      ]
+    },
+    "k": {
+      "numerators": [
+        "P033#defined"
+      ],
+      "denominators": [
+        "Q008.wavelength"
+      ]
+    },
+    "omega*t": {
+      "numerators": [
+        "P260#expr"
+      ],
+      "denominators": [
+        "1"
+      ]
+    },
+    "omega*t+phi0": {
+      "numerators": [
+        "P261#expr"
+      ],
+      "denominators": [
+        "1"
+      ]
+    },
+    "sin(alpha)": {
+      "numerators": [
+        "P272#expr",
+        "P023#defined",
+        "P024#defined"
+      ],
+      "denominators": [
+        "1",
+        "P271#expr",
+        "P274#expr"
+      ]
+    },
+    "sin(omega*t+phi0)": {
+      "numerators": [
+        "P262#expr",
+        "P017#defined"
+      ],
+      "denominators": [
+        "1",
+        "Q008.amplitude"
+      ]
+    }
+  }
+}
