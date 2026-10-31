@@ -1,0 +1,2157 @@
+{
+  "meta": {
+    "id": "math_data.transformations",
+    "version": "0.1.0",
+    "created": "2026-10-31",
+    "description": "Декларативный школьный набор нормализационных тождеств и преобразований уравнений/неравенств.",
+    "status": "registry-data; interpreter required",
+    "language": "ru",
+    "requires": "math_data/constraints.json",
+    "default_number_domain": "R",
+    "note": "The registry does not execute itself: Matchin needs a loader, AST pattern adapter, guard prover, and rewrite traversal."
+  },
+  "syntax": {
+    "ast": "prefix arrays [operator, ...operands], metavariables start with $; exact integers ['int','n'], reduced rational ['rat','p','q']; no implicit floating-point evaluation",
+    "binding": "All occurrences of the same metavariable match the same AST. Parameters not in lhs must be provided by the invoking operation.",
+    "comparisons": "Guards use predicate ids from math_data/constraints.json. All listed guard predicates must be proven on the committed source domain.",
+    "operators": [
+      "add",
+      "sub",
+      "mul",
+      "div",
+      "neg",
+      "pow",
+      "sqrt",
+      "root",
+      "abs",
+      "sin",
+      "cos",
+      "tan",
+      "cot",
+      "ln",
+      "log",
+      "exp",
+      "factorial",
+      "eq",
+      "lt",
+      "le",
+      "gt",
+      "ge"
+    ],
+    "rewriting": "lhs -> rhs only unless explicitly marked bidirectional. Generic assoc/comm rules live in normalization_strategies, never use unconstrained bidirectional rewrites."
+  },
+  "normalization_policy": {
+    "starting_point": "Normalize candidate and reference on the original committed domain of their caret.",
+    "graph": "Deduplicate equivalent AST states by stable canonical key plus committed assumptions; retain rule IDs as transition provenance.",
+    "automatic_rules": "Only rules with mode=normalize and normalization_strategies; mode=manual_only is excluded from graph expansion.",
+    "oriented_rewrites": "Run each automatic rewrite in the declared direction only; stop on a fixed point, repeated state, or explicit resource limit.",
+    "conditions": "A rule may fire only when all guards are proved; on unknown, skip rule and retain unknown—not false.",
+    "domain_provenance": "Preserve original-domain constraints even if a rewrite cancels a denominator or removes another restriction.",
+    "outcomes": [
+      "proved",
+      "conditional",
+      "rejected",
+      "unknown"
+    ],
+    "limits": {
+      "max_states": 512,
+      "max_transitions": 2048,
+      "max_depth": 40
+    },
+    "physical_rules": "Dimension compatibility is not identity. Physical laws may be connected as a separate authorized family under the same normalization graph."
+  },
+  "normalization_strategies": [
+    {
+      "id": "N001",
+      "family": "structure",
+      "handler": "flatten_associative",
+      "operators": [
+        "add",
+        "mul"
+      ],
+      "description": "Flatten nested associative sums and products."
+    },
+    {
+      "id": "N002",
+      "family": "structure",
+      "handler": "sort_commutative",
+      "operators": [
+        "add",
+        "mul"
+      ],
+      "description": "Stable order of terms and factors avoids symmetric rewrite cycles."
+    },
+    {
+      "id": "N003",
+      "family": "arithmetic",
+      "handler": "exact_rational",
+      "description": "Combine exact integer, decimal and rational coefficients without floating-point rounding."
+    },
+    {
+      "id": "N004",
+      "family": "polynomial",
+      "handler": "distribute_products",
+      "description": "Expand polynomial products into common sum-of-monomials form."
+    },
+    {
+      "id": "N005",
+      "family": "polynomial",
+      "handler": "collect_like_terms",
+      "description": "Combine monomials with equal exponent maps."
+    },
+    {
+      "id": "N006",
+      "family": "rational",
+      "handler": "normalize_rational",
+      "description": "Bring rational expressions to a common exact numerator/denominator."
+    },
+    {
+      "id": "N007",
+      "family": "rational",
+      "handler": "cancel_common_factor",
+      "description": "Remove common factors only with original-domain nonzero provenance."
+    },
+    {
+      "id": "N008",
+      "family": "powers",
+      "handler": "normalize_integer_powers",
+      "description": "Handle exact integer powers subject to domain constraints."
+    },
+    {
+      "id": "N009",
+      "family": "relations",
+      "handler": "normalize_relation",
+      "description": "Compare supported equations/inequalities in a fixed relation representation; not a complete solution-set solver."
+    }
+  ],
+  "rules": [
+    {
+      "id": "A001",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "add",
+        "$x",
+        [
+          "int",
+          "0"
+        ]
+      ],
+      "rhs": "$x"
+    },
+    {
+      "id": "A002",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "add",
+        [
+          "int",
+          "0"
+        ],
+        "$x"
+      ],
+      "rhs": "$x"
+    },
+    {
+      "id": "A003",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "sub",
+        "$x",
+        [
+          "int",
+          "0"
+        ]
+      ],
+      "rhs": "$x"
+    },
+    {
+      "id": "A004",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "sub",
+        "$x",
+        "$x"
+      ],
+      "rhs": [
+        "int",
+        "0"
+      ]
+    },
+    {
+      "id": "A005",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "add",
+        "$x",
+        [
+          "neg",
+          "$x"
+        ]
+      ],
+      "rhs": [
+        "int",
+        "0"
+      ]
+    },
+    {
+      "id": "A006",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "neg",
+        [
+          "neg",
+          "$x"
+        ]
+      ],
+      "rhs": "$x"
+    },
+    {
+      "id": "A007",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "mul",
+        "$x",
+        [
+          "int",
+          "1"
+        ]
+      ],
+      "rhs": "$x"
+    },
+    {
+      "id": "A008",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "mul",
+        [
+          "int",
+          "1"
+        ],
+        "$x"
+      ],
+      "rhs": "$x"
+    },
+    {
+      "id": "A009",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "mul",
+        "$x",
+        [
+          "int",
+          "0"
+        ]
+      ],
+      "rhs": [
+        "int",
+        "0"
+      ]
+    },
+    {
+      "id": "A010",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "mul",
+        [
+          "int",
+          "0"
+        ],
+        "$x"
+      ],
+      "rhs": [
+        "int",
+        "0"
+      ]
+    },
+    {
+      "id": "A011",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "neg",
+        [
+          "int",
+          "0"
+        ]
+      ],
+      "rhs": [
+        "int",
+        "0"
+      ]
+    },
+    {
+      "id": "A012",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "sub",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "add",
+        "$x",
+        [
+          "neg",
+          "$y"
+        ]
+      ]
+    },
+    {
+      "id": "A013",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "mul",
+        [
+          "neg",
+          "$x"
+        ],
+        "$y"
+      ],
+      "rhs": [
+        "neg",
+        [
+          "mul",
+          "$x",
+          "$y"
+        ]
+      ]
+    },
+    {
+      "id": "A014",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "mul",
+        "$x",
+        [
+          "neg",
+          "$y"
+        ]
+      ],
+      "rhs": [
+        "neg",
+        [
+          "mul",
+          "$x",
+          "$y"
+        ]
+      ]
+    },
+    {
+      "id": "A015",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        "$x",
+        [
+          "int",
+          "1"
+        ]
+      ],
+      "rhs": "$x"
+    },
+    {
+      "id": "R001",
+      "family": "rational",
+      "mode": "normalize",
+      "lhs": [
+        "div",
+        "$x",
+        [
+          "int",
+          "1"
+        ]
+      ],
+      "rhs": "$x"
+    },
+    {
+      "id": "R002",
+      "family": "rational",
+      "mode": "normalize",
+      "lhs": [
+        "div",
+        [
+          "int",
+          "0"
+        ],
+        "$x"
+      ],
+      "rhs": [
+        "int",
+        "0"
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "R003",
+      "family": "rational",
+      "mode": "normalize",
+      "lhs": [
+        "div",
+        "$x",
+        "$x"
+      ],
+      "rhs": [
+        "int",
+        "1"
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "R004",
+      "family": "rational",
+      "mode": "normalize",
+      "lhs": [
+        "div",
+        [
+          "mul",
+          "$a",
+          "$b"
+        ],
+        [
+          "mul",
+          "$a",
+          "$c"
+        ]
+      ],
+      "rhs": [
+        "div",
+        "$b",
+        "$c"
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$a"
+        ],
+        [
+          "nonzero",
+          "$c"
+        ]
+      ]
+    },
+    {
+      "id": "R005",
+      "family": "rational",
+      "mode": "normalize",
+      "lhs": [
+        "add",
+        [
+          "div",
+          "$a",
+          "$c"
+        ],
+        [
+          "div",
+          "$b",
+          "$c"
+        ]
+      ],
+      "rhs": [
+        "div",
+        [
+          "add",
+          "$a",
+          "$b"
+        ],
+        "$c"
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$c"
+        ]
+      ]
+    },
+    {
+      "id": "R006",
+      "family": "rational",
+      "mode": "normalize",
+      "lhs": [
+        "sub",
+        [
+          "div",
+          "$a",
+          "$c"
+        ],
+        [
+          "div",
+          "$b",
+          "$c"
+        ]
+      ],
+      "rhs": [
+        "div",
+        [
+          "sub",
+          "$a",
+          "$b"
+        ],
+        "$c"
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$c"
+        ]
+      ]
+    },
+    {
+      "id": "R007",
+      "family": "rational",
+      "mode": "normalize",
+      "lhs": [
+        "add",
+        [
+          "div",
+          "$a",
+          "$b"
+        ],
+        [
+          "div",
+          "$c",
+          "$d"
+        ]
+      ],
+      "rhs": [
+        "div",
+        [
+          "add",
+          [
+            "mul",
+            "$a",
+            "$d"
+          ],
+          [
+            "mul",
+            "$c",
+            "$b"
+          ]
+        ],
+        [
+          "mul",
+          "$b",
+          "$d"
+        ]
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$b"
+        ],
+        [
+          "nonzero",
+          "$d"
+        ]
+      ]
+    },
+    {
+      "id": "R008",
+      "family": "rational",
+      "mode": "normalize",
+      "lhs": [
+        "mul",
+        [
+          "div",
+          "$a",
+          "$b"
+        ],
+        [
+          "div",
+          "$c",
+          "$d"
+        ]
+      ],
+      "rhs": [
+        "div",
+        [
+          "mul",
+          "$a",
+          "$c"
+        ],
+        [
+          "mul",
+          "$b",
+          "$d"
+        ]
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$b"
+        ],
+        [
+          "nonzero",
+          "$d"
+        ]
+      ]
+    },
+    {
+      "id": "R009",
+      "family": "rational",
+      "mode": "normalize",
+      "lhs": [
+        "div",
+        [
+          "div",
+          "$a",
+          "$b"
+        ],
+        [
+          "div",
+          "$c",
+          "$d"
+        ]
+      ],
+      "rhs": [
+        "div",
+        [
+          "mul",
+          "$a",
+          "$d"
+        ],
+        [
+          "mul",
+          "$b",
+          "$c"
+        ]
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$b"
+        ],
+        [
+          "nonzero",
+          "$c"
+        ],
+        [
+          "nonzero",
+          "$d"
+        ]
+      ]
+    },
+    {
+      "id": "P001",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        "$x",
+        [
+          "int",
+          "0"
+        ]
+      ],
+      "rhs": [
+        "int",
+        "1"
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "P002",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        "$x",
+        [
+          "neg",
+          "$n"
+        ]
+      ],
+      "rhs": [
+        "div",
+        [
+          "int",
+          "1"
+        ],
+        [
+          "pow",
+          "$x",
+          "$n"
+        ]
+      ],
+      "guards": [
+        [
+          "positive_integer",
+          "$n"
+        ],
+        [
+          "nonzero",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "P003",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "mul",
+        [
+          "pow",
+          "$x",
+          "$m"
+        ],
+        [
+          "pow",
+          "$x",
+          "$n"
+        ]
+      ],
+      "rhs": [
+        "pow",
+        "$x",
+        [
+          "add",
+          "$m",
+          "$n"
+        ]
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$x"
+        ],
+        [
+          "integer",
+          "$m"
+        ],
+        [
+          "integer",
+          "$n"
+        ]
+      ]
+    },
+    {
+      "id": "P004",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "div",
+        [
+          "pow",
+          "$x",
+          "$m"
+        ],
+        [
+          "pow",
+          "$x",
+          "$n"
+        ]
+      ],
+      "rhs": [
+        "pow",
+        "$x",
+        [
+          "sub",
+          "$m",
+          "$n"
+        ]
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$x"
+        ],
+        [
+          "integer",
+          "$m"
+        ],
+        [
+          "integer",
+          "$n"
+        ]
+      ]
+    },
+    {
+      "id": "P005",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        [
+          "pow",
+          "$x",
+          "$m"
+        ],
+        "$n"
+      ],
+      "rhs": [
+        "pow",
+        "$x",
+        [
+          "mul",
+          "$m",
+          "$n"
+        ]
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$x"
+        ],
+        [
+          "integer",
+          "$m"
+        ],
+        [
+          "integer",
+          "$n"
+        ]
+      ]
+    },
+    {
+      "id": "P006",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        [
+          "mul",
+          "$x",
+          "$y"
+        ],
+        "$n"
+      ],
+      "rhs": [
+        "mul",
+        [
+          "pow",
+          "$x",
+          "$n"
+        ],
+        [
+          "pow",
+          "$y",
+          "$n"
+        ]
+      ],
+      "guards": [
+        [
+          "positive_integer",
+          "$n"
+        ]
+      ]
+    },
+    {
+      "id": "P007",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        [
+          "div",
+          "$x",
+          "$y"
+        ],
+        "$n"
+      ],
+      "rhs": [
+        "div",
+        [
+          "pow",
+          "$x",
+          "$n"
+        ],
+        [
+          "pow",
+          "$y",
+          "$n"
+        ]
+      ],
+      "guards": [
+        [
+          "positive_integer",
+          "$n"
+        ],
+        [
+          "nonzero",
+          "$y"
+        ]
+      ]
+    },
+    {
+      "id": "P008",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        [
+          "neg",
+          "$x"
+        ],
+        [
+          "int",
+          "2"
+        ]
+      ],
+      "rhs": [
+        "pow",
+        "$x",
+        [
+          "int",
+          "2"
+        ]
+      ]
+    },
+    {
+      "id": "P009",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        [
+          "add",
+          "$x",
+          "$y"
+        ],
+        [
+          "int",
+          "2"
+        ]
+      ],
+      "rhs": [
+        "add",
+        [
+          "add",
+          [
+            "pow",
+            "$x",
+            [
+              "int",
+              "2"
+            ]
+          ],
+          [
+            "mul",
+            [
+              "int",
+              "2"
+            ],
+            [
+              "mul",
+              "$x",
+              "$y"
+            ]
+          ]
+        ],
+        [
+          "pow",
+          "$y",
+          [
+            "int",
+            "2"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "P010",
+      "family": "powers",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        [
+          "sub",
+          "$x",
+          "$y"
+        ],
+        [
+          "int",
+          "2"
+        ]
+      ],
+      "rhs": [
+        "add",
+        [
+          "sub",
+          [
+            "pow",
+            "$x",
+            [
+              "int",
+              "2"
+            ]
+          ],
+          [
+            "mul",
+            [
+              "int",
+              "2"
+            ],
+            [
+              "mul",
+              "$x",
+              "$y"
+            ]
+          ]
+        ],
+        [
+          "pow",
+          "$y",
+          [
+            "int",
+            "2"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "S001",
+      "family": "roots",
+      "mode": "normalize",
+      "lhs": [
+        "sqrt",
+        [
+          "pow",
+          "$x",
+          [
+            "int",
+            "2"
+          ]
+        ]
+      ],
+      "rhs": [
+        "abs",
+        "$x"
+      ],
+      "guards": [
+        [
+          "real",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "S002",
+      "family": "roots",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        [
+          "sqrt",
+          "$x"
+        ],
+        [
+          "int",
+          "2"
+        ]
+      ],
+      "rhs": "$x",
+      "guards": [
+        [
+          "nonnegative",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "S003",
+      "family": "roots",
+      "mode": "normalize",
+      "lhs": [
+        "sqrt",
+        [
+          "mul",
+          "$a",
+          "$b"
+        ]
+      ],
+      "rhs": [
+        "mul",
+        [
+          "sqrt",
+          "$a"
+        ],
+        [
+          "sqrt",
+          "$b"
+        ]
+      ],
+      "guards": [
+        [
+          "nonnegative",
+          "$a"
+        ],
+        [
+          "nonnegative",
+          "$b"
+        ]
+      ]
+    },
+    {
+      "id": "S004",
+      "family": "roots",
+      "mode": "normalize",
+      "lhs": [
+        "sqrt",
+        [
+          "div",
+          "$a",
+          "$b"
+        ]
+      ],
+      "rhs": [
+        "div",
+        [
+          "sqrt",
+          "$a"
+        ],
+        [
+          "sqrt",
+          "$b"
+        ]
+      ],
+      "guards": [
+        [
+          "nonnegative",
+          "$a"
+        ],
+        [
+          "positive",
+          "$b"
+        ]
+      ]
+    },
+    {
+      "id": "S005",
+      "family": "absolute",
+      "mode": "normalize",
+      "lhs": [
+        "abs",
+        [
+          "neg",
+          "$x"
+        ]
+      ],
+      "rhs": [
+        "abs",
+        "$x"
+      ]
+    },
+    {
+      "id": "S006",
+      "family": "absolute",
+      "mode": "normalize",
+      "lhs": [
+        "abs",
+        [
+          "abs",
+          "$x"
+        ]
+      ],
+      "rhs": [
+        "abs",
+        "$x"
+      ]
+    },
+    {
+      "id": "S007",
+      "family": "absolute",
+      "mode": "normalize",
+      "lhs": [
+        "pow",
+        [
+          "abs",
+          "$x"
+        ],
+        [
+          "int",
+          "2"
+        ]
+      ],
+      "rhs": [
+        "pow",
+        "$x",
+        [
+          "int",
+          "2"
+        ]
+      ],
+      "guards": [
+        [
+          "real",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "S008",
+      "family": "absolute",
+      "mode": "normalize",
+      "lhs": [
+        "abs",
+        [
+          "mul",
+          "$a",
+          "$b"
+        ]
+      ],
+      "rhs": [
+        "mul",
+        [
+          "abs",
+          "$a"
+        ],
+        [
+          "abs",
+          "$b"
+        ]
+      ],
+      "guards": [
+        [
+          "real",
+          "$a"
+        ],
+        [
+          "real",
+          "$b"
+        ]
+      ]
+    },
+    {
+      "id": "T001",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "lhs": [
+        "sin",
+        [
+          "neg",
+          "$x"
+        ]
+      ],
+      "rhs": [
+        "neg",
+        [
+          "sin",
+          "$x"
+        ]
+      ],
+      "guards": [
+        [
+          "real",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "T002",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "lhs": [
+        "cos",
+        [
+          "neg",
+          "$x"
+        ]
+      ],
+      "rhs": [
+        "cos",
+        "$x"
+      ],
+      "guards": [
+        [
+          "real",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "T003",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "lhs": [
+        "tan",
+        "$x"
+      ],
+      "rhs": [
+        "div",
+        [
+          "sin",
+          "$x"
+        ],
+        [
+          "cos",
+          "$x"
+        ]
+      ],
+      "guards": [
+        [
+          "nonzero",
+          [
+            "cos",
+            "$x"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "T004",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "lhs": [
+        "cot",
+        "$x"
+      ],
+      "rhs": [
+        "div",
+        [
+          "cos",
+          "$x"
+        ],
+        [
+          "sin",
+          "$x"
+        ]
+      ],
+      "guards": [
+        [
+          "nonzero",
+          [
+            "sin",
+            "$x"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "T005",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "lhs": [
+        "add",
+        [
+          "pow",
+          [
+            "sin",
+            "$x"
+          ],
+          [
+            "int",
+            "2"
+          ]
+        ],
+        [
+          "pow",
+          [
+            "cos",
+            "$x"
+          ],
+          [
+            "int",
+            "2"
+          ]
+        ]
+      ],
+      "rhs": [
+        "int",
+        "1"
+      ],
+      "guards": [
+        [
+          "real",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "L001",
+      "family": "logarithms",
+      "mode": "normalize",
+      "lhs": [
+        "ln",
+        [
+          "mul",
+          "$a",
+          "$b"
+        ]
+      ],
+      "rhs": [
+        "add",
+        [
+          "ln",
+          "$a"
+        ],
+        [
+          "ln",
+          "$b"
+        ]
+      ],
+      "guards": [
+        [
+          "positive",
+          "$a"
+        ],
+        [
+          "positive",
+          "$b"
+        ]
+      ]
+    },
+    {
+      "id": "L002",
+      "family": "logarithms",
+      "mode": "normalize",
+      "lhs": [
+        "ln",
+        [
+          "div",
+          "$a",
+          "$b"
+        ]
+      ],
+      "rhs": [
+        "sub",
+        [
+          "ln",
+          "$a"
+        ],
+        [
+          "ln",
+          "$b"
+        ]
+      ],
+      "guards": [
+        [
+          "positive",
+          "$a"
+        ],
+        [
+          "positive",
+          "$b"
+        ]
+      ]
+    },
+    {
+      "id": "L003",
+      "family": "logarithms",
+      "mode": "normalize",
+      "lhs": [
+        "ln",
+        [
+          "exp",
+          "$x"
+        ]
+      ],
+      "rhs": "$x",
+      "guards": [
+        [
+          "real",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "L004",
+      "family": "logarithms",
+      "mode": "normalize",
+      "lhs": [
+        "exp",
+        [
+          "ln",
+          "$x"
+        ]
+      ],
+      "rhs": "$x",
+      "guards": [
+        [
+          "positive",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "L005",
+      "family": "logarithms",
+      "mode": "normalize",
+      "lhs": [
+        "ln",
+        [
+          "int",
+          "1"
+        ]
+      ],
+      "rhs": [
+        "int",
+        "0"
+      ]
+    },
+    {
+      "id": "L006",
+      "family": "logarithms",
+      "mode": "normalize",
+      "lhs": [
+        "log",
+        "$b",
+        "$x"
+      ],
+      "rhs": [
+        "div",
+        [
+          "ln",
+          "$x"
+        ],
+        [
+          "ln",
+          "$b"
+        ]
+      ],
+      "guards": [
+        [
+          "positive",
+          "$b"
+        ],
+        [
+          "neq",
+          "$b",
+          [
+            "int",
+            "1"
+          ]
+        ],
+        [
+          "positive",
+          "$x"
+        ]
+      ]
+    },
+    {
+      "id": "L007",
+      "family": "logarithms",
+      "mode": "normalize",
+      "lhs": [
+        "exp",
+        [
+          "add",
+          "$a",
+          "$b"
+        ]
+      ],
+      "rhs": [
+        "mul",
+        [
+          "exp",
+          "$a"
+        ],
+        [
+          "exp",
+          "$b"
+        ]
+      ],
+      "guards": [
+        [
+          "real",
+          "$a"
+        ],
+        [
+          "real",
+          "$b"
+        ]
+      ]
+    },
+    {
+      "id": "E001",
+      "family": "equations",
+      "mode": "manual_only",
+      "lhs": [
+        "eq",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "eq",
+        "$r",
+        "$l"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "E002",
+      "family": "equations",
+      "mode": "manual_only",
+      "lhs": [
+        "eq",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "eq",
+        [
+          "add",
+          "$l",
+          "$t"
+        ],
+        [
+          "add",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "defined",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "E003",
+      "family": "equations",
+      "mode": "manual_only",
+      "lhs": [
+        "eq",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "eq",
+        [
+          "mul",
+          "$l",
+          "$t"
+        ],
+        [
+          "mul",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "defined",
+          "$t"
+        ],
+        [
+          "nonzero",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "E004",
+      "family": "equations",
+      "mode": "manual_only",
+      "lhs": [
+        "eq",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "eq",
+        [
+          "div",
+          "$l",
+          "$t"
+        ],
+        [
+          "div",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "defined",
+          "$t"
+        ],
+        [
+          "nonzero",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "E005",
+      "family": "equations",
+      "mode": "manual_only",
+      "lhs": [
+        "eq",
+        [
+          "add",
+          "$x",
+          "$a"
+        ],
+        "$b"
+      ],
+      "rhs": [
+        "eq",
+        "$x",
+        [
+          "sub",
+          "$b",
+          "$a"
+        ]
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "E006",
+      "family": "equations",
+      "mode": "manual_only",
+      "lhs": [
+        "eq",
+        [
+          "div",
+          "$a",
+          "$b"
+        ],
+        "$c"
+      ],
+      "rhs": [
+        "eq",
+        "$a",
+        [
+          "mul",
+          "$b",
+          "$c"
+        ]
+      ],
+      "guards": [
+        [
+          "nonzero",
+          "$b"
+        ]
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "ILT01",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "lt",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "lt",
+        [
+          "add",
+          "$l",
+          "$t"
+        ],
+        [
+          "add",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "defined",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "ILT02",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "lt",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "lt",
+        [
+          "mul",
+          "$l",
+          "$t"
+        ],
+        [
+          "mul",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "positive",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "ILT03",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "lt",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "gt",
+        [
+          "mul",
+          "$l",
+          "$t"
+        ],
+        [
+          "mul",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "negative",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "ILE01",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "le",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "le",
+        [
+          "add",
+          "$l",
+          "$t"
+        ],
+        [
+          "add",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "defined",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "ILE02",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "le",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "le",
+        [
+          "mul",
+          "$l",
+          "$t"
+        ],
+        [
+          "mul",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "positive",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "ILE03",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "le",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "ge",
+        [
+          "mul",
+          "$l",
+          "$t"
+        ],
+        [
+          "mul",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "negative",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "IGT01",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "gt",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "gt",
+        [
+          "add",
+          "$l",
+          "$t"
+        ],
+        [
+          "add",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "defined",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "IGT02",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "gt",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "gt",
+        [
+          "mul",
+          "$l",
+          "$t"
+        ],
+        [
+          "mul",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "positive",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "IGT03",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "gt",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "lt",
+        [
+          "mul",
+          "$l",
+          "$t"
+        ],
+        [
+          "mul",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "negative",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "IGE01",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "ge",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "ge",
+        [
+          "add",
+          "$l",
+          "$t"
+        ],
+        [
+          "add",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "defined",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "IGE02",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "ge",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "ge",
+        [
+          "mul",
+          "$l",
+          "$t"
+        ],
+        [
+          "mul",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "positive",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "id": "IGE03",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "lhs": [
+        "ge",
+        "$l",
+        "$r"
+      ],
+      "rhs": [
+        "le",
+        [
+          "mul",
+          "$l",
+          "$t"
+        ],
+        [
+          "mul",
+          "$r",
+          "$t"
+        ]
+      ],
+      "guards": [
+        [
+          "negative",
+          "$t"
+        ]
+      ],
+      "parameters": [
+        "$t"
+      ],
+      "relation": "solution_set_equivalence"
+    }
+  ]
+}
