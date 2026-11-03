@@ -23,3 +23,5 @@ python Matchin/tests/verify.py
 ```
 
 77 сценариев проверены в Chromium 154.0.8037.57. Стенд использует настоящий HTML и браузер, а сетевое чтение JSON заменяет файлами текущего checkout. Подробности и ограничения: [coverage-v48.md](coverage-v48.md). Журнал: [verification-results.json](tests/verification-results.json).
+
+Публикация дополнительно проверена по реальной загрузке опубликованного HTML и всех 10 JSON из GitHub: 8 PASS, ошибок 0. Свидетельство: [publication-verification.json](publication-verification.json).
