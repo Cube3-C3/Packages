@@ -11,7 +11,7 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 .state.rejected{background:#dd9a89;box-shadow:0 0 0 4px #dd9a8911}.pending-address{min-height:88px;align-self:flex-start;gap:9px;padding:12px}.pending-address .block-label{margin:0;color:var(--wait)}
 
-.block.quantity{--tone:#a7b8d2}.block.dimension{--tone:#b6a4d6}.block.unit{--tone:#8bb8ab}
+.structure{flex-direction:column}.source-tree{display:flex}.si-tree{display:flex;flex-direction:column;gap:12px;margin-top:22px}.projection-label{color:var(--muted);font-size:11px}.derived-glyph{cursor:pointer}.glyph.linked-source{background:#d8aa6230;outline:1px solid #d8aa6290}.block.quantity{--tone:#a7b8d2}.block.dimension{--tone:#b6a4d6}.block.unit{--tone:#8bb8ab}
 </style>
 </head>
 <body>
@@ -209,7 +209,7 @@ function quantityForm(n){
   if(n.kind==='expression'&&kids.length===1)return quantityForm(kids[0]);
   if(n.kind==='binod'&&n.meta.operatorKey==='^'&&n.meta.domain!=='dimension'&&kids.length===2){
     const base=quantityForm(kids[0]),text=signedText(kids[1]);
-    if(base&&text)return {...base,powers:[...base.powers,{node:kids[1],text,anchor:n.parts.find(p=>p.role==='operator')?.id??[...characters(kids[1])][0]?.id}]};
+    if(base&&text)return {...base,powers:[...base.powers,{node:kids[1],text,ids:[...characters(kids[1])].map(t=>t.id),anchor:n.parts.find(p=>p.role==='operator')?.id??[...characters(kids[1])][0]?.id}]};
   }
   return null;
 }
@@ -268,7 +268,7 @@ function expand(root,R=catalogue,target=R.quantityPowers.defaultTarget){
   const destination=targetTransform(R,target);
   if(target&&target!=='SI'&&!destination)throw Error('Unknown target scale');
   let serial=0;
-  const token=(char,role,anchor)=>({id:`derived:${anchor}:${++serial}`,char,role,origin:'DERIVED',sourceIds:anchor?[anchor]:[]});
+  const token=(char,role,anchor)=>({id:`derived:${anchor}:${++serial}`,char,role,origin:'DERIVED',sourceIds:Array.isArray(anchor)?anchor:anchor?[anchor]:[]});
   const make=(kind,parts,meta={},anchor=null)=>{const n={kind,id:`expanded:${++serial}`,parts,meta:{...meta,derived:true}};for(const p of parts)if(isToken(p))p.owner=n.id;if(anchor)n.meta.sourceId=anchor;return n;};
   const num=(value,anchor)=>{const sign=String(value).startsWith('-');const [int,frac]=String(value).replace(/^-/,'').split('.');
     const integer=make('integer',Array.from(int,c=>token(c,'digits',anchor))),parts=[integer];
@@ -279,10 +279,11 @@ function expand(root,R=catalogue,target=R.quantityPowers.defaultTarget){
   const project=(n,powers=[])=>{
     const dim=children(n).find(k=>k.kind==='dimension'),leaf=unitLeaf(dim),reg=leaf?.meta.registration;
     if(!reg||!powerText(dim))return {...n,parts:n.parts.map(visit)};
-    const unit=R.units.find(u=>u.id===reg.unitId),source=leaf.parts.find(p=>p.role==='unit_name')?.id,
-      exp=exponentNode(dim),expAnchor=exp&&[...characters(exp)][0]?.id;
+    const unit=R.units.find(u=>u.id===reg.unitId),source=[...characters(leaf)].filter(p=>p.role==='unit_name').map(p=>p.id),
+      affixSource=[...characters(leaf)].filter(p=>p.role==='affix_name').map(p=>p.id),
+      exp=exponentNode(dim),expAnchor=exp?[...characters(exp)].map(p=>p.id):[];
     let value=visit(children(n)[0]);
-    if(reg.prefixId){let factor=bin(num('10',source),'^',signedInteger(String(reg.power),source),source);if(exp)factor=bin(factor,'^',signedInteger(powerText(dim),expAnchor),expAnchor);value=bin(value,'*',factor,source);}
+    if(reg.prefixId){let factor=bin(num('10',affixSource),'^',signedInteger(String(reg.power),affixSource),affixSource);if(exp)factor=bin(factor,'^',signedInteger(powerText(dim),expAnchor),expAnchor);value=bin(value,'*',factor,affixSource);}
     if(reg.transformId){let scale=num(reg.scale,source);if(exp&&reg.offset==='0')scale=bin(scale,'^',signedInteger(powerText(dim),expAnchor),expAnchor);value=bin(value,'*',scale,source);if(reg.offset!=='0')value=bin(value,'+',num(reg.offset,source),source);}
     // Source conversion is complete before an outer power is attached. For an
     // affine destination its inverse scale/offset joins the same scalar base.
@@ -292,13 +293,14 @@ function expand(root,R=catalogue,target=R.quantityPowers.defaultTarget){
       value=bin(value,'*',num(inverse.inverseScale,source),source);
       if(inverse.inverseOffset!=='0')value=bin(value,'+',num(inverse.inverseOffset,source),source);
     }
-    const base=make('dimension_unit',Array.from(inverse?.inverseSymbol??unit.symbol,c=>token(c,'unit_name',source)),{registration:{...reg,prefixId:null,transformId:null,power:0,scale:'1',offset:'0'},targetScale:inverse?.id??'SI'},source);
+    const absolute=make('dimension_absolute',Array.from(inverse?.inverseSymbol??unit.symbol,c=>token(c,'unit_name',source)),{registration:{...reg,prefixId:null,transformId:null,power:0,scale:'1',offset:'0'},targetScale:inverse?.id??'SI'},source);
+    const base=make('dimension_unit',[absolute],{registration:absolute.meta.registration,targetScale:inverse?.id??'SI'},source);
     let powerBlock=exp?bin(base,'^',signedInteger(powerText(dim),expAnchor),expAnchor):base;
     if(exp){powerBlock.meta.domain='dimension';powerBlock.meta.rightSlot='dimension.power';}
     for(const p of powers){
-      value=bin(value,'^',signedInteger(p.text,p.anchor,'quantity.power'),p.anchor);
+      value=bin(value,'^',signedInteger(p.text,p.ids,'quantity.power'),p.anchor);
       value.meta.powerScope='quantity';
-      powerBlock=bin(powerBlock,'^',signedInteger(p.text,p.anchor),p.anchor);
+      powerBlock=bin(powerBlock,'^',signedInteger(p.text,p.ids),p.anchor);
       powerBlock.meta.domain='dimension';powerBlock.meta.rightSlot='dimension.power';
     }
     const dimension=make('dimension',[powerBlock],{unitId:unit.id},source);
@@ -2118,7 +2120,11 @@ function render() {
   const causes = new Set(v.obligations.flatMap(o => o.causes));
   const glyph = t => {
     const m = maps.get(t.id), n = el('span', `glyph${t.origin === 'AUTO' ? ' auto' : ''}${m && (m.start === v.caret || m.end === v.caret) ? ' at-caret' : ''}`, visible(t.char));
-    n.dataset.symbol = t.id; n.title = `${t.id} · ${t.role || 'черновик'} · ${t.origin}${t.cause ? ` ← ${t.cause}` : ''}${causes.has(t.id) ? ' · ожидание' : ''}`;
+    n.dataset.symbol = t.id;
+    if(t.origin==='DERIVED'){
+      n.dataset.sources=JSON.stringify(t.sourceIds||[]);
+      n.classList.add('derived-glyph');
+    } n.title = `${t.id} · ${t.role || 'черновик'} · ${t.origin}${t.cause ? ` ← ${t.cause}` : ''}${causes.has(t.id) ? ' · ожидание' : ''}`;
     return n;
   };
   const draft = d => {
@@ -2135,7 +2141,7 @@ function render() {
     const anchor = p.id?.split(':').at(-2); return (positions.get(anchor) ?? Infinity) + .1;
   };
   const renderNode = n => {
-    const spec = registry.blocks[n.kind], complete = editor.candidateBuilder.complete(n);
+    const spec = registry.blocks[n.kind], complete = n.meta.derived ? true : editor.candidateBuilder.complete(n);
     const box = el('div', `block ${spec.family}${complete ? '' : ' incomplete'}${v.address?.owner === n.id ? ' focused' : ''}`);
     box.dataset.node = n.id; box.dataset.kind = n.kind;
     const label = el('span', 'block-label', spec.name+(n.meta.implicit?' · неявное ×':'')+(n.meta.powerScope==='quantity'?' · степень величины':'') ); label.dataset.label = n.id; label.title = `${n.id}${n.meta.priority ? ` · приоритет ${n.meta.priority}` : ''}`; box.append(label);
@@ -2167,7 +2173,25 @@ function render() {
     box.append(row); return box;
   };
   structure.replaceChildren(); structure.classList.toggle('rollback', !!v.rollback);
-  if (v.entries.length) structure.append(renderNode(v.tree));
+  if (v.entries.length) {
+    const sourceTree=el('div','source-tree');sourceTree.append(renderNode(v.tree));structure.append(sourceTree);
+    if(v.complete&&[...walk(v.tree)].some(n=>n.kind==='quantity')){
+      const expanded=module_units.expand(v.tree,registry.measurements);
+      for(const t of characters(expanded))if(t.origin==='DERIVED'){
+        const anchors=(t.sourceIds||[]).map(id=>maps.get(id)).filter(Boolean);
+        const start=anchors.length?Math.min(...anchors.map(a=>a.start)):v.caret;
+        const end=anchors.length?Math.max(...anchors.map(a=>a.end)):start;
+        maps.set(t.id,{id:t.id,start,end,sourceIds:t.sourceIds});
+        positions.set(t.id,anchors.length?positions.get(anchors[0].id):Infinity);
+      }
+      for(const n of walk(expanded)){
+        const anchors=[...characters(n)].map(t=>maps.get(t.id)).filter(Boolean);
+        v.ranges.set(n.id,{start:anchors.length?Math.min(...anchors.map(a=>a.start)):v.caret,end:anchors.length?Math.max(...anchors.map(a=>a.end)):v.caret});
+      }
+      const projected=el('div','si-tree');projected.setAttribute('aria-label','Развёртка размерности в СИ');
+      projected.append(el('div','projection-label','СИ · распределение символов'),renderNode(expanded));structure.append(projected);
+    }
+  }
   if (v.pending) {
     const pending = el('div', 'draft pending-address');
     pending.append(el('span', 'block-label', `Адрес для «${visible(v.pending.token.char)}»`));
@@ -2248,6 +2272,13 @@ structure.addEventListener('pointerdown', e => e.preventDefault());
 structure.addEventListener('click', e => {
   const choice = e.target.closest('[data-choose]');
   if (choice) { act({ type: 'CHOOSE', id: choice.dataset.choose, law: choice.dataset.law, owner: choice.dataset.owner }); input.focus({ preventScroll: true }); render(); return; }
+  const derived=e.target.closest('[data-sources]');
+  if(derived){
+    const ids=JSON.parse(derived.dataset.sources),source=editor.view().map.filter(m=>ids.includes(m.id));
+    if(!source.length)return;
+    act({type:'FOCUS',position:Math.min(...source.map(m=>m.start))});
+    editor.selectionEnd=Math.max(...source.map(m=>m.end));input.focus({preventScroll:true});render();return;
+  }
   const v = editor.view(), g = e.target.closest('[data-symbol]'), h = e.target.closest('[data-position]'), b = e.target.closest('[data-node]');
   let position, owner, role;
   if (g) { const m = v.map.find(m => m.id === g.dataset.symbol); if (!m) return; position = e.clientX < g.getBoundingClientRect().left + g.getBoundingClientRect().width / 2 ? m.start : m.end; owner = m.owner; role = m.role; }
@@ -2258,12 +2289,22 @@ structure.addEventListener('click', e => {
   } else return;
   act({ type: 'FOCUS', position, hint: { owner, role } }); input.focus({ preventScroll: true }); render();
 });
+structure.addEventListener('pointerover',event=>{
+  const glyph=event.target.closest('[data-symbol]');if(!glyph)return;
+  const ids=glyph.dataset.sources?JSON.parse(glyph.dataset.sources):[glyph.dataset.symbol];
+  for(const item of structure.querySelectorAll('[data-symbol]')){
+    const sources=item.dataset.sources?JSON.parse(item.dataset.sources):[item.dataset.symbol];
+    item.classList.toggle('linked-source',sources.some(id=>ids.includes(id)));
+  }
+});
+structure.addEventListener('pointerleave',()=>{for(const item of structure.querySelectorAll('.linked-source'))item.classList.remove('linked-source');});
 // Read-only diagnostics for reproducible audits; no mutation API outside EDIT.
-Object.defineProperty(window, 'dochin', { value: Object.freeze({ getState: () => structuredClone(editor.view()), getTrace: () => structuredClone(editor.journal), registry: JSON.parse(JSON.stringify(registry,(_,value)=>typeof value==='function'?undefined:value)) }) });
+Object.defineProperty(window, 'dochin', { value: Object.freeze({ getState: () => structuredClone(editor.view()), getTrace: () => structuredClone(editor.journal),
+    getConversion: () => {const v=editor.view();return v.complete?structuredClone(module_units.expand(v.tree,registry.measurements)):null;}, registry: JSON.parse(JSON.stringify(registry,(_,value)=>typeof value==='function'?undefined:value)) }) });
 render();
 
 })();
 </script>
-<script type="application/json" id="coverage-report">{"coverage_report": "# Matchin — отчёт о фактическом покрытии сборки\n\n**Артефакт / версия:** Dotchin_EDIT_Updated.html, 03.11.2026.\n**Эталон спецификации:** приложенные Dochin_EDIT_Standalone.html и Matchin-component-domains.html; последний использован как эталон актуальной логики ввода. Отдельная нормативная спецификация не предоставлена. Реестр: Cube3-C3/Packages, ревизия 426ac092838645e182737c2baec8ac6f88fe17e2, указанная в исходном Matchin.\n**Статус:** кандидат на выполнение задания по обновлению ввода; полное покрытие концепта EDIT не заявлено.\n**Область, объявленная до работы:** актуальная цепочка ввода в интерфейсе «строка и блоки», размерность, неявное умножение, имена и аргументы; без намеренного сокращения запроса.\n\nУточнение текущей редакции: по прямому указанию пользователя добавлена структурная раздельность аффикса и абсолютной единицы. Абсолютная единица означает запись без приставки; это не автоматическое приведение к согласованной шкале СИ. Общая регистрация составной единицы сохраняется у контейнера для вычисления масштаба, а дочерний dimension_absolute содержит регистрацию без prefixId и без степени приставки.\n\n## 1. Реализовано и проверено\n| Требование / возможность | Где реализовано | Свидетельство проверки |\n|---|---|---|\n| Раздельные аффикс и абсолютная единица | dimension_affix, dimension_absolute, составной dimension_unit | PASS: 11 новых сценариев ядра и 3 браузерных; замена/удаление приставки сохраняет ID абсолютного блока и степень |\n| Размерность и зарегистрированные единицы с приставками | module_units, module_measurements, встроенный inputSnapshot | PASS: 2м, 2мм, 2кг, 2Н, 2 м |\n| Целые степени, знак, надстрочные символы, ограничение двух цифр | dimension.power, quantity.power | PASS: 2м^2, 2м⁻², 2м^+12, отказ 2м^123 |\n| Различие степени размерности и всей величины | measurementPower, quantityPower | PASS: 2м^2 и (2м)^2 |\n| Ограничение аффинной шкалы | measurementExponent | PASS: отказ 2°С^2 |\n| Неявное умножение без синтетического знака в строке | extendImplicit, measurementFinish | PASS: xy, 2x, 2(x+1), (x+1)(y+2), x y; порядок символов сохранён |\n| Распознавание функций и списка аргументов | extendNames, extendArgumentLists | PASS: sin(x), f(x;y) |\n| Черновики и завершение по фокусу | lifecycle, кандидат в render | PASS: 2x до/после ухода фокуса |\n| Правки и история | общий EDIT-маршрут | PASS: удаление степени с сохранением ID, Undo/Redo, браузерная замена цифры степени |\n| Автономный интерфейс | встроенные JS, CSS и снимок таблиц | PASS: 11 сценариев Chromium через setContent; нет ошибок страницы |\n\n## 2. Реализовано частично или без проверки\n| Требование / возможность | Что именно работает | Что отсутствует / не проверено |\n|---|---|---|\n| Прочие ветви перенесённого ядра | Модули ввода перенесены из эталона без изменения законов | Исчерпывающий перебор всех неоднозначностей, AUTO, границ и вариантов CHOOSE: NOT RUN |\n| Источники ввода | Обработчики beforeinput, paste, cut, compositionend, input сохранены | Реальная IME, мобильная клавиатура, screen reader, другие браузеры: NOT RUN |\n| Каталог единиц | Встроены 32 единицы и таблица приставок из указанной ревизии | Автообновление удалённого реестра не выполняется; латинское m не подменяется кириллическим м |\n\n## 3. Не реализовано\n| Требование / возможность | Следствие для пользователя |\n|---|---|\n| Полная формальная верификация EDIT | Успех выполненных сценариев не доказывает полное соответствие концепту |\n| Семантический интерфейс Matchin: история преобразований, панели физических величин и областей | Сохранён запрошенный интерфейс Dotchin; перенесена логика ввода |\n\n## 4. Намеренные ограничения прототипа\n- Намеренного сокращения запроса не вводилось.\n- Реестр: 15 исходных типов и 6 дополнительных типов (quantity, measurement_draft, dimension, dimension_unit, dimension_absolute, dimension_affix), всего 21. Сохранены профили и ограничения эталона.\n- API событий: INSERT, REPLACE, DELETE, AUTO, FOCUS, CHOOSE, CANCEL_PENDING, UNDO, REDO. Диагностика window.dochin доступна только для чтения.\n- Снимок реестра встроен для автономной работы, версия зафиксирована явно. Это адаптация упаковки, а не новый словарь правил.\n- В отличие от старой сборки, буфер и замена при отказе применяют атомарную политику актуального ядра. Неоднозначные введённые символы могут оставаться черновиками в строке; отображается кандидат, подтверждённое дерево доступно в диагностике.\n- Реконструкция использует исходный событийный Assembler и кэш эталона. Новый строковый парсер, синтетические токены умножения и прямые обходные мутации из UI не добавлены. Формальная проверка всех архитектурных инвариантов: NOT RUN.\n\n## 5. Тесты\n| Тест / сценарий | Статус PASS/FAIL/NOT RUN/BLOCKED | Свидетельство / причина |\n|---|---|---|\n| Ядро: единицы, степени, произведения, функции, регрессии, отказы, черновик, ID, история | PASS | node work/verify.cjs; 25 PASS, 0 FAIL |\n| Chromium: ввод 9 выражений, редактирование степени, уход фокуса | PASS | node work/browser-verify.cjs; 11 PASS, 0 FAIL; ошибок страницы нет |\n| Структурное разделение и независимые правки | PASS | node work/affix-verify.cjs: 11 PASS; 6 записей, удаление и замена аффикса, удаление основы, восстановление, Undo/Redo |\n| Отдельные блоки и правки через поле | PASS | node work/affix-browser.cjs: 3 PASS; раздельное отображение, смена и удаление аффикса |\n| Синтаксис извлечённых модулей | PASS | node --check work/core.js |\n| Двойной клик, весь набор вариантов CHOOSE, буфер ОС, реальная IME, мобильные устройства | NOT RUN | Отдельные сеансы не выполнялись |\n| Формальное полное покрытие нормативной спецификации | BLOCKED | Отдельная спецификация не предоставлена |\n\n## 6. Итог и следующий проверяемый шаг\n- Подтверждено: перечисленные сценарии актуальной логики в автономном интерфейсе Dotchin.\n- Не подтверждено: полное покрытие EDIT и все ветви исходного Matchin.\n- Известные дефекты в выполненном наборе: не обнаружены. Ограничения проверки указаны выше.\n- Следующий проверяемый шаг: открыть HTML локально и проверить свои выражения; для воспроизведения использовать window.dochin.getState() и getTrace().\n"}</script>
+<script type="application/json" id="coverage-report">{"coverage_report":"# Matchin — отчёт о фактическом покрытии сборки\n\n**Артефакт / версия:** Dotchin_EDIT_Updated.html, 03.11.2026.\n**Эталон спецификации:** приложенные Dochin_EDIT_Standalone.html и Matchin-component-domains.html; последний использован как эталон актуальной логики ввода. Отдельная нормативная спецификация не предоставлена. Реестр: Cube3-C3/Packages, ревизия 426ac092838645e182737c2baec8ac6f88fe17e2, указанная в исходном Matchin.\n**Статус:** кандидат на выполнение задания по обновлению ввода; полное покрытие концепта EDIT не заявлено.\n**Область, объявленная до работы:** актуальная цепочка ввода в интерфейсе «строка и блоки», размерность, неявное умножение, имена и аргументы; без намеренного сокращения запроса.\n\nИсправление по схеме пользователя «10 см^2»: прежнее разделение написания аффикса и единицы не покрывало отображение развёртки конвертации. Теперь добавлена проекция module_units.expand, соответствующая структуре Matchin: числовая ветвь 10 × (10^−2)^2 и размерностная ветвь м^2. Производные символы имеют origin=DERIVED и sourceIds; они не добавляются в ленту EDIT. Степень имеет две производные копии с общими ссылками на исходный показатель, аффикс порождает 10^−2, абсолютная единица — основу СИ. Отображаются обе структуры: исходная и развёрнутая. Клики по производным символам адресуют выделение в исходной строке; ввод остаётся общим EDIT-маршрутом.\n\nУточнение текущей редакции: по прямому указанию пользователя добавлена структурная раздельность аффикса и абсолютной единицы. Абсолютная единица означает запись без приставки; это не автоматическое приведение к согласованной шкале СИ. Общая регистрация составной единицы сохраняется у контейнера для вычисления масштаба, а дочерний dimension_absolute содержит регистрацию без prefixId и без степени приставки.\n\n## 1. Реализовано и проверено\n| Требование / возможность | Где реализовано | Свидетельство проверки |\n|---|---|---|\n| Развёртка конвертации по схеме 10см^2 | module_units.expand, .si-tree, sourceIds | PASS: структура 10 × (10^−2)^2 и м^2; числовой результат 0,001; неизменность исходного состояния |\n| Связи исходных и производных символов | data-sources, getConversion, обработчики hover/click | PASS: общая исходная степень у двух копий, выбор исходной степени и приставки кликом, замена через поле |\n| Раздельные аффикс и абсолютная единица | dimension_affix, dimension_absolute, составной dimension_unit | PASS: 11 новых сценариев ядра и 3 браузерных; замена/удаление приставки сохраняет ID абсолютного блока и степень |\n| Размерность и зарегистрированные единицы с приставками | module_units, module_measurements, встроенный inputSnapshot | PASS: 2м, 2мм, 2кг, 2Н, 2 м |\n| Целые степени, знак, надстрочные символы, ограничение двух цифр | dimension.power, quantity.power | PASS: 2м^2, 2м⁻², 2м^+12, отказ 2м^123 |\n| Различие степени размерности и всей величины | measurementPower, quantityPower | PASS: 2м^2 и (2м)^2 |\n| Ограничение аффинной шкалы | measurementExponent | PASS: отказ 2°С^2 |\n| Неявное умножение без синтетического знака в строке | extendImplicit, measurementFinish | PASS: xy, 2x, 2(x+1), (x+1)(y+2), x y; порядок символов сохранён |\n| Распознавание функций и списка аргументов | extendNames, extendArgumentLists | PASS: sin(x), f(x;y) |\n| Черновики и завершение по фокусу | lifecycle, кандидат в render | PASS: 2x до/после ухода фокуса |\n| Правки и история | общий EDIT-маршрут | PASS: удаление степени с сохранением ID, Undo/Redo, браузерная замена цифры степени |\n| Автономный интерфейс | встроенные JS, CSS и снимок таблиц | PASS: 11 сценариев Chromium через setContent; нет ошибок страницы |\n\n## 2. Реализовано частично или без проверки\n| Требование / возможность | Что именно работает | Что отсутствует / не проверено |\n|---|---|---|\n| Проекция преобразований шкал | Код исходного expand сохранён с адаптацией новых дочерних блоков и sourceIds | Аффинные и все зарегистрированные преобразования в новой проекции исчерпывающе не проверены: NOT RUN |\n| Прочие ветви перенесённого ядра | Модули ввода перенесены из эталона без изменения законов | Исчерпывающий перебор всех неоднозначностей, AUTO, границ и вариантов CHOOSE: NOT RUN |\n| Источники ввода | Обработчики beforeinput, paste, cut, compositionend, input сохранены | Реальная IME, мобильная клавиатура, screen reader, другие браузеры: NOT RUN |\n| Каталог единиц | Встроены 32 единицы и таблица приставок из указанной ревизии | Автообновление удалённого реестра не выполняется; латинское m не подменяется кириллическим м |\n\n## 3. Не реализовано\n| Требование / возможность | Следствие для пользователя |\n|---|---|\n| Полная формальная верификация EDIT | Успех выполненных сценариев не доказывает полное соответствие концепту |\n| Семантический интерфейс Matchin: история преобразований, панели физических величин и областей | Сохранён запрошенный интерфейс Dotchin; перенесена логика ввода |\n\n## 4. Намеренные ограничения прототипа\n- Намеренного сокращения запроса не вводилось.\n- Реестр: 15 исходных типов и 6 дополнительных типов (quantity, measurement_draft, dimension, dimension_unit, dimension_absolute, dimension_affix), всего 21. Сохранены профили и ограничения эталона.\n- API событий: INSERT, REPLACE, DELETE, AUTO, FOCUS, CHOOSE, CANCEL_PENDING, UNDO, REDO. Диагностика window.dochin (getState, getTrace, getConversion) доступна только для чтения.\n- Снимок реестра встроен для автономной работы, версия зафиксирована явно. Это адаптация упаковки, а не новый словарь правил.\n- В отличие от старой сборки, буфер и замена при отказе применяют атомарную политику актуального ядра. Неоднозначные введённые символы могут оставаться черновиками в строке; отображается кандидат, подтверждённое дерево доступно в диагностике.\n- Реконструкция использует исходный событийный Assembler и кэш эталона. Новый строковый парсер, синтетические токены умножения и прямые обходные мутации из UI не добавлены. Формальная проверка всех архитектурных инвариантов: NOT RUN.\n\n## 5. Тесты\n| Тест / сценарий | Статус PASS/FAIL/NOT RUN/BLOCKED | Свидетельство / причина |\n|---|---|---|\n| Ядро: единицы, степени, произведения, функции, регрессии, отказы, черновик, ID, история | PASS | node work/verify.cjs; 25 PASS, 0 FAIL |\n| Chromium: ввод 9 выражений, редактирование степени, уход фокуса | PASS | node work/browser-verify.cjs; 11 PASS, 0 FAIL; ошибок страницы нет |\n| Структурное разделение и независимые правки | PASS | node work/affix-verify.cjs: 11 PASS; 6 записей, удаление и замена аффикса, удаление основы, восстановление, Undo/Redo |\n| Отдельные блоки и правки через поле | PASS | node work/affix-browser.cjs: 3 PASS; раздельное отображение, смена и удаление аффикса |\n| Структура и числовая конвертация, обратные ссылки | PASS | node work/conversion-verify.cjs: 11 PASS; степени 0, 2, −2, −12, внешняя степень величины; изменение приставки/степени и удаление приставки |\n| Браузерные связи исходного и производного ввода | PASS | node work/conversion-browser.cjs: 4 PASS; две копии, подсветка, выбор степени, выбор приставки |\n| Синтаксис извлечённых модулей | PASS | node --check work/core.js |\n| Двойной клик, весь набор вариантов CHOOSE, буфер ОС, реальная IME, мобильные устройства | NOT RUN | Отдельные сеансы не выполнялись |\n| Формальное полное покрытие нормативной спецификации | BLOCKED | Отдельная спецификация не предоставлена |\n\n## 6. Итог и следующий проверяемый шаг\n- Подтверждено: перечисленные сценарии актуальной логики в автономном интерфейсе Dotchin.\n- Не подтверждено: полное покрытие EDIT и все ветви исходного Matchin.\n- Известные дефекты в выполненном наборе: не обнаружены. Ограничения проверки указаны выше.\n- Следующий проверяемый шаг: открыть HTML локально и проверить свои выражения; для воспроизведения использовать window.dochin.getState() и getTrace().\n","test_logs":{"test-results":"PASS quantity 2м\nPASS quantity 2мм\nPASS quantity 2кг\nPASS quantity 2Н\nPASS quantity 2 м\nPASS quantity 2м^2\nPASS quantity 2м⁻²\nPASS quantity 2м^+12\nPASS quantity (2м)^2\nPASS power scopes\nPASS implicit xy\nPASS implicit 2x\nPASS implicit 2(x+1)\nPASS implicit (x+1)(y+2)\nPASS implicit x y\nPASS arguments sin(x)\nPASS arguments f(x;y)\nPASS regression 1+2*3\nPASS regression 0.1(6)\nPASS regression x_1+2\nPASS reject 2м^123\nPASS reject 2°С^2\nPASS draft visible and settling\nPASS delete dimension retains surviving IDs\nPASS undo redo\n25 PASS, 0 FAIL\n","affix-results":"PASS split 2мм\nPASS split 2км\nPASS split 2мкм\nPASS split 2мм^2\nPASS split 2мм⁻²\nPASS split (2мм)^2\nPASS delete prefix preserves absolute IDs and power\nPASS replace prefix preserves absolute\nPASS delete absolute reinterprets remaining registered unit\nPASS delete micro base retains draft until new base\nPASS prefix undo redo\n11 PASS, 0 FAIL\n","conversion-results":"PASS 10см^2 structure and 1-to-many sources\nPASS conversion 10см^2\nPASS conversion 10мм^2\nPASS conversion 10см^-2\nPASS conversion (10см)^2\nPASS conversion 10см^0\nPASS conversion 10м^2\nPASS two-digit signed exponent copies keep all IDs\nPASS replace prefix recalculates factor, keeps base identity\nPASS replace one source exponent updates both copies\nPASS delete affix removes scale factor\n11 PASS, 0 FAIL\n","browser-results":"PASS browser 2м^2\nPASS browser 2м⁻²\nPASS browser (2м)^2\nPASS browser xy\nPASS browser 2x\nPASS browser 2(x+1)\nPASS browser sin(x)\nPASS browser f(x;y)\nPASS browser 2мм\nPASS browser exponent edit\nPASS browser focus finalization\n11 PASS, 0 FAIL; no page errors\n","affix-browser-results":"PASS distinct affix and absolute blocks\nPASS replace prefix from native selection\nPASS delete affix preserves absolute and exponent\n3 PASS, 0 FAIL\n","conversion-browser-results":"PASS two exponent copies map to one source\nPASS hover connects source and both copies\nPASS click derived exponent edits both copies\nPASS derived prefix maps back to affix\n4 PASS, 0 FAIL\n"}}</script>
 </body>
 </html>
