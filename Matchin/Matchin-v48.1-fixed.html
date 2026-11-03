@@ -461,7 +461,7 @@ const catalogue={
     "unresolved": "draft",
     "onFocusExit": "variable",
     "lockAfterRecognition": true,
-    "deferAmbiguousExact": true
+    "deferAmbiguousExact": false
   }
 };
 const superscript={'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
@@ -3659,7 +3659,9 @@ function deriveRestrictions(tree,registry=module_3.registry,options={}){
   const algebra=new Algebra(options),variables=new Map(),conditions=[],seen=new Set();
   let pending=false,impossible=false;const unsupported=[],analysisRoots=[tree],scannedBounds=new Set([recordKey(tree)]);
   const walk=(n,fn)=>{if(!n)return;fn(n);for(const c of n.children||[])walk(c,fn);};
-  const vars=n=>{const ids=new Set();walk(n,c=>{if(c.kind==='variable')ids.add(variableInfo(c).id);});return [...ids];};
+  const component=n=>n.kind==='variable'&&n.physical_record?.kind!=='unit';
+  const vars=n=>{const ids=new Set();walk(n,c=>{if(component(c))ids.add(variableInfo(c).id);});return [...ids];};
+  const domainScalar=n=>module_registry_expansion.scalar(n,{physicsSession:options.physicsSession,catalogue:options.catalogue,measurements:registry.measurements,constants:false,rows:[]}).tree;
   const incomplete=n=>{let bad=!n;walk(n,c=>{if(c.kind==='hole')bad=true;});return bad;};
   const args=n=>n.children?.find(c=>c.kind==='argument_list')?.children||[];
   const value=n=>{try{return algebra.value(algebra.expression(n));}catch{return null;}};
@@ -3688,9 +3690,14 @@ function deriveRestrictions(tree,registry=module_3.registry,options={}){
       default:return cs.map(format).join(' ');
     }
   };
-  walk(tree,n=>{if(n.kind==='variable'){const v=variableInfo(n);if(!variables.has(v.id))variables.set(v.id,{...v,intervals:[{lo:null,hi:null,lc:false,hc:false}],residual:[]});}});
+  walk(tree,n=>{if(component(n)){const v=variableInfo(n);if(!variables.has(v.id))variables.set(v.id,{...v,intervals:[{lo:null,hi:null,lc:false,hc:false}],residual:[]});}});
   const add=(expression,relation,source,bound=0,quantityConstraint=null,registryConstraint=null)=>{
     if(incomplete(expression)){pending=true;return;}
+    // Units carry a fixed positive SI basis, not a free denominator variable.
+    // Keep all scale/affine operations in the common projection before reading
+    // the scalar domain; constant subjects retain their symbolic identities.
+    try{expression=domainScalar(expression);if(bound?.kind)bound=domainScalar(bound);}
+    catch(error){unsupported.push({source,reason:error.message});return;}
     let right;try{right=boundNode(bound);}catch(error){right={tree:numberNode(0n),error:error.message};}
     if(incomplete(right.tree)){pending=true;return;}
     if(!options.skipMathData)expression=mathRuntime.constant(expression)||expression;
@@ -3718,7 +3725,7 @@ function deriveRestrictions(tree,registry=module_3.registry,options={}){
       }
     }
     const key=recordKey(expression)+'|'+relation+'|'+recordKey(right.tree)+'|'+(right.error||'');if(seen.has(key))return;seen.add(key);
-    for(const root of [expression,right.tree])walk(root,n=>{if(n.kind==='variable'){const v=variableInfo(n);if(!variables.has(v.id))variables.set(v.id,{...v,intervals:[{lo:null,hi:null,lc:false,hc:false}],residual:[]});}});
+    for(const root of [expression,right.tree])walk(root,n=>{if(component(n)){const v=variableInfo(n);if(!variables.has(v.id))variables.set(v.id,{...v,intervals:[{lo:null,hi:null,lc:false,hc:false}],residual:[]});}});
     conditions.push({expression,bound:right.tree,relation,source,quantityConstraint,registryConstraint,boundError:right.error,variables:[...new Set([...vars(expression),...vars(right.tree)])],text:format(expression)+(relation==='real'?' ∈ ℝ':relation==='integer'?' ∈ ℤ':' '+relation+' '+format(right.tree))});
     if(bound?.kind){const identity=recordKey(bound);if(!scannedBounds.has(identity)){scannedBounds.add(identity);analysisRoots.push(bound);}}
   };
@@ -3755,7 +3762,7 @@ function deriveRestrictions(tree,registry=module_3.registry,options={}){
   };
   for(let i=0;i<analysisRoots.length;i++){
     walk(analysisRoots[i],scanRules);
-    if(!options.skipMathData){const extra=mathRuntime.requirements(analysisRoots[i],{...options,registry});for(const c of extra.conditions)add(c.expression,c.relation,c.source,c.bound,null,c.registryConstraint);unsupported.push(...extra.unsupported);}
+    if(!options.skipMathData){try{const extra=mathRuntime.requirements(domainScalar(analysisRoots[i]),{...options,registry});for(const c of extra.conditions)add(c.expression,c.relation,c.source,c.bound,null,c.registryConstraint);unsupported.push(...extra.unsupported);}catch(error){unsupported.push({source:'unit-domain-projection',reason:error.message});}}
   }
   const compare=(a,b)=>{const d=a.n*b.d-b.n*a.d;return d<0n?-1:d>0n?1:0;};
   const same=(a,b)=>a===null&&b===null||a!==null&&b!==null&&compare(a,b)===0;
@@ -4647,6 +4654,16 @@ function evaluate(reference,candidate,target=chooseTarget(reference),options={})
   };
   const pair=prepare(physics);pipeline.push('tree-equivalence');
   let trees=criteria.trees(pair.left,pair.right,pair.target,pair.options),ordinary=structuredClone(trees),method='algebraic';
+  if(!trees.ok&&[pair.left,pair.right].every(tree=>!['relation','collection'].includes(unwrap(tree)?.kind))){
+    try{
+      // Compare the same fully dimensional projection on both sides. This
+      // supplies a value-expression certificate; assertions keep the existing
+      // relation proof below. Scalar agreement alone is never a certificate.
+      const expand=(tree,rows)=>module_registry_expansion.expand(tree,{representation:'expression',physicsSession:session,measurements:registry.measurements,rows});
+      const left=expand(pair.left,pair.comparisonRows),right=expand(pair.right,physics.occurrences),comparison=criteria.trees(left.tree,right.tree,pair.target,pair.options);
+      if(comparison.ok){trees={...comparison,mode:'registered-expansion',reason:'Деревья совпали после раскрытия зарегистрированных значений и единиц',ordinaryComparison:ordinary,proof:{referenceExpansions:left.expansions,candidateExpansions:right.expansions}};method='registered-expansion';pipeline.push('registered-expansion');}
+    }catch(error){trees={...trees,expansionReason:error.message};}
+  }
   const alternatives=[[...new Map([...(options.initialPhysics.decisions||[]),...choices.decisions].filter(d=>d.quantity_id).map(d=>[JSON.stringify([d.symbol,d.key]),d])).values()]];
   pipeline.push('domain');
   const domain=(tree,rows,extra={})=>C.derive(tree,registry,{...options,...extra,quantityRows:rows},deriveRestrictions);
@@ -5147,7 +5164,7 @@ function refreshMeasurementProjection(field,v){
     const result=module_registry_expansion.expand(v.tree,{representation:'blocks',measurements:field.editor.registry.measurements,physicsSession:field.physicsSession,rows,exactOnly:false}),tree=result.tree,entries=[...characters(tree)];let at=0;
     const map=entries.map(t=>{const start=at;at+=t.char.length;return {...t,start,end:at};});
     const projected=presentation(field,{...v,tree,entries,map,text:module_0.nodeText(tree),drafts:[],complete:true});
-    const label=el('span','measurement-projection-label',result.exact?'СИ: ':'СИ ≈ '),formula=el('div','numeric-projection-formula');formula.append(label,projected.dom);
+    const formula=el('div','numeric-projection-formula');if(!result.exact)formula.append(el('span','measurement-projection-label','≈ '));formula.append(projected.dom);
     surface.replaceChildren(formula);
     const values=result.expansions.filter(r=>['usage','constant'].includes(r.kind));
     if(values.length){
@@ -5244,7 +5261,12 @@ const domainDisplay=(()=>{
     const text=component.intervals.map(part=>part.lo&&part.hi&&part.lc&&part.hc&&bound(part.lo)===bound(part.hi)?'{'+bound(part.lo)+'}':(part.lc&&part.lo?'[':'(')+(bound(part.lo)??'−∞')+'; '+(bound(part.hi)??'+∞')+(part.hc&&part.hi?']':')')).join(' ∪ ');
     return text+siUnit(component)+(component.quantityConstraints?.some(c=>c.valueEvidence?.kind==='estimate')?' · u':'');
   };
-  const notation=component=>component?symbol(component)+' '+intervalText(component):'…';
+  const notation=component=>{
+    if(!component)return '…';
+    const point=component.intervals?.length===1&&component.intervals[0];
+    if(component.domain!=='∅'&&point?.lo&&point.hi&&point.lc&&point.hc&&bound(point.lo)===bound(point.hi))return symbol(component)+' = '+bound(point.lo)+siUnit(component);
+    return symbol(component)+' '+intervalText(component);
+  };
   const refresh=()=>{
     const list=restrictionsDock.dataset.domainView==='list';
     for(const field of fields){
@@ -5904,94 +5926,81 @@ return {};
 <!-- MATCHIN-48.1-FIXED-REPORT
 # Matchin — отчёт о фактическом покрытии сборки
 
-**Артефакт / версия:** [Matchin-v48.1-fixed.html](Matchin-v48.1-fixed.html), исправление 48.1 от 03.11.2026.
-**Эталон спецификации:** приложенный «Matchin v48.1 — исправление семантики констант, ОДЗ и функций» (Вставленный текст.txt, разделы 1–8); база — Matchin-v48.1-ODZ-single.html; эталон поведения — Matchin-v47.4-range-verdict.html с исключением, указанным пользователем для выделения значения коэффициента.
-**Статус:** полный кандидат в пределах текущего задания. Полное нормативное соответствие всему концепту Matchin/EDIT не заявляется: полная спецификация не предоставлена.
-**Область, согласованная до работы:** исправление значений констант, их диапазонов и финальной сверки; блочная грамматика функций; общее преобразование главного квадратного корня; автономный HTML, действующие EDIT, история и GitHub-адаптеры. Намеренных сокращений запроса нет.
+**Артефакт / версия:** [Matchin-v48.1-fixed.html](Matchin-v48.1-fixed.html), исправление выражений и отображения ОДЗ от 03.11.2026.
+**Эталон спецификации:** текущий запрос пользователя: выражение с численным значением константы должно приниматься, убрать подпись «СИ:», показывать одноточечное ОДЗ буквальным равенством. Наследуются требования приложенного «Matchin v48.1 — исправление семантики констант, ОДЗ и функций». База — опубликованный коммит 4a1eb06699def527a0dbef9b4857c971b48986dd; первоначальный эталон поведения — 47.4 с оговоркой пользователя о коэффициенте.
+**Статус:** полный кандидат в пределах текущего запроса. Полное нормативное соответствие всему EDIT не заявляется.
+**Область, согласованная до работы:** исправление сверки выражений и ОДЗ единиц, завершение зарегистрированной единицы в конце ввода, удаление префикса «СИ:», равенство вместо фигурных скобок для одного значения; проверка выражения и уравнения, публикация в том же GitHub. Намеренных сокращений нет.
 
 ## 1. Реализовано и проверено
 
 | Требование / возможность | Где реализовано | Свидетельство проверки |
 |---|---|---|
-| R1: точное значение константы приоритетнее общей категории диапазона | declarations, deriveRestrictions; отдельная идентичность субъекта ограничения valueSubject | c имеет {299792458}, отрицательная синтетическая константа не получает ошибочное положительное ОДЗ; диапазон сохраняется после повторной проекции истории |
-| R1: размерность, роль и источник доходят до финального отношения | physicsHistory.project, quantityConstraints, scalarProjection, numericProof | В диагностике сохранены выбранные записи, размерности и SI 2019; UI показывает c {299792458} м/с |
-| R2: зарегистрированная точность без floating-point epsilon | структурное раскрытие standard_uncertainty и рациональные границы | Для z=10, u=0.25 получены точно [39/4; 41/4]; равенство центру не удостоверяется как точное; неравенство по u помечается условным |
-| R3: общий рекурсивный путь чисел, приставок, единиц, констант и коэффициентов | registry_expansion.expand и новая отсоединённая scalar-проекция; SI-преобразование выполняется до удаления базисных единиц | Пройдены проверки всех 72 коэффициентных записей и 67 правых частей законов, приставок, аффинных единиц, рекурсивных ссылок, неизменности EDIT и семантического AST |
-| R4: отсутствие свидетельства не выдаётся за совпадение | scalarWitness, numericIntegrity.compare; полные компоненты и условия сохранены при смене идентичностей | E→A с одинаковой размерностью и без числового свидетельства не принимается даже при ручном подтверждении; неизвестная константа остаётся unknown |
-| R4: пустые множества и старт истории имеют явный смысл | solutionRangeMatch требует focus=set-equivalence для совпадения пустых множеств; финальная проверка утверждений использует другой фокус | 1=2 и c=2 м/с не начинают историю; отдельная проверка эквивалентности двух пустых множеств допускается |
-| R5: sqrt — функция; √ — унарный оператор | extendNames, зарегистрированные callRequired-имена, existing variable.call / argument_list / semantic tree projection | Вставка, посимвольный и нативный ввод, соседство с множителями, переименование, undo/redo; имя sqrt без аргументов — незавершённая функция и отсутствует в физических переменных |
-| R6: общее правило корня с доказанными условиями | правила EQ-SQRT-R / EQ-SQRT-L в данных существующего mathRuntime, guards real/nonnegative | sqrt(E/m)=c → E=mc² и вариант √ проходят; sqrt(x)=2 → x=4 проходит; отрицательная и недоказанная знаковая ветвь отклоняются |
-| R6: вставка надстрочного Unicode ² | зарегистрированный scalar.power использует существующие БИНОД, целый слот и EDIT | Проверена прямая вставка Unicode ²: mc², c², (x+1)², x⁻², x¹². Латинский ввод mc^2 уже был поддержан исходником; его математическое отображение mc² не было ошибкой. Подмены строки при математической сверке нет |
-| R7: x/x→1 сохраняет x≠0 | прежний механизм накопления ОДЗ, без удаления исчезнувших компонентов | Условие x≠0 остаётся в финальных множествах и истории; m>0 сохраняется после устранения знаменателя |
-| R8: автономность и сохранение редактора | встроенные CSS/JS; исходные модули 0–8 и inherited_editor сохранены побайтно | Синтаксис JS; нативная клавиатура; история; экран 1440×1000 и 390×844; единственные внешние хосты исполняемого скрипта — GitHub |
-| R9: новые константы добавляются данными | неизменный buildCatalogue и общий интерпретатор | Новый C901 с числом 17 добавлен в JSON и загружен полным адаптером; также проверены 7/3, рекурсивная ссылка, отсутствие значения и приближённая запись |
+| F1: c → 299792458 м / 1 с как выражение | evaluate: existing registry_expansion.expand для обеих сторон с размерностью, затем прежний Algebra/treeMatch | Прямой и обратный переходы, м/с, км/с, 2*c, c² и c/m — PASS |
+| F2: зарегистрированные единицы не становятся свободными переменными ОДЗ | deriveRestrictions: общий scalar-проектор для условий и требований math_data; фиксированные единицы исключены из списка переменных | У единицы с отсутствует ложное свободное условие «с≠0»; численный нулевой знаменатель всё ещё отклоняется |
+| F3: введённая единица с завершает выражение немедленно | Существующая реестровая политика nameRecognition.deferAmbiguousExact=false; продолжения проходят через прежний measurement.unit.continue | Нативный ввод и запись в историю без Enter и потери фокуса; с→см, м→мм/мс/мкм; незавершённая приставка «к» остаётся черновиком |
+| F4: убрать технический префикс СИ | refreshMeasurementProjection | Нет видимого «СИ:» и отдельной подписи у точного значения. Для приближённого значения сохраняется математический знак ≈ |
+| F5: одноточечное ОДЗ показывается равенством | domainDisplay.notation | Текущее и исходное ОДЗ: c = 299792458 м/с. Внутренняя структура множества и точность не меняются |
+| F6: не ослабить отказы | прежние критерии размерности, числовой целостности и ОДЗ | c→2 м/с, потеря размерности, неверная размерность, нулевой и отрицательный знаменатели — отклонены |
+| F7: сохранить уравнение | Прежний путь сравнения утверждений; новая размерностная проекция деревьев применяется к значениям-выражениям | c=зарегистрированное значение, ложные равенства, sqrt(E/m)=c → E=mc², нативная история уравнения — PASS |
+| F8: сохранить архитектуру | Используются прежние EDIT, блочная грамматика, registry_expansion, Algebra и mathRuntime | Неизменность модулей 0–8 проверена сравнением с базой; тест неизменности канонического AST проходит; новых парсеров, типов блоков и внешних источников нет |
 
 ## 2. Реализовано частично или без проверки
 
 | Требование / возможность | Что именно работает | Что отсутствует / не проверено |
 |---|---|---|
-| Точные символические значения | Выражения с π и зарегистрированные структурные коэффициенты сохраняются символически; существующая проверка ℏ=h/(2π) проходит | Новая численная аппроксимация трансцендентных значений не добавлена. Если существующая нормализация не доказывает сравнение, сохраняется unknown |
-| Все события и слоты EDIT | Прежние 15 базовых и 4 добавочных типа блоков сохранены; изменены надстройки имён/целой надстрочной степени | Это не полный перебор семантики всех 19 типов, всех слотов, событий, IME, вариантов выбора и способов удаления |
-| Реестры GitHub | В браузере исполнен настоящий загрузчик с локальными ответами JSON; отдельно прочитаны 10 настоящих JSON закреплённой ревизии ccc6a06919798a77bf12f3acb2aca9958763e791, HTTP 200 и SHA-256 сохранены | Живое разрешение подвижной ветки main через api.github.com в этой среде не выполнялось. Для него в браузерном стенде использован синтетический SHA |
-| Другие браузеры | Chromium 154.0.8037.57, настольный и узкий viewport | Safari/iOS, Firefox, Android и физические сенсорные устройства не проверены |
+| Полнота EDIT | Сохранены 19 типов из 19 в исходной сборке, прежние API и события | Не перебраны все слоты, все события и все способы редактирования; общей нормативной спецификации EDIT нет |
+| ОДЗ произвольных составных выражений | Прежний интервальный и предикатный механизм, с исправленной проекцией единиц | Универсальное решение любых связанных нелинейных систем не добавлялось; неизвестные случаи сохраняют отказ/unknown |
+| Платформы | Chromium 154.0.8037.57, viewport 1440×1000 и 390×844, реальные DOM/клавиатура/история | Safari/iOS, Firefox и физические мобильные устройства не проверены |
+| Публикация сайта | Обновлён автономный HTML и ссылка в README; прежний index.html продолжает вести на тот же файл | Настройка GitHub Pages этой правкой не менялась |
 
 ## 3. Не реализовано
 
-Намеренно исключённых требований текущего задания нет. Новый универсальный решатель произвольных связанных нелинейных систем не создавался: используются действующие Algebra, mathRuntime и механизм диапазонов. Неизвестные и выходящие за их пределы случаи не получают автоматического успешного вердикта.
+Намеренно исключённых требований текущего запроса нет. Полный новый решатель и новый редактор не создавались: это исправление общей проекции и отображения в существующей сборке. Смысл точности экспериментальных констант и символические выражения с π сохранены.
 
 ## 4. Намеренные ограничения прототипа
 
-- Сокращений текущего запроса нет; область и отсутствие полной нормативной спецификации EDIT объявлены до изменения кода.
-- Реестр блоков: сохранены 19 из 19 типов исходной 48.1 (15 базовых и 4 добавочных). Наличие типа не подменяет проверку всех его ветвей.
-- Публичные API сохранены; добавлена Matchin.expansion.scalar. INSERT, REPLACE, FOCUS, UNDO, REDO и нативный ввод участвовали в проверке. Полный перебор остальных событий не заявляется.
-- Стандартная неопределённость u — зарегистрированное свидетельство точности, а не гарантированная граница истинного значения. Интервал v±u явно помечен; зависящие от него закрытые сравнения условны, точное равенство округлённому центру не удостоверяется.
-- Канонический AST и исходная лента не изменяются ради численных подстановок. Нового парсера или решателя в исправлении нет; старый HTML остаётся самостоятельным приложением с единственными внешними обращениями к реестрам GitHub.
+- Сужения текущего запроса нет. До изменения кода объявлены база, область правки и отсутствие полного аудита EDIT.
+- Сохранены 19 из 19 зарегистрированных типов блоков; наличие типов не означает проверки всех их ветвей.
+- API и маршрут EDIT сохранены; используются INSERT, REPLACE, FOCUS, UNDO/REDO, нативный beforeinput и существующие правила зарегистрированных единиц. Новых способов мутации ленты нет.
+- Латинские переменные не преобразуются в кириллические единицы. Опознание единицы основано на зарегистрированном написании, а не на замене алфавита.
+- Внутреннее одноточечное множество остаётся множеством; равенство добавлено только в его пользовательское представление. Источник, размерность и точность константы сохраняются.
+- Стандартная неопределённость u не объявляется гарантированной границей истинного значения; прежние условные проверки по зарегистрированной точности сохраняются.
 
 ## 5. Тесты
 
-**Итог исполненных браузерных сценариев: 148 PASS, 0 FAIL.** Это 77 существующих сценариев v48, 68 сценариев исправления и 3 нативных UI-проверки. В каждом запуске browserErrors=[]; это не утверждение о полном тестовом покрытии Matchin.
+**172 PASS, 0 FAIL:** 89 сценариев исправлений (68 прежних и 21 новый), 77 существующих сценариев v48, 3 нативных сценария выражения и 3 нативных сценария уравнения. Ошибки JavaScript: 0. Это число исполненных сценариев, не процент покрытия всего Matchin.
 
-Подробные диагностические пути и исходники стенда (JSON в gzip): [Matchin-v48.1-tests.json.gz](Matchin-v48.1-tests.json.gz). Для обязательных сценариев журнал содержит исходный AST, выбранные физические роли, раскрытые коэффициенты, размерности, допустимые множества, финальный вердикт и его причины. Хеш итогового HTML и хеши десяти JSON фиксируются в журнале.
-
-Команды выполненного стенда:
+Полная диагностика: [JSON.gz](Matchin-v48.1-tests.json.gz). Сводка и хеши: [publication-v48.1.json](tests/publication-v48.1.json). [Снимок мобильного вида](tests/expression-mobile-v48.1.png).
 
 ```text
-python work/run_browser.py <HTML> work/regression.js --out work/regression-results.json
-python work/run_browser.py <HTML> /workspace/Packages/Matchin/tests/scenarios.js --out work/v48-regression-results.json
-python work/ui_smoke.py
-python work/live_registry.py
-node --check work/matchin-script.js
+python Matchin/tests/verify-v48.1.py --suite fixes --out work/expression-fixes-results.json
+python Matchin/tests/verify-v48.1.py --suite existing --out work/expression-existing-results.json
+python work/expression_ui_smoke.py <HTML>
+python work/ui_smoke.py <HTML>
+node --check work/expression-script.js
 ```
 
-Стенд использует настоящий Chromium/DOM/EDIT, локальный HTTP-сервер и JSON из checkout Packages, ревизия ccc6a06919798a77bf12f3acb2aca9958763e791. GitHub-ответы в браузерной регрессии подменены локальными файлами; отдельные сетевые чтения этого не скрывают.
+Стенд: настоящий Chromium и исполняемый HTML. Ответы GitHub в браузерной регрессии подменены JSON текущего checkout; это не живая проверка GitHub Pages. В журнале отдельно отмечены SHA-256 проверенного HTML и его исполняемого скрипта. После тестов обновлён только неисполняемый встроенный отчёт; идентичность скрипта проверена.
 
 | Тест / сценарий | Статус PASS/FAIL/NOT RUN/BLOCKED | Свидетельство / причина |
 |---|---|---|
-| c = 299792458 м/с | PASS | Принято; точный SI-коэффициент и singleton |
-| c = 2 м/с | PASS | Отклонено; также проверен реальный старт истории |
-| c = 299792,458 км/с | PASS | Принято с точным раскрытием приставки |
-| c = 300000000 м/с | PASS | Отклонено как точное равенство |
-| sqrt(E/m)=c → E=mc² | PASS | Принято через math_data, с сохранением m>0 и E/m≥0 |
-| sqrt(E/m)=-c | PASS | Отклонено; ручное подтверждение не обходит отказ |
-| sqrt(E/m) — функция | PASS | Вставка, посимвольный и нативный ввод; sqrt отсутствует среди физических переменных |
-| x/x → 1 | PASS | x≠0 сохранено |
-| Неизвестная константа без значения | PASS | Численное свидетельство не создано; закрытое равенство получает unknown |
-| Существующая регрессия v48 | PASS | 77 именованных сценариев, журнал existingV48 |
-| Дополнительная регрессия исправления | PASS | 68 именованных сценариев, журнал fixes |
-| Нативный ввод, история и мобильный viewport | PASS | 3 сценария, журнал nativeUI; изображения проверены визуально |
-| Синтаксис итогового JS | PASS | node --check |
-| Реальные чтения GitHub JSON | PASS | 10×HTTP 200, закреплённая ревизия; журнал liveRegistry |
-| Полный аудит всего EDIT по нормативной спецификации | NOT RUN | Нормативная спецификация всего EDIT не приложена |
-| Все браузеры, IME, физические мобильные устройства | NOT RUN | Проверены Chromium и два viewport |
-
-Дополнение к публикации: формулировка о том, что латинская запись mc² ранее отклонялась, была слишком общей. В исходной 48.1 латинское E=mc^2 поддержано. Отдельная добавленная ветвь касается прямой вставки символа Unicode ² в низкоуровневый EDIT; это не исправление смешения латиницы с кириллическими единицами. Повторная проверка исходного файла сохранена в tests/latin-input-v48.1-original.json.
+| Выражение c ↔ 299792458 м/1 с, вариант км/с | PASS | fixes: именованные сценарии выражений, source AST / роли / размерности / ОДЗ / вердикт |
+| Нативная вставка в активное поле, без Enter | PASS | nativeExpression: принято, две записи истории, все четыре критерия успешны |
+| Конечная с и продолжения см, мм, мс, мкм | PASS | fixes: отдельные проверки завершённости, численного коэффициента и черновика приставки |
+| Неверное число, размерность, нулевой знаменатель | PASS | fixes: отказы сохранены |
+| Префикс СИ удалён, одноточечное ОДЗ через = | PASS | fixes: реальные элементы DOM; nativeExpression: мобильный вид и визуальный просмотр |
+| Уравнение и преобразование корня | PASS | fixes и nativeEquation |
+| Существующие сценарии v48 | PASS | existingV48: 77 PASS |
+| Синтаксис JS и неизменность модулей EDIT | PASS | node --check; статическое сравнение с 4a1eb06 |
+| Полный аудит EDIT по нормативной спецификации | NOT RUN | Полная спецификация не предоставлена |
+| Другие браузеры и физические сенсорные устройства | NOT RUN | Выполнены проверки в Chromium и двух viewport |
 
 ## 6. Итог и следующий проверяемый шаг
 
-- Подтверждено: обязательные девять сценариев, точное значение/роль/размерность/источник c, общий рекурсивный коэффициентный путь, обоснованное преобразование корня, отказ ложным начальным утверждениям и сохранение условий истории.
-- Не подтверждено: универсальное решение любых связанных систем, полный нормативный аудит EDIT и все платформы.
-- Известных дефектов изменённой логики в выполненных сценариях не выявлено; математические пределы и статистический смысл u раскрыты выше.
-- Следующий проверяемый шаг: открыть автономный HTML в пользовательском браузере с доступом к GitHub и повторить обязательные сценарии на актуальной ветке реестров. Дополнительная сборка или внешняя запись для этого не требуется.
+- Подтверждено: выражение принимается в активном поле и сохраняется в истории, уравнение продолжает проходить, нет подписи «СИ:», одноточечное ОДЗ показывает равенство со значением.
+- Не подтверждено: универсальность всех маршрутов EDIT, произвольных связанных систем и всех платформ.
+- Известных дефектов изменённой логики в перечисленных сценариях не выявлено; границы проверки указаны выше.
+- Следующий проверяемый шаг: открыть обновлённую сборку и повторить ввод c → 299792458 м/1 с; при уже открытой старой вкладке обновить страницу.
 
 -->
 </body>

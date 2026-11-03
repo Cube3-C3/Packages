@@ -41,6 +41,26 @@ async () => {
     return diagnostic;
   };
   const roles={E:'energy',m:'mass',c:'speed_of_light'};
+  for(const [a,b,expected] of [
+    ['c','299792458 м/1 с',true],['c','299792458 м/с',true],['c','299792,458 км/с',true],
+    ['299792458 м/1 с','c',true],['299792,458 км/с','c',true],
+    ['2*c','599584916 м/1 с',true],['c^2','(299792458 м/1 с)^2',true],
+    ['c/m','(299792458 м/1 с)/m',true],
+    ['c','2 м/1 с',false],['c','299792458',false],['c','299792458 м',false],
+    ['c','299792458 м/0 с',false],['c','299792458 м/(-1 с)',false]
+  ])test('Выражение с зарегистрированным значением: '+a+' → '+b,()=>check(a,b,expected,{roles}));
+  test('Единица с завершает выражение без выхода из поля',()=>{
+    const e=new M.Editor();for(const char of '299792458 м/1 с')e.dispatch({type:'INSERT',position:e.view().text.length,text:char});
+    const v=e.view();assert(v.complete&&v.text==='299792458 м/1 с');assert(![...M.walk(v.tree)].some(n=>n.kind==='measurement_draft'));return {text:v.text,complete:v.complete,ast:v.expressionTree};
+  });
+  for(const [text,expected] of [['1 см','0,01'],['1 мм','0,001'],['1 мс','0,001'],['1 мкм','0,000001']])test('Продолжение распознанной единицы: '+text,()=>{
+    const e=new M.Editor();for(const char of text)e.dispatch({type:'INSERT',position:e.view().text.length,text:char});const v=e.view();
+    assert(v.complete&&v.text===text);const value=M.units.normalized(v.tree,R.measurements);assert(value?.value===expected,JSON.stringify(value));return value;
+  });
+  test('Незавершённая приставка остаётся черновиком',()=>{
+    const e=new M.Editor();for(const char of '1 к')e.dispatch({type:'INSERT',position:e.view().text.length,text:char});assert(!e.view().complete);
+    e.dispatch({type:'INSERT',position:e.view().text.length,text:'м'});assert(e.view().complete);assert(M.units.normalized(e.view().tree,R.measurements).value==='1000');return {text:e.view().text,complete:e.view().complete};
+  });
   for(const [text,expected] of [
     ['c=299792458 м/с',true],['c=2 м/с',false],['c=299792,458 км/с',true],['c=300000000 м/с',false],
     ['c=2 м/1 с',false],['c>2 м/с',true],['c<2 м/с',false],['c≠2 м/с',true],
@@ -173,12 +193,23 @@ async () => {
     const f=uiField();set(f,'c=299792458 м/с');
     const c=f.componentRestrictions.components.find(c=>c.symbol==='c');assert(c.domain==='{299792458}',JSON.stringify(c));
     if(document.querySelector('.restrictions-dock')?.dataset.domainView!=='list')document.querySelector('.domain-toggle').click();
-    const row=[...f.physicsRows.children].find(r=>r.dataset.physicsSymbol==='c');assert(row.domainView.now.textContent==='c {299792458} м/с',row.domainView.now.textContent);
+    const row=[...f.physicsRows.children].find(r=>r.dataset.physicsSymbol==='c');assert(row.domainView.now.textContent==='c = 299792458 м/с',row.domainView.now.textContent);
     assert(!row.domainView.now.hidden&&getComputedStyle(row.domainView.box).display!=='none');assert(row.domainView.now.title.includes('SI 2019'));
     const out={text:row.domainView.now.textContent,title:row.domainView.now.title,domain:c};f.destroy();return out;
   });
   test('UI: начальная каретка отвергает c=2 м/с',()=>{
     const f=uiField();set(f,'c=2 м/с');const started=f.startTransformationHistory();assert(!started&&!f.transformationHistory);const out={started,text:f.editor.view().text};f.destroy();return out;
+  });
+  test('UI: выражение c заменяется значением и сохраняет равенство в ОДЗ',()=>{
+    const f=uiField();set(f,'c');assert(f.startTransformationHistory(),'История выражения не началась');set(f,'299792458 м/1 с');
+    const result=f.transformationHistory.lastResult;assert(result.accepted,JSON.stringify(result.factors.map(f=>[f.id,f.reason])));assert(f.transformationHistory.entries.length===2);
+    const row=[...f.physicsRows.children].find(r=>r.dataset.physicsSymbol==='c');assert(row.domainView.now.textContent==='c = 299792458 м/с');assert(row.domainView.before.textContent==='c = 299792458 м/с');
+    assert(!f.measurementProjection.textContent.includes('СИ:'));assert(!f.measurementProjection.querySelector('.measurement-projection-label'));
+    const out={entries:f.transformationHistory.entries.length,domainText:row.domainView.now.textContent,projection:f.measurementProjection.textContent,method:result.method};f.destroy();return out;
+  });
+  test('UI: точное раскрытие c не имеет технической подписи СИ',()=>{
+    const f=uiField();set(f,'c');assert(!f.measurementProjection.hidden);assert(!f.measurementProjection.textContent.includes('СИ:'));assert(!f.measurementProjection.querySelector('.measurement-projection-label'));
+    const out={text:f.measurementProjection.textContent,labels:f.measurementProjection.querySelectorAll('.measurement-projection-label').length};f.destroy();return out;
   });
   test('UI: история принимает корень, сохраняет ограничения и undo/redo',()=>{
     const f=uiField();set(f,'sqrt(E/m)=c');assert(f.startTransformationHistory(),'История корня не началась');

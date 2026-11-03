@@ -1,113 +1,56 @@
 {
   "repository": "Cube3-C3/Packages",
+  "baseCommit": "4a1eb06699def527a0dbef9b4857c971b48986dd",
   "artifact": "Matchin/Matchin-v48.1-fixed.html",
-  "artifactSHA256": "12c52a2d3661f3b89a53165991c736945c57587136497a826290f77a6ad0d49a",
-  "executableScriptSHA256": "2d82ec2e28282f047398522138c26a535ed1561826a1758c07f601d2db994277",
-  "testedBrowserCounts": {
+  "artifactSHA256": "a3ff03f13c9ad52c78424a55afa8643bd3c2a8e654be87eb3cd8e79734bec826",
+  "testedArtifactSHA256": "f51ab0a3f2c411175c2440c987eab2a849d8041944f8e09492d223d3dd5f1222",
+  "executableScriptSHA256": "f9788919d01a99dcc3d68315f577b3f396eeddbe103196a76e7b6d1e67db0e99",
+  "reportOnlyChangeAfterTests": true,
+  "totalBrowserCounts": {
+    "PASS": 172,
+    "FAIL": 0
+  },
+  "suiteCounts": {
     "fixes": {
-      "PASS": 68,
+      "PASS": 89,
       "FAIL": 0
     },
-    "existing": {
+    "existingV48": {
       "PASS": 77,
       "FAIL": 0
     },
-    "nativeUI": {
+    "nativeExpression": {
+      "PASS": 3,
+      "FAIL": 0
+    },
+    "nativeEquation": {
       "PASS": 3,
       "FAIL": 0
     }
   },
-  "totalBrowserCounts": {
-    "PASS": 148,
-    "FAIL": 0
-  },
   "browserErrors": [],
-  "publicationChanges": "Only embedded report links and wording were corrected. The executable script is byte-for-byte identical to the previous tested artifact.",
-  "latinCorrection": "The original v48.1 accepts Latin E=mc^2. The earlier statement that mc² was rejected was too broad: a low-level literal Unicode ² insertion was tested separately; ordinary Latin power input was already supported.",
-  "pages": {
-    "enabledAtPreparation": false,
-    "entryPoint": "index.html",
-    "activation": "Settings > Pages > Deploy from a branch > main > /(root)"
+  "coreModulesUnchanged": {
+    "module_0": true,
+    "module_1": true,
+    "module_2": true,
+    "module_3": true,
+    "module_4": true,
+    "module_5": true,
+    "module_6": true,
+    "module_7": true,
+    "module_8": true,
+    "module_inherited_editor": true
   },
   "fullDiagnostics": "../Matchin-v48.1-tests.json.gz",
-  "liveRegistry": {
-    "revision": "ccc6a06919798a77bf12f3acb2aca9958763e791",
-    "reads": [
-      {
-        "file": "Fis_data/physi_quant.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "f338ca87e07188f5a02dfe98fffb930b81b802e2cff9482194583514efcaeb61",
-        "version": "0.14"
-      },
-      {
-        "file": "Fis_data/usages.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "91c560fea3ec4f1c676a4d57cd4ddcccbf78f97dd16625d03fff03bcaa88acd2",
-        "version": "0.4"
-      },
-      {
-        "file": "Fis_data/units.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "1b505e2fa408a137d0dc9f45380c125bda8617db198d6e6d18a68428d6d15318",
-        "version": "0.20"
-      },
-      {
-        "file": "Fis_data/domains.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "30d683ee5cdbf5f90ebd1a53a0d88e11847b104207c64900b0a0a884fa7cb566",
-        "version": "0.3"
-      },
-      {
-        "file": "Fis_data/quantity_constraints.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "3b1483acc50d68c28472cc0d6741eb9ced4667b0092696a62440321292f589bc",
-        "version": "0.1"
-      },
-      {
-        "file": "Fis_data/physi_coefficients.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "34e51716ea49698d199a7ef5e7b8c398a88e7bc90aea0b085b38416b8f88453c",
-        "version": null
-      },
-      {
-        "file": "Fis_data/physi_formulas.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "ab3ff688f02e7526ebcacf7f6a59c59c01e6c0d5bd0f97727cca719d7577a3ea",
-        "version": null
-      },
-      {
-        "file": "Fis_data/AST.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "551e50d72df612406f09af39d4f0004d602da9b17d966dc0bd32b148a9851ee1",
-        "version": null
-      },
-      {
-        "file": "math_data/constraints.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "f1f8fcb44b4afa18b59db79171879b3fccccab0b2a1d719ba9d929e0475f0e9f",
-        "version": "0.1.0"
-      },
-      {
-        "file": "math_data/transformations.json",
-        "status": "PASS",
-        "http": 200,
-        "sha256": "8ffb582d31f031a0d0131852084af5c7749aee3d0ae1ea54a26eb2fce7b644a0",
-        "version": "0.1.0"
-      }
-    ]
-  },
-  "limits": [
-    "No full normative EDIT audit.",
-    "Browser GitHub responses in regression are checkout fixtures; live JSON reads are recorded separately.",
-    "GitHub Pages is not enabled by uploading source files."
+  "changes": [
+    "Registered constants compare as fully dimensional value expressions.",
+    "Registered unit basis is fixed in domain projection.",
+    "A registered final unit completes input immediately while prefix continuations remain available.",
+    "No visible SI prefix; singleton domains render as equality."
+  ],
+  "limitations": [
+    "Full normative EDIT audit not run.",
+    "Only Chromium and two viewport sizes verified.",
+    "GitHub Pages configuration unchanged."
   ]
 }
