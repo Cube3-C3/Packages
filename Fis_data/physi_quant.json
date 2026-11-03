@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "0.13",
+    "version": "0.14",
     "description": "Хаб физических величин + математических констант. Имена и символы — в usages.json. Величина несёт dimension, math_kind, invariance. math_kind и invariance — [en, ru] (language_order). math_kind[0] ∈ {scalar, vector, pseudovector, complex} для математической валидации AST. category удалён (v0.12).",
     "created": "2026-08-13",
     "language_order": [
@@ -8,7 +8,7 @@
       "ru"
     ],
     "grouping": "type → status",
-    "notes": "v0.12: category удалён; math_kind и invariance стали двуязычными массивами [en, ru]. Физическая валидация — через dimension; математическая совместимость операций — через math_kind[0] + math_ops.json. | v0.13: integrated Q042–Q044, C008 from physi_quant_additions.json"
+    "notes": "v0.12: category удалён; math_kind и invariance стали двуязычными массивами [en, ru]. Физическая валидация — через dimension; математическая совместимость операций — через math_kind[0] + math_ops.json. | v0.13: integrated Q042–Q044, C008 from physi_quant_additions.json | v0.14: coefficient_value — структурное числовое выражение в СИ, точность, источник и стандартная неопределённость; точное R без усечения."
   },
   "quantities": {
     "физическая величина": {
@@ -606,7 +606,38 @@
           "math_kind": [
             "scalar",
             "скаляр"
-          ]
+          ],
+          "coefficient_value": {
+            "expression": [
+              "*",
+              [
+                "decimal",
+                "2.99792458"
+              ],
+              [
+                "^",
+                [
+                  "integer",
+                  "10"
+                ],
+                [
+                  "integer",
+                  "8"
+                ]
+              ]
+            ],
+            "unit_system": "SI",
+            "exact": true,
+            "standard_uncertainty": {
+              "mantissa": "0",
+              "exponent": "8",
+              "unit_system": "SI"
+            },
+            "source": {
+              "edition": "SI 2019",
+              "url": "https://www.bipm.org/en/measurement-units/si-defining-constants"
+            }
+          }
         },
         {
           "id": "C002",
@@ -627,7 +658,38 @@
           "math_kind": [
             "scalar",
             "скаляр"
-          ]
+          ],
+          "coefficient_value": {
+            "expression": [
+              "*",
+              [
+                "decimal",
+                "6.62607015"
+              ],
+              [
+                "^",
+                [
+                  "integer",
+                  "10"
+                ],
+                [
+                  "integer",
+                  "-34"
+                ]
+              ]
+            ],
+            "unit_system": "SI",
+            "exact": true,
+            "standard_uncertainty": {
+              "mantissa": "0",
+              "exponent": "-34",
+              "unit_system": "SI"
+            },
+            "source": {
+              "edition": "SI 2019",
+              "url": "https://www.bipm.org/en/measurement-units/si-defining-constants"
+            }
+          }
         },
         {
           "id": "C003",
@@ -649,7 +711,38 @@
           "math_kind": [
             "scalar",
             "скаляр"
-          ]
+          ],
+          "coefficient_value": {
+            "expression": [
+              "*",
+              [
+                "decimal",
+                "6.67430"
+              ],
+              [
+                "^",
+                [
+                  "integer",
+                  "10"
+                ],
+                [
+                  "integer",
+                  "-11"
+                ]
+              ]
+            ],
+            "unit_system": "SI",
+            "exact": false,
+            "standard_uncertainty": {
+              "mantissa": "0.00015",
+              "exponent": "-11",
+              "unit_system": "SI"
+            },
+            "source": {
+              "edition": "CODATA 2022",
+              "url": "https://physics.nist.gov/cuu/Constants/"
+            }
+          }
         },
         {
           "id": "C004",
@@ -663,14 +756,31 @@
             "инвариантна"
           ],
           "notes": "Уравнение Менделеева-Клапейрона",
-          "value": 8.314462618,
+          "value": 8.31446261815324,
           "value_unit": "J·mol⁻¹·K⁻¹",
           "exact": true,
-          "notes_value": "Точное значение (SI с 2019)",
+          "notes_value": "Точное R = N_A k_B = 8.31446261815324 Дж/(моль·К), SI с 2019",
           "math_kind": [
             "scalar",
             "скаляр"
-          ]
+          ],
+          "coefficient_value": {
+            "expression": [
+              "decimal",
+              "8.31446261815324"
+            ],
+            "unit_system": "SI",
+            "exact": true,
+            "standard_uncertainty": {
+              "mantissa": "0",
+              "exponent": "0",
+              "unit_system": "SI"
+            },
+            "source": {
+              "edition": "SI 2019; R = N_A k_B",
+              "url": "https://www.bipm.org/en/measurement-units/si-defining-constants"
+            }
+          }
         },
         {
           "id": "C005",
@@ -691,7 +801,38 @@
           "math_kind": [
             "scalar",
             "скаляр"
-          ]
+          ],
+          "coefficient_value": {
+            "expression": [
+              "*",
+              [
+                "decimal",
+                "1.380649"
+              ],
+              [
+                "^",
+                [
+                  "integer",
+                  "10"
+                ],
+                [
+                  "integer",
+                  "-23"
+                ]
+              ]
+            ],
+            "unit_system": "SI",
+            "exact": true,
+            "standard_uncertainty": {
+              "mantissa": "0",
+              "exponent": "-23",
+              "unit_system": "SI"
+            },
+            "source": {
+              "edition": "SI 2019",
+              "url": "https://www.bipm.org/en/measurement-units/si-defining-constants"
+            }
+          }
         },
         {
           "id": "C006",
@@ -712,7 +853,38 @@
           "math_kind": [
             "scalar",
             "скаляр"
-          ]
+          ],
+          "coefficient_value": {
+            "expression": [
+              "*",
+              [
+                "decimal",
+                "8.8541878128"
+              ],
+              [
+                "^",
+                [
+                  "integer",
+                  "10"
+                ],
+                [
+                  "integer",
+                  "-12"
+                ]
+              ]
+            ],
+            "unit_system": "SI",
+            "exact": false,
+            "standard_uncertainty": {
+              "mantissa": "0.0000000013",
+              "exponent": "-12",
+              "unit_system": "SI"
+            },
+            "source": {
+              "edition": "CODATA 2018",
+              "url": "https://physics.nist.gov/cuu/Constants/"
+            }
+          }
         },
         {
           "id": "C007",
@@ -733,7 +905,38 @@
           "math_kind": [
             "scalar",
             "скаляр"
-          ]
+          ],
+          "coefficient_value": {
+            "expression": [
+              "*",
+              [
+                "decimal",
+                "1.25663706212"
+              ],
+              [
+                "^",
+                [
+                  "integer",
+                  "10"
+                ],
+                [
+                  "integer",
+                  "-6"
+                ]
+              ]
+            ],
+            "unit_system": "SI",
+            "exact": false,
+            "standard_uncertainty": {
+              "mantissa": "0.00000000019",
+              "exponent": "-6",
+              "unit_system": "SI"
+            },
+            "source": {
+              "edition": "CODATA 2018",
+              "url": "https://physics.nist.gov/cuu/Constants/"
+            }
+          }
         },
         {
           "id": "C008",
@@ -754,7 +957,38 @@
           "math_kind": [
             "scalar",
             "скаляр"
-          ]
+          ],
+          "coefficient_value": {
+            "expression": [
+              "*",
+              [
+                "decimal",
+                "1.602176634"
+              ],
+              [
+                "^",
+                [
+                  "integer",
+                  "10"
+                ],
+                [
+                  "integer",
+                  "-19"
+                ]
+              ]
+            ],
+            "unit_system": "SI",
+            "exact": true,
+            "standard_uncertainty": {
+              "mantissa": "0",
+              "exponent": "-19",
+              "unit_system": "SI"
+            },
+            "source": {
+              "edition": "SI 2019",
+              "url": "https://www.bipm.org/en/measurement-units/si-defining-constants"
+            }
+          }
         }
       ]
     },

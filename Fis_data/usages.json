@@ -1,13 +1,13 @@
 {
   "meta": {
-    "version": "0.3",
+    "version": "0.4",
     "description": "Контекстные употребления обозначений. Группировка по quantity_id (как в старом symbols.json). name_id — стабильный ключ употребления. Имена и символы живут здесь; domains[] + role дают контекст.",
     "created": "2026-08-13",
     "language_order": [
       "en",
       "ru"
     ],
-    "notes": "Перестроен на группировку по id величины. symbols.json удалён."
+    "notes": "Перестроен на группировку по id величины. symbols.json удалён. | v0.4: числовое выражение употребления переопределяет величину; ℏ = h/(2π), не h."
   },
   "usages": {
     "Q001": [
@@ -234,7 +234,7 @@
         ],
         "role": "coordinate",
         "notes": "Координата"
-      },      
+      },
       {
         "name_id": "S009",
         "symbol": "s",
@@ -304,7 +304,7 @@
         ],
         "role": "distance",
         "notes": "Расстояние"
-      },     
+      },
       {
         "name_id": "S025",
         "symbol": "A",
@@ -1076,7 +1076,34 @@
           "quantum_mechanics"
         ],
         "role": "reduced_planck",
-        "notes": "h-bar"
+        "notes": "h-bar",
+        "coefficient_value": {
+          "expression": [
+            "/",
+            [
+              "ref",
+              "constant",
+              "C002"
+            ],
+            [
+              "*",
+              [
+                "integer",
+                "2"
+              ],
+              [
+                "symbol",
+                "pi"
+              ]
+            ]
+          ],
+          "unit_system": "SI",
+          "exact": true,
+          "source": {
+            "edition": "SI 2019; ℏ = h/(2π)",
+            "url": "https://physics.nist.gov/cgi-bin/cuu/Value?hbar"
+          }
+        }
       }
     ],
     "C003": [
@@ -1257,7 +1284,7 @@
         "role": "euler_mascheroni",
         "notes": "Постоянная Эйлера-Маскерони"
       }
-    ],   
+    ],
     "M009": [
       {
         "name_id": "S097",

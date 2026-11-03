@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "id": "physi_coefficients",
   "description": "Компактный обратный индекс безразмерных коэффициентных выражений формул fis_data. Включает полный множитель, например (2*k+1)/2, а не только числовую часть. Не является новым реестром физических законов.",
   "source": {
@@ -18,7 +18,8 @@
     "normalization": "Размерностные множители не включаются в ключ; безразмерные параметры и функции включаются целиком. Суммы размерных слагаемых не раскладываются на отдельные коэффициенты.",
     "mathematical_constants": "M009 (2π) нормализуется как 2*pi без десятичного приближения.",
     "equation_notice": "Для явно записанных EQ сохраняется отношение lhs/rhs=1 как утверждение закона, а не как автоматическое сокращение независимых физических сущностей.",
-    "not_covered": "Доказательство физической эквивалентности разных законов, ОДЗ и зависимости коэффициентов от контекста выполняет Matchin, а не этот индекс."
+    "not_covered": "Доказательство физической эквивалентности разных законов, ОДЗ и зависимости коэффициентов от контекста выполняет Matchin, а не этот индекс.",
+    "expressions": "Структурное выражение каждого ключа. Раскрывается тем же интерпретатором, что приставки и coefficient_value констант. parameter требует связывания; symbol pi сохраняется точно. Строка ключа не разбирается при выполнении."
   },
   "entries_count": 72,
   "coefficients": {
@@ -126,6 +127,10 @@
         "P022#rhs",
         "P031#rhs",
         "P032#rhs"
+      ],
+      "expression": [
+        "integer",
+        "1"
       ]
     },
     "2": {
@@ -134,6 +139,10 @@
       ],
       "denominators": [
         "P230#expr"
+      ],
+      "expression": [
+        "integer",
+        "2"
       ]
     },
     "-1": {
@@ -142,6 +151,13 @@
       ],
       "denominators": [
         "P242#expr"
+      ],
+      "expression": [
+        "neg",
+        [
+          "integer",
+          "1"
+        ]
       ]
     },
     "(2*k+1)/2": {
@@ -150,6 +166,31 @@
       ],
       "denominators": [
         "Q008.wavelength"
+      ],
+      "expression": [
+        "/",
+        [
+          "+",
+          [
+            "*",
+            [
+              "integer",
+              "2"
+            ],
+            [
+              "parameter",
+              "k"
+            ]
+          ],
+          [
+            "integer",
+            "1"
+          ]
+        ],
+        [
+          "integer",
+          "2"
+        ]
       ]
     },
     "1/2": {
@@ -162,6 +203,17 @@
         "P211#expr",
         "P213#expr",
         "P215#expr"
+      ],
+      "expression": [
+        "/",
+        [
+          "integer",
+          "1"
+        ],
+        [
+          "integer",
+          "2"
+        ]
       ]
     },
     "2*k": {
@@ -170,6 +222,17 @@
       ],
       "denominators": [
         "1"
+      ],
+      "expression": [
+        "*",
+        [
+          "integer",
+          "2"
+        ],
+        [
+          "parameter",
+          "k"
+        ]
       ]
     },
     "2*k+1": {
@@ -180,6 +243,24 @@
       "denominators": [
         "1",
         "Q008.wavelength"
+      ],
+      "expression": [
+        "+",
+        [
+          "*",
+          [
+            "integer",
+            "2"
+          ],
+          [
+            "parameter",
+            "k"
+          ]
+        ],
+        [
+          "integer",
+          "1"
+        ]
       ]
     },
     "2*pi": {
@@ -190,6 +271,17 @@
       "denominators": [
         "P251#expr",
         "P253#expr"
+      ],
+      "expression": [
+        "*",
+        [
+          "integer",
+          "2"
+        ],
+        [
+          "symbol",
+          "pi"
+        ]
       ]
     },
     "2/3": {
@@ -198,6 +290,17 @@
       ],
       "denominators": [
         "P230#expr"
+      ],
+      "expression": [
+        "/",
+        [
+          "integer",
+          "2"
+        ],
+        [
+          "integer",
+          "3"
+        ]
       ]
     },
     "cos(alpha)": {
@@ -208,6 +311,14 @@
       "denominators": [
         "1",
         "P280#expr"
+      ],
+      "expression": [
+        "call",
+        "cos",
+        [
+          "parameter",
+          "alpha"
+        ]
       ]
     },
     "k": {
@@ -216,6 +327,10 @@
       ],
       "denominators": [
         "Q008.wavelength"
+      ],
+      "expression": [
+        "parameter",
+        "k"
       ]
     },
     "omega*t": {
@@ -224,6 +339,17 @@
       ],
       "denominators": [
         "1"
+      ],
+      "expression": [
+        "*",
+        [
+          "parameter",
+          "omega"
+        ],
+        [
+          "parameter",
+          "t"
+        ]
       ]
     },
     "omega*t+phi0": {
@@ -232,6 +358,24 @@
       ],
       "denominators": [
         "1"
+      ],
+      "expression": [
+        "+",
+        [
+          "*",
+          [
+            "parameter",
+            "omega"
+          ],
+          [
+            "parameter",
+            "t"
+          ]
+        ],
+        [
+          "parameter",
+          "phi0"
+        ]
       ]
     },
     "sin(alpha)": {
@@ -244,6 +388,14 @@
         "1",
         "P271#expr",
         "P274#expr"
+      ],
+      "expression": [
+        "call",
+        "sin",
+        [
+          "parameter",
+          "alpha"
+        ]
       ]
     },
     "sin(omega*t+phi0)": {
@@ -254,6 +406,28 @@
       "denominators": [
         "1",
         "Q008.amplitude"
+      ],
+      "expression": [
+        "call",
+        "sin",
+        [
+          "+",
+          [
+            "*",
+            [
+              "parameter",
+              "omega"
+            ],
+            [
+              "parameter",
+              "t"
+            ]
+          ],
+          [
+            "parameter",
+            "phi0"
+          ]
+        ]
       ]
     }
   }
