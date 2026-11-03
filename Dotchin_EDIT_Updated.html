@@ -1,0 +1,2251 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#191c1d"><meta name="description" content="Dotchin: актуальная логика ввода Matchin, размерности и неявное умножение. 03.11.2026.">
+<title>Dochin · строка и блоки</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M10 5H5v22h5m12-22h5v22h-5' fill='none' stroke='%23d8aa62' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+:root{color-scheme:dark;--bg:#191c1d;--ink:#e4e5de;--muted:#88908c;--line:#3a4240;--numeric:#c4b577;--named:#8bb8ab;--operand:#aab796;--operation:#d4a06e;--list:#8eb6a2;--expression:#87a7c3;--relation:#9fa5d0;--collection:#bc9fc9;--wait:#e0ad68;--rollback:#dd9a89;--mono:"Cascadia Code","SFMono-Regular",Consolas,monospace;--ui:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.5 var(--ui);min-height:100svh}main{width:100%;max-width:1800px;margin:0 auto;padding:clamp(38px,12vh,130px) clamp(20px,4vw,68px) 48px}.entry{position:relative;display:flex;align-items:center;border-bottom:1px solid #69736b;background:#ffffff02;transition:border-color .15s} .entry:focus-within{border-color:#b2c0ac}.entry textarea{display:block;flex:1;min-width:0;width:100%;border:0;outline:0;border-radius:0;color:var(--ink);background:transparent;padding:20px 45px 20px 12px;font:clamp(22px,2.7vw,34px)/1.5 var(--mono);height:calc(1.5em + 42px);resize:none;overflow:auto;caret-color:#d5bd85;white-space:pre;scrollbar-width:thin;scrollbar-color:#4b5750 transparent}.entry textarea::placeholder{color:#69716e;font-family:var(--ui);font-size:.82em;letter-spacing:-.025em}.state{position:absolute;right:17px;width:5px;height:5px;border-radius:50%;background:#65746b}.state.complete{background:#93b49d}.state.wait{background:var(--wait);box-shadow:0 0 0 4px #e0ad6809}.state.rollback{background:var(--rollback)}.viewport{margin-top:38px;min-height:160px;overflow:auto;max-height:calc(100svh - 240px);padding:3px 2px 25px;scrollbar-width:thin;scrollbar-color:#4b5750 transparent}.structure{display:flex;gap:12px;align-items:flex-start;width:max-content;min-width:min(100%,260px);padding:2px}.structure:empty{display:none}.block{--tone:var(--operand);position:relative;display:inline-flex;flex-direction:column;align-self:stretch;min-width:45px;flex-shrink:0;border:1px solid color-mix(in srgb,var(--tone) 46%,#3a423c);border-radius:6px;padding:10px 9px 9px;background:color-mix(in srgb,var(--tone) 2%,transparent);transition:background .12s,border-color .12s;cursor:pointer}.block:hover{background:color-mix(in srgb,var(--tone) 4%,transparent);border-color:color-mix(in srgb,var(--tone) 80%,#424a43)}.block.focused{border-color:var(--tone);box-shadow:0 0 0 1px color-mix(in srgb,var(--tone) 12%,transparent)}.block.incomplete{border-style:dashed}.block.operation{--tone:var(--operation)}.block.numeric{--tone:var(--numeric)}.block.named{--tone:var(--named)}.block.list{--tone:var(--list)}.block.expression{--tone:var(--expression)}.block.relation{--tone:var(--relation)}.block.collection{--tone:var(--collection)}.block-label{font:10px/1.35 var(--ui);color:var(--tone);opacity:.9;white-space:nowrap;display:block;margin:0 2px 10px;align-self:flex-start;user-select:none;letter-spacing:.012em}.parts{display:flex;gap:7px;align-items:stretch;justify-content:flex-start;flex:1}.glyphs{display:flex;align-items:center;align-self:stretch;min-height:40px;gap:0;padding:0 2px}.glyph{position:relative;font:24px/1.5 var(--mono);display:inline-block;padding:0 1px;color:var(--ink);border-radius:2px;white-space:pre;cursor:text}.glyph:hover{background:#ffffff0c}.glyph.at-caret{color:#fff1ca;background:#f1d3970b}.glyph.auto:after{content:'';position:absolute;width:2px;height:2px;border-radius:50%;background:#94ba9c;bottom:-1px;left:calc(50% - 1px)}.boundary{align-self:stretch;display:flex;align-items:center;padding:0 3px;position:relative;min-width:17px;justify-content:center}.boundary .glyph{color:var(--tone);font-size:27px}.boundary[data-role=operator] .glyph,.boundary[data-role=comparison] .glyph,.boundary[data-role=logical] .glyph{padding:0 6px}.boundary[data-role=separator] .glyph{color:#a8b6b5}.hole{align-self:stretch;min-width:33px;min-height:38px;display:grid;place-items:center;border:1px dashed #b098682e;border-radius:4px;color:#b0986866;font:18px var(--mono);background:#d8ad6803}.draft{--tone:var(--wait);align-self:stretch;display:inline-flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;min-width:32px;border:1px dashed #b28b53;border-radius:4px;padding:4px 6px;background:#bd8f4708}.draft .glyph{color:var(--wait)}.choices{display:flex;flex-direction:column;gap:3px}.choice{border:1px solid #a58b5a60;background:#3a3224;color:#dfc291;border-radius:3px;padding:4px 7px;font:10px/1.3 var(--ui);cursor:pointer;white-space:nowrap}.choice:hover,.choice:focus-visible{border-color:#e2bd75;background:#4b3e28;outline:0}.rollback .block:first-child{border-color:var(--rollback)}.rollback .block:first-child>.block-label{color:var(--rollback)}.index-content{display:flex;align-items:center;border-bottom:1px solid #96b7a52b;padding:0 4px}.empty-root{border-style:dashed;opacity:.4;min-width:120px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}::selection{background:#769f8b4a}.fatal{border-color:#d59585!important}.fatal:after{content:attr(data-error);position:absolute;top:100%;font:11px var(--ui);color:#dfa18d;left:8px;padding-top:6px}@media(max-width:600px){main{padding-top:38px;padding-inline:16px}.entry textarea{padding-left:4px;padding-block:15px;height:78px}.viewport{margin-top:26px;max-height:calc(100svh - 170px)}.block{padding:8px 7px 7px}.parts{gap:5px}.block-label{font-size:9px;margin-bottom:8px}.glyph{font-size:21px}.boundary .glyph{font-size:24px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.state.rejected{background:#dd9a89;box-shadow:0 0 0 4px #dd9a8911}.pending-address{min-height:88px;align-self:flex-start;gap:9px;padding:12px}.pending-address .block-label{margin:0;color:var(--wait)}
+
+.block.quantity{--tone:#a7b8d2}.block.dimension{--tone:#b6a4d6}.block.unit{--tone:#8bb8ab}
+</style>
+</head>
+<body>
+<main>
+  <div class="entry"><label class="sr-only" for="source">Строка ввода</label><textarea id="source" rows="1" wrap="off" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-controls="structure" placeholder="Введите строку…"></textarea><span id="state" class="state" role="status" aria-label="Пустая строка"></span></div>
+  <div id="viewport" class="viewport"><div id="structure" class="structure" aria-label="Блочная структура"></div></div>
+</main>
+<script>
+(()=>{
+const module_0 = (()=>{
+const isNode = p => !!p?.kind;
+const isToken = p => !!p?.char;
+const hole = (anchor, role = 'operand') => ({ hole: true, id: `hole:${anchor}:${role}`, role });
+const children = n => n.parts.filter(isNode);
+const digits = n => n.parts.filter(p => isToken(p) && p.role === 'digits');
+const walk = function* (n) { if (!isNode(n)) return; yield n; for (const p of n.parts) if (isNode(p)) yield* walk(p); };
+const characters = function* (n) { if (!n) return; if (isToken(n)) yield n; else if (isNode(n)) for (const p of n.parts) yield* characters(p); };
+const nodeText = n => [...characters(n)].map(t => t.char).join('');
+return {isNode:isNode, isToken:isToken, hole:hole, children:children, digits:digits, walk:walk, characters:characters, nodeText:nodeText};
+})();
+const module_1 = (()=>{
+const {isNode:isNode, isToken:isToken}=module_0;
+
+// Orthogonal structural behaviors. A list has Chain; an operator combines
+// Priority with either Chain (one AC operation) or a binary pair.
+class ChainBehavior {
+  static mark(node, operator = null) {
+    node.meta.behavior = 'chain';
+    if (operator) node.meta.operatorKey = operator;
+    return node;
+  }
+  static extend(assembler, node, separator, role, next) {
+    assembler.append(separator, node, role);
+    if (next) node.parts.push(next);
+    return node;
+  }
+  static compatible(node, kind, spec) {
+    return node.kind === kind && !node.meta.grouped && spec.chain &&
+      node.meta.behavior === 'chain' && node.meta.operatorKey === spec.key;
+  }
+  static valid(node, role, minimum = 2) {
+    const body = node.parts.filter(p => isNode(p) || p.hole || isToken(p) && p.role === role);
+    return body.length >= minimum * 2 - 1 && body.every((p, i) => i % 2 ? isToken(p) && p.role === role : isNode(p));
+  }
+}
+
+class PriorityBehavior {
+  static link(assembler, old, token, next, { kind, role, spec, table, domain }) {
+    if (old.kind === kind && !old.meta.grouped && old.meta.domain === domain) {
+      const previous = table[old.meta.operator];
+      if (spec.priority > previous.priority || spec.priority === previous.priority && spec.associativity === 'right') {
+        const at = old.parts.findLastIndex(p => isNode(p) || p.hole);
+        old.parts[at] = this.link(assembler, old.parts[at], token, next, { kind, role, spec, table, domain });
+        return old;
+      }
+      if (ChainBehavior.compatible(old, kind, spec)) return ChainBehavior.extend(assembler, old, token, role, next);
+    }
+    if (domain === 'arithmetic' && old.kind === 'unod' && old.meta.position === 'prefix' && spec.priority > old.meta.priority) {
+      old.parts[1] = this.link(assembler, old.parts[1], token, next, { kind, role, spec, table, domain });
+      return old;
+    }
+    const node = assembler.make(kind, token.id, [old], {
+      operator: token.char, operatorKey: spec.key, priority: spec.priority, domain,
+      behavior: spec.chain ? 'chain' : 'binary', associative: !!spec.chain, commutative: !!spec.chain
+    });
+    return ChainBehavior.extend(assembler, node, token, role, next);
+  }
+  static valid(node, role) {
+    return ChainBehavior.valid(node, role) && (node.meta.behavior === 'chain' || node.parts.filter(isNode).length === 2);
+  }
+}
+return {ChainBehavior:ChainBehavior, PriorityBehavior:PriorityBehavior};
+})();
+const module_units = (()=>{
+const {isNode,isToken,children,characters,walk}=module_0;
+const catalogue={
+  "version": "github-adapter / 2026-10-31",
+  "caseSensitive": true,
+  "units": [],
+  "prefixes": [],
+  "transforms": [],
+  "integerPowers": {
+    "slot": "dimension.power",
+    "allowedKinds": [
+      "integer",
+      "unod"
+    ],
+    "contentRole": "digits",
+    "first": "0123456789",
+    "rest": "0123456789",
+    "minimumDigits": 1,
+    "limit": "dimensionExponentDigits",
+    "maximumDigits": 2,
+    "unary": {
+      "maxDepth": 1,
+      "position": "prefix",
+      "operandKinds": [
+        "integer"
+      ],
+      "operators": [
+        {
+          "key": "+",
+          "symbols": [
+            "+",
+            "⁺"
+          ]
+        },
+        {
+          "key": "-",
+          "symbols": [
+            "-",
+            "−",
+            "⁻"
+          ]
+        }
+      ]
+    }
+  },
+  "quantityPowers": {
+    "slot": "quantity.power",
+    "integerRule": "integerPowers",
+    "binding": "whole-quantity",
+    "conversionOrder": [
+      "scale",
+      "offset",
+      "power"
+    ],
+    "defaultTarget": "SI"
+  },
+  "names": {
+    "caseSensitive": true,
+    "functions": [
+      "sin",
+      "cos",
+      "tg",
+      "ctg",
+      "log",
+      "sqrt",
+      "root",
+      "ln",
+      "lg",
+      "f",
+      "g"
+    ],
+    "variables": [
+      "pi"
+    ],
+    "joinedUnits": "registered-unit-and-prefix-spellings",
+    "unknownLetters": "implicit-product",
+    "beforeGroup": {
+      "registeredFunction": "call",
+      "other": "implicit-product"
+    }
+  },
+  "nameRecognition": {
+    "maximumPrefixes": 1,
+    "unresolved": "draft",
+    "onFocusExit": "variable",
+    "lockAfterRecognition": true,
+    "deferAmbiguousExact": true
+  }
+};
+const superscript={'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
+const space=c=>[' ','\u00a0','\u202f'].includes(c);
+// Recognition starts at the registered base suffix. The remainder can only be
+// one separately registered prefix; casing is never normalised.
+function resolve(text,R=catalogue){
+  for(const u of R.units)for(const symbol of [...u.symbols].sort((a,b)=>b.length-a.length)){
+    if(!text.endsWith(symbol))continue;
+    const remainder=text.slice(0,text.length-symbol.length);
+    if(!remainder)return {unitId:u.baseId||u.id,prefixId:null,transformId:u.transformId||null,power:0,scale:u.scale||'1',offset:u.offset||'0'};
+    const prefix=R.prefixes.find(p=>u.prefixes.includes(p.id)&&p.symbols.includes(remainder));
+    if(prefix&&(R.nameRecognition?.maximumPrefixes??1)>=1)return {unitId:u.baseId||u.id,prefixId:prefix.id,transformId:u.transformId||null,power:prefix.power,scale:u.scale||'1',offset:u.offset||'0'};
+  }
+  const transform=R.transforms.find(t=>t.symbols.includes(text));
+  return transform?{unitId:transform.unit,prefixId:null,transformId:transform.id,power:0,scale:transform.scale,offset:transform.offset}:null;
+}
+function spellings(R=catalogue){
+  return R.units.flatMap(u=>u.symbols.flatMap(symbol=>[symbol,...R.prefixes.filter(p=>u.prefixes.includes(p.id)).flatMap(p=>p.symbols.map(prefix=>prefix+symbol))]))
+    .concat(R.transforms.flatMap(t=>t.symbols));
+}
+const continuations=(text,R=catalogue)=>spellings(R).filter(s=>s.startsWith(text));
+const unitLeaf=dim=>[...walk(dim)].find(n=>n.kind==='dimension_unit');
+const exponentNode=dim=>dim.parts[0]?.kind==='binod'?children(dim.parts[0])[1]:null;
+const integerText=n=>n?.parts.filter(p=>isToken(p)&&p.role==='digits').map(t=>superscript[t.char]??t.char).join('')||'';
+const signedText=n=>{if(!n||n.hole)return '';if(n.kind==='integer')return integerText(n);if(n.kind==='unod'){const sign=n.parts.find(p=>isToken(p)&&p.role==='operator')?.char,body=signedText(children(n)[0]);return body?(['-','−','⁻'].includes(sign)?'-':'+')+body:'';}return '';};
+const powerText=dim=>dim.parts[0]?.kind==='binod'?signedText(exponentNode(dim)):'1';
+const registration=q=>unitLeaf(children(q).find(n=>n.kind==='dimension'))?.meta.registration;
+// Inspect existing blocks only. A power outside a grouped quantity has its own
+// scope; it must never be confused with the power inside the dimension block.
+function quantityForm(n){
+  if(!isNode(n)||n.parts.some(p=>p.hole))return null;
+  const kids=children(n);
+  if(n.kind==='quantity')return {quantity:n,powers:[]};
+  if(n.kind==='expression'&&kids.length===1)return quantityForm(kids[0]);
+  if(n.kind==='binod'&&n.meta.operatorKey==='^'&&n.meta.domain!=='dimension'&&kids.length===2){
+    const base=quantityForm(kids[0]),text=signedText(kids[1]);
+    if(base&&text)return {...base,powers:[...base.powers,{node:kids[1],text,anchor:n.parts.find(p=>p.role==='operator')?.id??[...characters(kids[1])][0]?.id}]};
+  }
+  return null;
+}
+const targetTransform=(R,target)=>!target||target==='SI'?null:R.transforms.find(t=>t.id===target||t.symbols.includes(target));
+const gcd=(a,b)=>{a=a<0n?-a:a;while(b){const r=a%b;a=b;b=r;}return a;};
+function rational(n,d=1n){if(!d)throw Error('Division by zero');if(d<0n){n=-n;d=-d;}const g=gcd(n,d);return {n:n/g,d:d/g};}
+function decimal(text){const sign=text.startsWith('-')?-1n:1n;const [a,b='']=text.replace(/^[-+]/,'').split(/[.,]/);return rational(sign*BigInt((a||'0')+b),10n**BigInt(b.length));}
+const mul=(a,b)=>rational(a.n*b.n,a.d*b.d);
+const add=(a,b)=>rational(a.n*b.d+b.n*a.d,a.d*b.d);
+function pow(a,n){if(n>1000n||n< -1000n)throw Error('Symbolic exponent');return n<0n?rational(a.d**(-n),a.n**(-n)):rational(a.n**n,a.d**n);}
+function evaluate(n){
+  const kids=children(n);
+  if(n.kind==='integer')return decimal(integerText(n));
+  if(n.kind==='number'){
+    const int=kids.find(k=>k.kind==='integer'),frac=kids.find(k=>k.kind==='fractional');
+    if(frac&&children(frac).length)throw Error('Periodic scalar remains symbolic');
+    return decimal(integerText(int)+(frac?'.'+integerText(frac):''));
+  }
+  if(n.kind==='expression'&&kids.length===1)return evaluate(kids[0]);
+  if(n.kind==='unod'&&n.meta.position==='prefix'){
+    const op=n.parts.filter(p=>isToken(p)&&p.role==='operator').map(p=>p.char).join('');
+    if(!['+','-','−','⁺','⁻'].includes(op))throw Error('Symbolic unary');const x=evaluate(kids[0]);return ['+','⁺'].includes(op)?x:rational(-x.n,x.d);
+  }
+  if(n.kind==='binod'){
+    const op=n.meta.operatorKey;let value=evaluate(kids[0]);
+    for(const k of kids.slice(1)){const b=evaluate(k);if(op==='+')value=add(value,b);else if(op==='-')value=add(value,rational(-b.n,b.d));else if(op==='*')value=mul(value,b);else if(op==='/')value=mul(value,rational(b.d,b.n));else if(op==='^'&&b.d===1n)value=pow(value,b.n);else throw Error('Symbolic binary');}return value;
+  }
+  throw Error('Symbolic scalar');
+}
+function format(a){
+  if(a.d===1n)return String(a.n);
+  let d=a.d,twos=0,fives=0;while(d%2n===0n){d/=2n;twos++;}while(d%5n===0n){d/=5n;fives++;}
+  const places=Math.max(twos,fives);if(d!==1n||places>100)return `${a.n}/${a.d}`;
+  const scaled=a.n*(10n**BigInt(places)/a.d),negative=scaled<0n,text=String(negative?-scaled:scaled).padStart(places+1,'0');
+  return (negative?'-':'')+text.slice(0,-places)+','+text.slice(-places).replace(/0+$/,'');
+}
+function normalized(root,R=catalogue,target=R.quantityPowers.defaultTarget){
+  const form=quantityForm(root);if(!form)return null;
+  const q=form.quantity,reg=registration(q),dim=children(q).find(n=>n.kind==='dimension');if(!reg)return null;
+  const unit=R.units.find(u=>u.id===reg.unitId),basePower=powerText(dim);if(!basePower)return null;
+  const power=form.powers.length?String(form.powers.reduce((n,p)=>n*BigInt(p.text),BigInt(basePower))):basePower;
+  const temperature=(unit.dimension==='temperature'||unit.dimension==='[Θ]')&&BigInt(basePower)===1n;
+  const read=destination=>{
+    const result=quantityForm(expand(root,R,destination))?.quantity;
+    return {value:format(evaluate(children(result)[0])),symbol:unitLeaf(children(result)[1]).parts.filter(isToken).map(t=>t.char).join('')};
+  };
+  try{
+    const value=read(target),inverse=R.transforms.find(t=>t.unit===reg.unitId);
+    let celsius=null;if(temperature&&inverse)try{celsius=read(inverse.id).value;}catch{}
+    return {...value,power,temperature,celsius};
+  }catch{return {value:null,symbol:unit.symbol,power,temperature:false,celsius:null};}
+}
+// A projection of registered structure. Derived glyphs never enter EDIT's tape.
+// Repeated exponents keep source anchors; no input is reparsed here.
+function expand(root,R=catalogue,target=R.quantityPowers.defaultTarget){
+  const destination=targetTransform(R,target);
+  if(target&&target!=='SI'&&!destination)throw Error('Unknown target scale');
+  let serial=0;
+  const token=(char,role,anchor)=>({id:`derived:${anchor}:${++serial}`,char,role,origin:'DERIVED',sourceIds:anchor?[anchor]:[]});
+  const make=(kind,parts,meta={},anchor=null)=>{const n={kind,id:`expanded:${++serial}`,parts,meta:{...meta,derived:true}};for(const p of parts)if(isToken(p))p.owner=n.id;if(anchor)n.meta.sourceId=anchor;return n;};
+  const num=(value,anchor)=>{const sign=String(value).startsWith('-');const [int,frac]=String(value).replace(/^-/,'').split('.');
+    const integer=make('integer',Array.from(int,c=>token(c,'digits',anchor))),parts=[integer];
+    if(frac)parts.push(token(',','decimal',anchor),make('fractional',Array.from(frac,c=>token(c,'digits',anchor))));
+    const n=make('number',parts);return sign?make('unod',[token('−','operator',anchor),n],{position:'prefix',priority:30}):n;};
+  const signedInteger=(value,anchor,slot='dimension.power')=>{const text=String(value),sign=/^[+-]/.test(text)?text[0]:null,leaf=make('integer',Array.from(text.replace(/^[+-]/,''),c=>token(c,'digits',anchor)),{slot},anchor);return sign?make('unod',[token(sign==='-'?'−':'+','operator',anchor),leaf],{slot,position:'prefix',priority:30},anchor):leaf;};
+  const bin=(left,op,right,anchor)=>make('binod',[left,token(op,'operator',anchor),right],{operator:op,operatorKey:op,domain:'arithmetic',priority:op==='^'?40:op==='*'?20:10,behavior:'binary'});
+  const project=(n,powers=[])=>{
+    const dim=children(n).find(k=>k.kind==='dimension'),leaf=unitLeaf(dim),reg=leaf?.meta.registration;
+    if(!reg||!powerText(dim))return {...n,parts:n.parts.map(visit)};
+    const unit=R.units.find(u=>u.id===reg.unitId),source=leaf.parts.find(p=>p.role==='unit_name')?.id,
+      exp=exponentNode(dim),expAnchor=exp&&[...characters(exp)][0]?.id;
+    let value=visit(children(n)[0]);
+    if(reg.prefixId){let factor=bin(num('10',source),'^',signedInteger(String(reg.power),source),source);if(exp)factor=bin(factor,'^',signedInteger(powerText(dim),expAnchor),expAnchor);value=bin(value,'*',factor,source);}
+    if(reg.transformId){let scale=num(reg.scale,source);if(exp&&reg.offset==='0')scale=bin(scale,'^',signedInteger(powerText(dim),expAnchor),expAnchor);value=bin(value,'*',scale,source);if(reg.offset!=='0')value=bin(value,'+',num(reg.offset,source),source);}
+    // Source conversion is complete before an outer power is attached. For an
+    // affine destination its inverse scale/offset joins the same scalar base.
+    const inverse=destination?.unit===unit.id?destination:null;
+    if(inverse){
+      if(BigInt(powerText(dim))!==1n)throw Error('Affine conversion requires a first-power source quantity');
+      value=bin(value,'*',num(inverse.inverseScale,source),source);
+      if(inverse.inverseOffset!=='0')value=bin(value,'+',num(inverse.inverseOffset,source),source);
+    }
+    const base=make('dimension_unit',Array.from(inverse?.inverseSymbol??unit.symbol,c=>token(c,'unit_name',source)),{registration:{...reg,prefixId:null,transformId:null,power:0,scale:'1',offset:'0'},targetScale:inverse?.id??'SI'},source);
+    let powerBlock=exp?bin(base,'^',signedInteger(powerText(dim),expAnchor),expAnchor):base;
+    if(exp){powerBlock.meta.domain='dimension';powerBlock.meta.rightSlot='dimension.power';}
+    for(const p of powers){
+      value=bin(value,'^',signedInteger(p.text,p.anchor,'quantity.power'),p.anchor);
+      value.meta.powerScope='quantity';
+      powerBlock=bin(powerBlock,'^',signedInteger(p.text,p.anchor),p.anchor);
+      powerBlock.meta.domain='dimension';powerBlock.meta.rightSlot='dimension.power';
+    }
+    const dimension=make('dimension',[powerBlock],{unitId:unit.id},source);
+    return {...n,parts:[value,dimension],meta:{...n.meta,expanded:true,powerScope:powers.length?'quantity':'dimension',targetScale:inverse?.id??'SI'}};
+  };
+  const visit=n=>{
+    if(!isNode(n))return structuredClone(n);
+    if(n.kind==='binod'){
+      const form=quantityForm(n);
+      if(form?.powers.length)return project(form.quantity,form.powers);
+    }
+    return n.kind==='quantity'?project(n):{...n,meta:structuredClone(n.meta),parts:n.parts.map(visit)};
+  };
+  return visit(root);
+}
+return {catalogue,superscript,space,resolve,spellings,continuations,unitLeaf,exponentNode,powerText,registration,integerText,signedText,quantityForm,normalized,expand,evaluate,format};
+})();
+
+const module_2 = (()=>{
+const {isNode:isNode, isToken:isToken, hole:hole, children:children, digits:digits, walk:walk, characters:characters}=module_0;
+const {ChainBehavior:ChainBehavior, PriorityBehavior:PriorityBehavior}=module_1;
+
+// Executable registry laws for the fifteen image types.
+// They issue offers and perform the selected placement within the common route.
+const executor = {
+// The same executable boundary predicates serve ordinary offers and prospective
+// offers. A vocabulary entry alone never supplies a prospective address.
+offers() {
+    const out = this.enclosures.assemblyOffers(this), R = this.R, f = this.frame;
+    this.denials = [];
+    const prospective = kind => ({ id: `new:${kind}:${f.target?.id || f.exp?.id}`, kind });
+    const available = (n, role = 'digits') => {
+      const allowed = n.parts.filter(p => isToken(p) && p.role === role).length < R.limits[R.blocks[n.kind].limit];
+      if (!allowed) this.denials.push({ match: role === 'name' ? R.alphabets.letter : R.alphabets.digit, reason: 'Превышен лимит длины контента', owner: n.id });
+      return allowed;
+    };
+    const add = (...a) => this.offer(out, ...a);
+    if (f.frameKind === 'period') {
+      if (available(f.node)) add('period.fill', f.node, 'digits', '0…9', c => R.alphabets.digit(c), t => this.fillLeaf(f.node, t));
+      return out;
+    }
+    if (f.frameKind === 'indices') {
+      const list = f.node, last = list.meta.items.at(-1);
+      const first = last.ids.length ? this.tokens.find(t => t.id === last.ids[0])?.char : null;
+      const contentAccepts = first ? (R.alphabets.digit(first) ? R.alphabets.digit : R.alphabets.letter) : R.alphabets.index;
+      if (last.ids.length >= R.limits.index) this.denials.push({ match: contentAccepts, reason: 'Превышен лимит длины индекса', owner: list.id });
+      if (last.ids.length < R.limits.index) add('indices.fill', list, `index:${last.id}`, first ? (R.alphabets.digit(first) ? '0…9' : 'буква') : 'буква / цифра', c => contentAccepts(c), t => {
+        if (last.ids.length >= R.limits.index) return { reject: 'Лимит длины индекса' };
+        const previous = last.ids.map(id => this.tokens.find(v => v.id === id)?.char || '').join('');
+        if (previous && R.alphabets.digit(previous[0]) !== R.alphabets.digit(t.char)) return { reject: 'Цифровой и именной контент индекса не сливаются' };
+        this.append(t, list, `index:${last.id}`); last.ids.push(t.id);
+      });
+      if (last.ids.length) add('indices.separator', list, 'separator', ',', c => c === ',', t => {
+        ChainBehavior.extend(this, list, t, 'separator'); list.meta.items.push({ id: t.id, ids: [] });
+      }, { ambiguity: 'индекс', choice: 'Следующий индекс' });
+      this.enclosures.inheritedOffers(this,out);
+      return out;
+    }
+    const last = f.last;
+    const number = last?.kind === 'number' ? last : null;
+    if (number && !f.expecting) {
+      const frac = children(number).find(n => n.kind === 'fractional');
+      const integer = children(number).find(n => n.kind === 'integer');
+      const period = frac && children(frac).find(n => n.kind === 'periodic');
+      if (!period && available(frac || integer)) add('number.fill', frac || integer, 'digits', '0…9', c => R.alphabets.digit(c), t => this.fillLeaf(frac || integer, t));
+      if (!frac) add('number.decimal', number, 'decimal', R.decimal.join(' '), c => R.decimal.includes(c), t => {
+        this.append(t, number, 'decimal'); number.parts.push(this.make('fractional', t.id));
+      }, { ambiguity: 'дробь', choice: 'Десятичная запятая' });
+    }
+    if (last?.kind === 'variable' && !f.expecting) {
+      const base = children(last).find(n => n.kind === 'variable_base');
+      if (!last.meta.indexed && available(base, 'name')) add('name.fill', base, 'name', 'буква', c => R.alphabets.letter(c), t => this.fillLeaf(base, t, 'name'));
+      if (!last.meta.indexed) add('variable.indices', last, 'index_list', '_', c => c === '_', t => {
+        const list = ChainBehavior.mark(this.make('index_list', t.id, [], { items: [{ id: t.id, ids: [] }] }));
+        this.append(t, list, 'base_separator'); last.parts.push(list); last.meta.indexed = true;
+        this.stack.push({ frameKind: 'indices', node: list, parent: f, exp: f.exp });
+      });
+    }
+    if (f.expecting) {
+      add('operand.number', prospective('number'), 'operand', '0…9', c => R.alphabets.digit(c), t => {
+        const leaf = this.make('integer', t.id); this.append(t, leaf, 'digits'); this.attach(f, this.make('number', t.id, [leaf]));
+      });
+      add('operand.variable', prospective('variable'), 'operand', 'буква', c => R.alphabets.letter(c), t => {
+        const base = this.make('variable_base', t.id); this.append(t, base, 'name'); this.attach(f, this.make('variable', t.id, [base]));
+      });
+      add('unary.prefix', prospective('unod'), 'operand', R.blocks.unod.prefix.join(' '), c => R.blocks.unod.prefix.includes(c), t => {
+        const h = hole(t.id), n = this.make('unod', t.id, [], { position: 'prefix', priority: R.blocks.unod.priority });
+        this.append(t, n, 'operator'); n.parts.push(h); this.attach(f, n); f.target = h; f.expecting = true; f.last = null;
+      });
+    } else {
+      if (last?.kind !== 'collection') add('binary.link', prospective('binod'), 'operator', Object.keys(R.arithmetic).join(' '), c => Object.hasOwn(R.arithmetic, c), t => this.binary(f, t));
+      if (last?.kind !== 'collection') add('unary.postfix', prospective('unod'), 'operator', R.blocks.unod.postfix.join(' '), c => R.blocks.unod.postfix.includes(c), t => {
+        const n = this.make('unod', t.id, [], { position: 'postfix', priority: 60 });
+        this.wrapLast(f, n); this.append(t, n, 'operator'); f.last = n;
+      });
+      if (last?.kind !== 'collection' && this.relationAllowed(f) && (!f.relation || !f.relation.meta.comparison)) add('relation.link', f.relation || f.exp, 'comparison', R.comparison.join(' '), c => R.comparison.includes(c), t => this.comparison(f, t));
+      if (this.relationAllowed(f) && (f.relation?.meta.comparison && this.complete(f.relation) || last?.kind === 'collection' && this.complete(last))) add('collection.link', f.collection || prospective('collection'), 'logical', Object.keys(R.logical).join(' '), c => Object.hasOwn(R.logical, c), t => this.logical(f, t));
+    }
+    if (f.relation?.meta.comparison && f.expecting && !f.exp.parts.some(p => !p.hole)) {
+      const op = f.relation.parts.find(p => isToken(p) && p.role === 'comparison');
+      const opText = f.relation.parts.filter(p => isToken(p) && p.role === 'comparison').map(t => t.char).join('');
+      const extensions = Object.keys(R.comparisonExtensions).filter(v => v.startsWith(opText) && v.length === opText.length + 1);
+      if (extensions.length) add('relation.extend', f.relation, 'comparison', extensions.map(v => v.at(-1)).join(' '), c => extensions.includes(opText + c), t => {
+        const rhs = f.relation.parts.pop(); this.append(t, f.relation, 'comparison'); f.relation.parts.push(rhs); f.relation.meta.comparison = R.comparisonExtensions[opText + t.char];
+      });
+    }
+    if (f.frameKind === 'arguments') {
+      const list = f.node;
+      if (!f.expecting) add('arguments.separator', list, 'separator', R.blocks.argument_list.separator.join(' '), c => R.blocks.argument_list.separator.includes(c), t => this.nextArgument(f, t), { ambiguity: 'аргумент', choice: 'Следующий аргумент' });
+    }
+    return out;
+  },
+relationAllowed(f) { return f.frameKind === 'root' || f.frameKind === 'group' && f.allowCollection; },
+fillLeaf(n, t, role = 'digits') {
+    const max = this.R.limits[this.R.blocks[n.kind].limit];
+    if (n.parts.filter(p => isToken(p) && p.role === role).length >= max) return { reject: 'Превышен лимит длины' };
+    this.append(t, n, role);
+  },
+binary(f, t) {
+    const spec = this.R.arithmetic[t.char], h = hole(t.id, 'right');
+    const index = f.exp.parts.findIndex(p => isNode(p) || p.hole);
+    f.exp.parts[index] = PriorityBehavior.link(this, f.exp.parts[index], t, h,
+      { kind: 'binod', role: 'operator', spec, table: this.R.arithmetic, domain: 'arithmetic' });
+    f.target = h; f.expecting = true; f.last = null;
+  },
+comparison(f, t) {
+    let rel = f.relation;
+    if (!rel) {
+      const lhs = f.exp;
+      // An enclosure changes its level, not the identities of its members.
+      if (f.frameKind === 'group') {
+        const opening = lhs.parts.shift(); const inner = this.make('expression', `lhs:${t.id}`, lhs.parts, {});
+        rel = this.make('relation', t.id, [inner]);
+        const col = this.make('collection', `group:${opening.id}`, [opening, rel], { grouped: true, closed: false, opener: opening.id, level: 'collection' });
+        this.token(opening, col, 'open'); this.setRoot(f, col); f.collection = col; f.host = f.parent.exp;
+        this.liftCollection(f, col);
+      } else { rel = this.make('relation', t.id, [lhs]); this.setRoot(f, rel); }
+      f.relation = rel;
+    }
+    this.append(t, rel, 'comparison'); rel.meta.comparison = t.char;
+    const rhs = this.make('expression', `rhs:${t.id}`, [hole(t.id)]); rel.parts.push(rhs); f.exp = rhs; f.target = rhs.parts[0]; f.expecting = true; f.last = null;
+  },
+liftCollection(frame, col) {
+    const parent = frame.parent;
+    if (!parent || children(parent.exp).length !== 1 || children(parent.exp)[0] !== col) return;
+    if (parent.collection && parent.relation && !parent.relation.meta.comparison) {
+      this.replace(parent.collection, parent.relation, col); parent.relation = col; parent.last = col;
+    } else if (parent.frameKind === 'root' && !parent.relation) {
+      this.setRoot(parent, col); parent.last = col;
+    } else if (parent.frameKind === 'group' && parent.allowCollection && !parent.relation) {
+      const old = parent.root, opening = old.parts.find(p => p.role === 'open');
+      const outer = this.make('collection', `group:${opening.id}`, [opening, col], { ...old.meta, level: 'collection' });
+      this.token(opening, outer, 'open'); this.setRoot(parent, outer); parent.collection = outer; parent.relation = col; parent.last = col;
+      this.liftCollection(parent, outer);
+    }
+  },
+logical(f, t) {
+    const exp = this.make('expression', `rel:${t.id}`, [hole(t.id)]);
+    const rel = this.make('relation', `rel:${t.id}`, [exp]);
+    const config = { kind: 'collection', role: 'logical', spec: this.R.logical[t.char], table: this.R.logical, domain: 'logical' };
+    if (f.frameKind === 'group' && f.root.meta.grouped && !f.root.meta.closed) {
+      const i = f.root.parts.findIndex(isNode);
+      f.root.parts[i] = PriorityBehavior.link(this, f.root.parts[i], t, rel, config);
+    } else this.setRoot(f, PriorityBehavior.link(this, f.root, t, rel, config));
+    f.collection = f.root;
+    f.relation = rel; f.exp = exp; f.target = exp.parts[0]; f.expecting = true; f.last = null;
+  },
+nextArgument(f, t) {
+    const list = f.node;
+    if (children(list).length >= this.R.limits.members) return { reject: 'Лимит числа аргументов' };
+    const exp = this.make('expression', `arg:${t.id}`, [hole(t.id)]); ChainBehavior.extend(this, list, t, 'separator', exp);
+    f.root = exp; f.published = exp; f.exp = exp; f.target = exp.parts[0]; f.last = null; f.expecting = true;
+  },
+syncArgumentScopes() {
+    // The scope is execution state. A list owns its operand directly, as in the
+    // image notation; it does not acquire an expression wrapper per item.
+    for (const f of this.stack) if (f.frameKind === 'arguments') {
+      const value = f.root.kind === 'expression' && !f.root.meta.grouped ? f.root.parts[0] : f.root;
+      const i = f.node.parts.indexOf(f.published);
+      if (i >= 0) f.node.parts[i] = value;
+      f.published = value;
+    }
+  },
+complete(n) {
+    if (!isNode(n)) return false;
+    if (n.parts.some(p => p?.hole)) return false;
+    const kids = children(n), validKids = kids.every(k => this.complete(k));
+    if (!validKids || !this.enclosures.boundaryComplete(n)) return false;
+    switch (n.kind) {
+      case 'integer': case 'variable_base': case 'function_name': return n.parts.some(isToken);
+      case 'fractional': return digits(n).length > 0 || kids.some(k => k.kind === 'periodic');
+      case 'periodic': return digits(n).length > 0;
+      case 'number': return kids.some(k => k.kind === 'integer');
+      case 'variable': return kids.some(k => k.kind === 'variable_base');
+      case 'function': return kids.length === 2;
+      case 'index_list': return n.meta.items.every(x => x.ids.length);
+      case 'argument_list': return kids.length >= this.R.blocks.argument_list.min;
+      case 'expression': return kids.length === 1 && !['collection', 'relation'].includes(kids[0].kind);
+      case 'unod': return kids.length === 1;
+      case 'binod': return PriorityBehavior.valid(n, 'operator');
+      case 'relation': return kids.length === 2 && kids.every(k => k.kind === 'expression') && !!n.meta.comparison;
+      case 'collection': return kids.every(k => k.kind === 'relation' || k.kind === 'collection') &&
+        (n.meta.grouped ? kids.length === 1 : PriorityBehavior.valid(n, 'logical'));
+      default: return false;
+    }
+  },
+obligations() {
+    const out = [];
+    for (const n of walk(this.top.root)) {
+      out.push(...this.enclosures.boundaryObligations(n));
+      const ts = [...characters(n)], ids = ts.map(t => t.id);
+      const add = (kind, causes, reason, zone = 'node') => out.push({ kind, owner: n.id, causes: causes.filter(Boolean), ids, zone, reason });
+      if (n.kind === 'binod' && n.parts.some(p => p?.hole)) add('operand', n.parts.filter(isToken).slice(-1).map(t => t.id), 'Ожидается операнд', 'after');
+      if (n.kind === 'unod' && n.parts.some(p => p?.hole)) add('operand', n.parts.filter(isToken).map(t => t.id), 'Ожидается операнд', 'after');
+      if (n.kind === 'relation' && n.meta.comparison && !children(n).every(x => this.complete(x))) add('operand', n.parts.filter(isToken).map(t => t.id), 'Ожидается выражение отношения', 'after');
+      if (n.kind === 'collection' && !n.meta.grouped) {
+        const last = children(n).at(-1); if (last?.kind === 'relation' && !this.complete(last)) add('operand', n.parts.filter(p => p.role === 'logical').slice(-1).map(t => t.id), 'Ожидается целое отношение', 'after');
+      }
+      if ((n.kind === 'expression' || n.kind === 'collection') && n.meta.grouped && n.meta.closed && !children(n).length) add('empty', ts.map(t => t.id), 'Группа требует содержимого');
+      if (n.kind === 'periodic' && !digits(n).length) add('empty', ts.filter(t => t.role !== 'digits').map(t => t.id), 'Период требует цифр');
+      if (n.kind === 'argument_list') {
+        if (n.meta.closed && !children(n).length) add('empty', ts.filter(t => t.role === 'open' || t.role === 'close').map(t => t.id), 'Список требует аргумента');
+        const tail = n.parts.filter(p => isNode(p) || p?.hole).at(-1);
+        const separators = n.parts.filter(p => p.role === 'separator');
+        if (separators.length && tail?.hole) add('separator', [separators.at(-1).id], 'Ожидается следующий аргумент', 'after');
+      }
+      if (n.kind === 'index_list') {
+        const item = n.meta.items.at(-1);
+        if (!item.ids.length) add('separator', [n.parts.filter(p => p.role === 'separator' || p.role === 'base_separator').at(-1)?.id], 'Ожидается индекс', 'after');
+      }
+      if (n.kind === 'number') {
+        const frac = children(n).find(k => k.kind === 'fractional');
+        if (frac && !digits(frac).length && !children(frac).some(p => p.kind === 'periodic' && digits(p).length)) add('decimal', [n.parts.find(p => p.role === 'decimal')?.id], 'Ожидается дробная часть', 'after');
+      }
+    }
+    for (const d of this.drafts) out.push({ kind: d.choices?.length ? 'ambiguity' : 'unplaced', owner: d.token.hint?.owner || d.token.address?.owner,
+      causes: [d.token.id], ids: [d.token.id], zone: 'token', reason: d.reason, dependency: d.dependency, protected: d.token.wasAccepted && /^[\p{L}\p{M}0-9]$/u.test(d.token.char) });
+    return out;
+  }
+};
+return {executor:executor};
+})();
+const module_3 = (()=>{
+const {executor:executor}=module_2;
+// Normative order: Dochin 01, 24.10.2026 → the supplied 15-block notation.
+// Symbol vocabulary and numerical budgets are an editable implementation profile.
+const block = (name, family, slots, extra = {}) => ({ name, family, slots, ...extra });
+const registry = {
+  executor,
+  version: 'dochin-01.2026-10-25 / enclosure-system / profile-8 / component-domains-2',
+  limits: { symbols: 4096, nodes: 768, depth: 40, digits: 64, name: 64, index: 24, members: 128, interpretations: 128 },
+  blocks: {
+    unod: block('УНОД', 'operation', ['operator', 'operand'], { prefix: ['+', '-', '−', '√', '¬'], postfix: ['!'], circumfix: ['|', '|'], priority: 30, domainRules: [{id:'radicand',when:{operator:'√',position:'prefix'},operand:0,relation:'≥'}] }),
+    binod: block('БИНОД', 'operation', ['operand…', 'operator…'], { behaviors: ['priority', 'chain'], domainRules: [{id:'denominator',when:{operator:'/'},operand:1,relation:'≠'}] }),
+    integer: block('Целая часть', 'numeric', ['digits'], { alphabet: 'digit', limit: 'digits' }),
+    fractional: block('Дробная часть', 'numeric', ['digits', 'periodic?'], { alphabet: 'digit', limit: 'digits' }),
+    periodic: block('Периодическая часть', 'numeric', ['open', 'digits', 'close'], { alphabet: 'digit', limit: 'digits' }),
+    number: block('Число', 'operand', ['integer', 'decimal?', 'fractional?']),
+    variable_base: block('Основа переменной', 'named', ['name'], { alphabet: 'letter', limit: 'name' }),
+    variable: block('Переменная', 'operand', ['base', 'index_list?']),
+    function_name: block('Имя функции', 'named', ['name'], { alphabet: 'letter', limit: 'name' }),
+    function: block('Функция', 'operand', ['name', 'argument_list'], {domainRules:[{id:'sqrt-radicand',when:{name:'sqrt',arity:1},argument:0,relation:'≥'},{id:'root-radicand',when:{name:'root',arity:2},argument:0,degreeArgument:1},{id:'root-degree',when:{name:'root',arity:2},argument:1,relation:'≠'}]}),
+    index_list: block('Список индексов', 'list', ['index…'], { alphabet: 'index', separator: ',', min: 1, behaviors: ['chain'] }),
+    argument_list: block('Список аргументов', 'list', ['open', 'argument…', 'close'], { separator: [',', ';'], min: 1, behaviors: ['chain'] }),
+    expression: block('Выражение', 'expression', ['operand', 'group?']),
+    relation: block('Отношение', 'relation', ['expression', 'comparison', 'expression']),
+    collection: block('Коллекция', 'collection', ['relation…', 'logical…'], { min: 1, behaviors: ['priority', 'chain'] })
+  },
+  arithmetic: {
+    '+': { key: '+', priority: 10, associativity: 'left', chain: true },
+    '-': { key: '-', priority: 10, associativity: 'left' }, '−': { key: '-', priority: 10, associativity: 'left' },
+    '*': { key: '*', priority: 20, associativity: 'left', chain: true },
+    '×': { key: '*', priority: 20, associativity: 'left', chain: true }, '·': { key: '*', priority: 20, associativity: 'left', chain: true },
+    '/': { key: '/', priority: 20, associativity: 'left' }, '÷': { key: '/', priority: 20, associativity: 'left' },
+    '^': { key: '^', priority: 40, associativity: 'right' }
+  },
+  comparison: ['=', '≠', '<', '>', '≤', '≥'],
+  comparisonExtensions: { '<=': '≤', '>=': '≥', '!=': '≠', '==': '=' },
+  logical: {
+    '∧': { key: '∧', priority: 40, associativity: 'left', chain: true },
+    '&': { key: '∧', priority: 40, associativity: 'left', chain: true },
+    '⊕': { key: '⊕', priority: 30, associativity: 'left' },
+    '∨': { key: '∨', priority: 20, associativity: 'left', chain: true },
+    '⇒': { key: '⇒', priority: 10, associativity: 'right' },
+    '⇔': { key: '⇔', priority: 5, associativity: 'left' }
+  },
+  decimal: [',', '.'],
+  groups: { '(': ')', '[': ']', '{': '}' },
+  enclosures: {
+    group:{family:'group',label:'группа',domain:'expression-or-collection',kinds:['expression','collection'],flag:['grouped',true],symbols:'groups',frame:'group',openLaw:'group.open',closeLaw:'group.close',laws:['group.open','group.close']},
+    module:{family:'module',label:'модуль',domain:'expression',kinds:['unod'],flag:['position','circumfix'],symbols:{'|':'|'},frame:'module',openLaw:'module.open',closeLaw:'module.close',laws:['module.open','module.close']},
+    period:{family:'period',label:'период',domain:'period',kinds:['periodic'],symbols:{'(':')'},frame:'period',closeLaw:'period.close',autoKey:'period',autoRequires:'digits',laws:['number.period','period.close']},
+    arguments:{family:'arguments',label:'список аргументов',domain:'list',kinds:['argument_list'],symbols:{'(':')'},frame:'arguments',closeLaw:'arguments.close',autoKey:'arguments',autoRequires:'operand',separators:[',',';'],laws:['variable.call','arguments.close']},
+    indices:{family:'indices',label:'список индексов',domain:'list',kinds:['index_list'],optional:true,inheritParent:true,contentPresent:n=>n.meta.items.at(-1).ids.length>0,inheritedExclusions:['number.fill','name.fill','variable.indices','variable.call'],symbols:'indices',frame:'indices',closeLaw:'indices.close',separators:[','],laws:['indices.open','indices.close']}
+  },
+  implicitMultiplication: false,
+  auto: { period: true, arguments: true, freeGroup: false, module: false },
+  alphabets: {
+    digit: c => /^[0-9]$/u.test(c),
+    letter: c => /^[\p{L}\p{M}]$/u.test(c),
+    index: c => /^[\p{L}\p{M}0-9]$/u.test(c)
+  }
+};
+const names = Object.fromEntries(Object.entries(registry.blocks).map(([k, v]) => [k, v.name]));
+return {registry:registry, names:names};
+})();
+const module_4 = (()=>{
+const {registry:defaultRegistry}=module_3;
+const {isNode:isNode, isToken:isToken, hole:hole, children:children, digits:digits, walk:walk, characters:characters}=module_0;
+const clone = x => structuredClone(x);
+
+// The assembler executes registry proposals. It never lexes or parses a string.
+// Initial input and every reconstruction call this same event method per identity.
+class Assembler {
+  constructor(registry, seed = 'root') {
+    this.R = registry;this.enclosures=new module_6.EnclosureSystem(null,registry);
+    for (const [law, execute] of Object.entries(registry.executor)) this[law] = execute;
+    this.tokens = []; this.drafts = []; this.trace = []; this.blocked = null;
+    const exp = this.make('expression', seed, [hole(seed)]);
+    this.top = this.math(exp, null, 'root');
+    if(registry.rootKind==='operation_pair')this.top.root=this.make('operation_pair',seed,[hole(seed,'operator'),exp],{});
+    this.stack = [this.top];
+  }
+  make(kind, anchor, parts = [], meta = {}) {
+    if (!this.R.blocks[kind]) throw Error(`No registry block ${kind}`);
+    return { kind, id: `${kind}:${anchor}`, parts, meta };
+  }
+  math(exp, parent, frameKind, node = null) {
+    return { frameKind, parent, node, root: exp, exp, relation: null, collection: null, target: exp.parts[0], last: null, expecting: true };
+  }
+  get frame() { return this.stack.at(-1); }
+  capture() { return clone({ top: this.top, stack: this.stack, tokens: this.tokens, drafts: this.drafts, blocked: this.blocked }); }
+  resume(state) { Object.assign(this, clone(state)); this.trace = []; }
+  setRoot(f, n) {
+    const old = f.root; f.root = n;
+    if (f.parent?.last === old) f.parent.last = n;
+    if (f === this.top) return;
+    const host = f.host;
+    if (host) { const i = host.parts.indexOf(old); if (i >= 0) host.parts[i] = n; }
+  }
+  replace(n, target, value) {
+    const i = n.parts.indexOf(target);
+    if (i >= 0) { n.parts[i] = value; return true; }
+    return n.parts.some(p => isNode(p) && this.replace(p, target, value));
+  }
+  attach(f, atom) {
+    if (!this.replace(f.exp, f.target, atom)) throw Error('Lost structural vacancy');
+    f.expecting = false; f.target = null; f.last = atom;
+  }
+  token(t, owner, role) { t.owner = owner.id; t.role = role; return t; }
+  append(t, owner, role) { owner.parts.push(this.token(t, owner, role)); }
+  address(f = this.frame) {
+    const owner = f.frameKind === 'period' || f.frameKind === 'indices' ? f.node : f.last || (f.frameKind === 'arguments' ? f.node : f.exp);
+    return { owner: owner.id, slot: f.target?.role || (f.expecting ? 'operand' : 'boundary'), anchor: this.tokens.at(-1)?.id || null,
+      level: this.stack.length - 1, side: f.expecting ? 'inside' : 'right', vacancy: f.target?.id || null,
+      touching: [...new Set([owner.id, f.exp?.id, f.node?.id, f.root?.id, ...this.stack.map(v => v.node?.id)].filter(Boolean))] };
+  }
+  offer(out, law, owner, role, accepts, match, apply, extra = {}) {
+    out.push({ law, owner: owner.id, ownerKind: owner.kind, proposer: { id: owner.id, kind: extra.proposerKind || owner.kind }, role, accepts, match, apply, ...extra });
+  }
+  // Whitelists are computed from state before the actual character is compared.
+  wrapLast(f, wrapper) {
+    const target = f.last;
+    if (!this.replace(f.exp, target, wrapper)) throw Error('Lost whole operand');
+    wrapper.parts.push(target);
+  }
+  resourceFailure() {
+    let count = 0, depth = 0, members = false;
+    const visit = (n, d) => {
+      count++; depth = Math.max(depth, d);
+      if (n.meta.behavior === 'chain') {
+        const size = n.kind === 'index_list' ? n.meta.items.length : n.parts.filter(p => isNode(p) || p.hole).length;
+        members ||= size > this.R.limits.members;
+      }
+      for (const p of children(n)) visit(p, d + 1);
+    };
+    visit(this.top.root, 0);
+    return count > this.R.limits.nodes ? 'Лимит числа блоков' : depth > this.R.limits.depth ? 'Лимит глубины' : members ? 'Лимит длины цепочки' : null;
+  }
+  event(original, source = 'USER', cause = null) {
+    if (original.type === 'DRAFT_COMMIT') {
+      const bindings=original.bindings || [],byID=new Map(this.tokens.map(t=>[t.id,t]));
+      const graph=this.enclosures.pairs(this),pairsValid=graph!==null&&bindings.every(b=>graph.some(p=>p.candidate===b.candidate&&p.partner===b.partner));
+      const admitted = pairsValid && (!this.tokens.length || this.complete(this.top.root)) && !this.drafts.length && !this.obligations().length;
+      const entry = { event: { type: 'DRAFT_COMMIT', roots: original.roots, bindings, source, cause }, outcome: admitted ? 'COMPLETE' : pairsValid ? 'WAIT_STRUCTURE' : 'WAIT_PAIR' };
+      this.trace.push(entry); return { admitted, entry };
+    }
+    // The trigger carries identity and origin; character type is still unassigned.
+    const t = { ...original }; delete t.owner; delete t.role;
+    const address = this.address(); t.address = address; const offers = this.offers();
+    const whiteFilters = offers.map(p => ({ law: p.law, owner: p.owner, ownerKind: p.ownerKind, proposer: p.proposer, role: p.role, accepts: p.accepts }));
+    let plans = offers.filter(p => p.match(t.char));
+    // An explicit structural address may disambiguate equal border touches.
+    if (t.choice) plans = plans.filter(p => p.law === t.choice && (!t.choiceOwner || t.choiceOwner === p.owner));
+    else if (t.hint?.owner) {
+      const precise = plans.filter(p => p.owner === t.hint.owner);
+      if (precise.length) plans = precise;
+    }
+    const entry = { event: { type: 'INSERT', id: t.id, char: t.char, source, origin: t.origin, cause }, address, whiteFilters,
+      comparison: plans.map(p => ({ law: p.law, owner: p.owner, slot: p.role })), reconstruction: source === 'REPLAY' };
+    // Existing identities may become addressed rollback material after deletion.
+    // A new USER/AUTO/PASTE/IME symbol must first obtain one admissible plan.
+    const survivor = source === 'REPLAY' && !!original.wasAccepted;
+    const wait = (outcome, reason, choices = [], dependency = null) => {
+      entry.outcome = outcome; entry.reason = reason; entry.choices = choices;
+      if (survivor) {
+        this.tokens.push(t); this.drafts.push({ token: t, reason, choices, dependency });
+        if (choices.length) this.blocked = t.id;
+      }
+      this.trace.push(entry);
+      return { admitted: false, retained: survivor, token: t, reason, choices, entry };
+    };
+    if (this.blocked) {
+      return wait('REJECT_DEPENDENCY', 'Сначала разрешите адрес предшествующей правки', [], this.blocked);
+    }
+    if (this.tokens.length >= this.R.limits.symbols) {
+      return wait('REJECT_LIMIT', 'Лимит числа символов');
+    }
+    if (plans.length !== 1) {
+      const choices = plans.map(p => ({ law: p.law, owner: p.owner, label: p.choice || p.role }));
+      const denial = !plans.length && this.denials?.find(d => d.match(t.char));
+      return wait(plans.length ? 'WAIT_ADDRESS' : denial ? 'REJECT_LIMIT' : 'REJECT_UNADDRESSED', plans.length ? 'Равноправные адреса' : denial?.reason || 'Нет совместимого предложения по этому адресу', choices);
+    }
+    const plan = plans[0];
+    const conflict=this.enclosures.placementConflict(this,t,plan);
+    if(conflict)return wait(conflict.outcome,conflict.reason,conflict.choices);
+    const before = this.capture(), priorTrace = this.trace;
+    this.tokens.push(t);
+    const result = plan.apply(t);
+    this.syncArgumentScopes();
+    const occurrences = [...characters(this.top.root)].filter(p => p.id === t.id);
+    const owners = [...walk(this.top.root)].filter(n => n.parts.some(p => isToken(p) && p.id === t.id));
+    const failure = result?.reject || (occurrences.length !== 1 || owners.length !== 1 || owners[0].id !== t.owner || !t.role ? 'Предложение не разрешилось в единственное структурное размещение' : null) || this.resourceFailure();
+    if (failure) {
+      this.resume(before); this.trace = priorTrace; delete t.owner; delete t.role;
+      return wait('REJECT_CONSTRAINT', failure);
+    } else {
+      entry.plan = { owner: t.owner, slot: t.role, anchor: address.anchor, level: address.level, law: plan.law };
+      this.enclosures.recordPair(this,t); t.wasAccepted = true; t.placement = clone(entry.plan); entry.outcome = this.complete(this.top.root) ? 'COMPLETE' : 'WAIT_STRUCTURE';
+    }
+    this.trace.push(entry);
+    return { admitted: true, token: t, entry };
+  }
+}
+return {walk:module_0.walk, characters:module_0.characters, nodeText:module_0.nodeText, Assembler:Assembler};
+})();
+const module_5 = (()=>{
+// A checkpoint is the complete execution graph BEFORE the next symbol:
+// tree, scopes, vacancies, drafts and identities, never just the printed string.
+// Snapshots are detached on both capture and restore. No parser or shortcut EDIT.
+const functionIDs = new WeakMap();
+let nextFunctionID = 0;
+const registryKey = registry => JSON.stringify(registry, (_, value) => {
+  if (typeof value !== 'function') return value;
+  if (!functionIDs.has(value)) functionIDs.set(value, ++nextFunctionID);
+  return `function:${functionIDs.get(value)}`;
+});
+const tokenKey = t => JSON.stringify([t.id, t.char, t.origin, t.cause, t.createdAt,
+  t.choice, t.choiceOwner, t.hint, t.pairedWith, t.extension, !!t.wasAccepted]);
+const matches = (a, b) => { for (let i = 0, n = Math.min(a.length, b.length); i < n; i++) if (a[i] !== b[i]) return false; return true; };
+
+class AssemblyCache {
+  constructor(create, { enabled = true, stride = 32, capacity = 24 } = {}) {
+    this.create = create; this.enabled = enabled; this.stride = Math.max(1, stride);
+    this.capacity = Math.max(2, capacity); this.entries = []; this.hot = null; this.registryStamp = null;
+    this.stats = { builds: 0, hits: 0, executed: 0, reused: 0, invalidations: 0, last: null };
+  }
+  save(builder, periodic = false) {
+    const size = builder.tokens.length;
+    if (!size) return;
+    const entry = { keys: builder.tokens.map(tokenKey), state: builder.capture() };
+    if (!periodic) { this.hot = entry; return; }
+    this.entries = this.entries.filter(e => e.keys.length !== size);
+    this.entries.push(entry);
+    if (this.entries.length >= this.capacity) this.entries.shift();
+  }
+  run(tokens, incoming, source, stamp, cause = incoming?.id || null) {
+    if (stamp !== this.registryStamp) {
+      if (this.registryStamp !== null) this.stats.invalidations++;
+      this.entries = []; this.hot = null; this.registryStamp = stamp;
+    }
+    const keys = tokens.map(tokenKey), incomingAt = incoming ? tokens.findIndex(t => t.id === incoming.id) : tokens.length;
+    const boundary = incomingAt < 0 ? 0 : incomingAt;
+    let checkpoint = null;
+    if (this.enabled) {
+      this.entries = this.entries.filter(e => matches(e.keys, keys));
+      if (this.hot && !matches(this.hot.keys, keys)) this.hot = null;
+      for (const entry of [...this.entries, ...(this.hot ? [this.hot] : [])]) if (entry.keys.length <= boundary &&
+        (!checkpoint || entry.keys.length > checkpoint.keys.length)) checkpoint = entry;
+    }
+    const builder = this.create();
+    if (checkpoint) builder.resume(checkpoint.state);
+    const start = checkpoint?.keys.length || 0;
+    let admission = null, exact = true, executed = 0;
+    for (let i = start; i < tokens.length; i++) {
+      const token = tokens[i], step = builder.event(token, token.id === incoming?.id ? source : 'REPLAY', cause);
+      executed++;
+      if (token.id === incoming?.id) admission = step;
+      exact &&= step.admitted || step.retained;
+      if (this.enabled && exact && builder.tokens.length % this.stride === 0) this.save(builder, true);
+    }
+    if (this.enabled && exact) this.save(builder);
+    const metric = { input: tokens.length, editIndex: boundary, checkpoint: start, replayed: executed,
+      reused: start, hit: !!checkpoint };
+    this.stats.builds++; this.stats.hits += Number(!!checkpoint); this.stats.executed += executed; this.stats.reused += start; this.stats.last = metric;
+    return { builder, admission, cache: metric };
+  }
+  diagnostics() { return structuredClone({ ...this.stats, checkpoints: this.entries.length + Number(!!this.hot), capacity: this.capacity, stride: this.stride }); }
+}
+return {registryKey:registryKey, AssemblyCache:AssemblyCache};
+})();
+const module_6 = (()=>{
+const {walk,characters,isToken,isNode,children,digits,hole}=module_0;
+const {ChainBehavior}=module_1;
+
+// The only owner of enclosure admission, competition, focus and cancellation.
+// Registry predicates may describe a domain; none may select or commit a pair.
+class EnclosureSystem {
+  constructor(editor=null, registry=editor?.registry) { this.editor=editor; this.R=registry; this.indexCache=null; }
+  clone(x) {return structuredClone(x);}
+  full(b,tape) {return b.tokens.length===tape.length&&b.tokens.every((t,i)=>t.id===tape[i].id)&&(!tape.length||b.complete(b.top.root))&&!b.drafts.length&&!b.obligations().length;}
+  addressKey(a) { return JSON.stringify([a.owner,a.slot,a.side,a.anchor]); }
+  edge(t,side) { return {owner:t.owner,slot:t.role,anchor:t.id,side}; }
+  draftEdge(id,side) { return {owner:`draft:${id}`,slot:'root',anchor:id,side}; }
+  unique(as) { return [...new Map(as.map(a=>[this.addressKey(a),a])).values()]; }
+  pairParts(n) { return {open:n?.parts.find(p=>isToken(p)&&p.role==='open'),close:n?.parts.findLast(p=>isToken(p)&&p.role==='close')}; }
+  policy(n, optional=true) {
+    return Object.values(this.R.enclosures).find(p=>p.kinds.includes(n?.kind)&&
+      (!p.flag||n.meta[p.flag[0]]===p.flag[1])&&(!optional||!p.optional||n.meta.open));
+  }
+  familyOf(t) { return t?.enclosureFamily||Object.values(this.R.enclosures).find(p=>p.laws.includes(t?.placement?.law))?.family; }
+  familyMatches(o,t,n) { return this.policy(n,false)?.family===o.family||this.familyOf(t)===o.family; }
+  symbols(p) { return p.symbols==='groups'?this.R.groups:p.symbols==='indices'?Object.fromEntries(Object.entries(this.R.groups).filter(([c])=>c==='['||c==='{')):p.symbols; }
+  boundaryMatch(type,side,glyph,opening=null) {
+    const p=Object.values(this.R.enclosures).find(p=>p.kinds.includes(type));if(!p)return false;
+    if(side==='separator')return p.separators?.includes(glyph)||false;
+    const map=this.symbols(p);return side==='open'?Object.hasOwn(map,glyph):opening?map[opening]===glyph:Object.values(map).includes(glyph);
+  }
+  orientation(glyph) {
+    const roles=new Set(),families=[];
+    for(const p of Object.values(this.R.enclosures)) {const symbols=this.symbols(p),sides=[];
+      if(Object.hasOwn(symbols,glyph)){roles.add('open');sides.push('open');}
+      if(Object.values(symbols).includes(glyph)){roles.add('close');sides.push('close');}
+      if(sides.length)families.push({family:p.family,domain:p.domain,sides});
+    }
+    return {kind:roles.size===2?'bidirectional':roles.has('open')?'right':roles.has('close')?'left':null,roles:[...roles],families};
+  }
+  bodyEdges(index,n) {const {open,close}=this.pairParts(n);return index.members(n).flatMap(id=>{const t=index.tokens.get(id);return [...(id===open?.id?[]:[this.edge(t,'left')]),...(id===close?.id?[]:[this.edge(t,'right')])];});}
+  area(owner,addresses,region='body') {return {owner,slot:'body',region,members:[...new Set(addresses.map(a=>a.anchor))],omit:[...new Set(addresses.map(a=>a.anchor))].flatMap(id=>['left','right'].filter(side=>!addresses.some(a=>a.anchor===id&&a.side===side)).map(side=>({anchor:id,side})))};}
+  zone(kind,addresses,areas=[],basis=[]) {return {kind,addresses:this.unique(addresses),areas:areas.filter(a=>a.members.length),basis};}
+  matchesArea(a,c) {return a.owner===c.owner&&a.slot===c.slot&&a.region===c.region&&(a.members.includes(c.anchor)||c.path?.some(id=>a.members.includes(id)))&&!a.omit.some(x=>x.anchor===c.anchor&&x.side===c.side);}
+  contains(i,address) {const contacts=address.contacts||[address],keys=new Set(contacts.map(a=>this.addressKey(a)));return i.zone.addresses.some(a=>keys.has(this.addressKey(a)))||i.zone.areas.some(a=>contacts.some(c=>this.matchesArea(a,c)));}
+  competition(o,context,editor) {
+    const {index,at,left,right}=context,opposite=o.side==='open'?'close':'open';
+    if(!['open','close'].includes(o.side))return {found:null,contest:null};
+    const frontier=index.map.filter(m=>m.id!==context.root&&(o.side==='open'?m.start>=at:m.end<=at));
+    if(o.side==='close')frontier.reverse();
+    for(const m of frontier) {
+      if(m.token.origin==='AUTO'||m.token.char!==o.partner)continue;
+      const roles=m.token.role?[m.token.role]:this.orientation(m.token.char).roles;if(!roles.includes(opposite))continue;
+      const n=index.nodes.get(m.token.owner)||index.nodes.get(o.scope);if(!n)continue;
+      if(m.token.owner&&!this.familyMatches(o,m.token,n))continue;
+      const p=this.R.enclosures[o.family];if(!p||!this.boundaryMatch(o.type,opposite,m.token.char,o.side==='open'?editor.tokens.find(t=>t.id===context.root)?.char:null))continue;
+      const ids=index.members(n),{open,close}=this.pairParts(n),opening=index.byID.get(open?.id),closing=index.byID.get(close?.id);
+      if(open?.origin==='AUTO'||close?.origin==='AUTO')continue;
+      const isC=[...walk(editor.tree)].some(c=>c.id===n.id),inside=opening&&closing&&at>opening.start&&at<=closing.start;
+      const pathRelated=!m.token.owner||n.id===o.scope||index.paths.get(m.id)?.includes(o.scope)||index.parents.get(o.scope)===n.id||context.levels.find(l=>l.owner===o.scope)?.members.some(id=>ids.includes(id));
+      const touches=ids.includes(left?.id)||ids.includes(right?.id),adjacent=o.side==='open'?right?.id===ids[0]:left?.id===ids.at(-1);
+      if(opening&&closing&&!inside&&!ids.includes(context.root)&&!isC)continue;
+      if(!pathRelated||m.token.owner&&!(touches||adjacent))continue;
+      return {found:{token:m.token,node:n,proof:{scope:o.scope,level:o.level,path:index.paths.get(m.id)||[],direction:o.side}},contest:isC&&opening&&closing?n:null};
+    }
+    return {found:null,contest:null};
+  }
+  pairs(builder,requireFull=true) {
+    const tokens=new Map(builder.tokens.map(t=>[t.id,t])),positions=new Map(builder.tokens.map((t,i)=>[t.id,i])),pairs=[],used=new Set();
+    for(const n of walk(builder.top.root)) {
+      const p=this.policy(n);if(!p)continue;const opens=n.parts.filter(t=>isToken(t)&&t.role==='open'),closes=n.parts.filter(t=>isToken(t)&&t.role==='close');
+      if(opens.length!==1||closes.length!==1){if(requireFull)return null;continue;}
+      const a=opens[0],b=closes[0];if(used.has(a.id)||used.has(b.id)||!tokens.has(a.id)||!tokens.has(b.id)||positions.get(a.id)>=positions.get(b.id))return null;
+      if(!this.boundaryMatch(n.kind,'close',b.char,a.char)||a.owner!==n.id||b.owner!==n.id||a.pairedWith!==b.id||b.pairedWith!==a.id)return null;
+      const domain=p.domain==='expression-or-collection'?n.kind:p.domain;
+      used.add(a.id);used.add(b.id);pairs.push({candidate:b.id,partner:a.id,open:a.id,close:b.id,family:p.family,domain,type:n.kind,level:{domain,owner:n.id,virtual:false},scope:n.id,left:positions.get(a.id),right:positions.get(b.id)});
+    }
+    const stack=[];for(const p of [...pairs].sort((a,b)=>a.left-b.left)){while(stack.length&&p.left>stack.at(-1).right)stack.pop();if(stack.length&&p.right>stack.at(-1).right)return null;stack.push(p);}
+    if(requireFull&&builder.tokens.some(t=>['open','close'].includes(t.role)&&!used.has(t.id)))return null;
+    return pairs;
+  }
+  recordPair(assembler,t) {
+    if(!['open','close'].includes(t.role))return;
+    const n=[...walk(assembler.top.root)].find(n=>n.id===t.owner),p=this.policy(n,false);if(!p)return;
+    t.enclosureFamily=p.family;const {open,close}=this.pairParts(n);
+    n.meta.enclosure={family:p.family,open:open?.id||null,close:close?.id||null};
+    if(open&&close){open.pairedWith=close.id;close.pairedWith=open.id;open.enclosureFamily=close.enclosureFamily=p.family;}
+  }
+  boundaryComplete(n) {const p=this.policy(n);if(!p)return true;const {open,close}=this.pairParts(n);return !!open&&!!close&&this.boundaryMatch(n.kind,'close',close.char,open.char);}
+  placementConflict(assembler,t,plan) {
+    if(plan.role!=='close')return null;
+    const node=[...walk(assembler.top.root)].find(n=>n.id===plan.owner),{open}=this.pairParts(node);
+    if(open&&t.pairedWith&&t.pairedWith!==open.id&&!(t.choice===plan.law&&t.choiceOwner===plan.owner))return {outcome:'WAIT_REPAIR',reason:'Перепаривание требует выбора общей гипотезы',choices:[{law:plan.law,owner:plan.owner,label:'Связать с этой стороной'}]};
+    return null;
+  }
+  boundaryObligations(n) {const p=this.policy(n);if(!p)return [];const {open,close}=this.pairParts(n);return open&&!close?[{kind:'pair',owner:n.id,causes:[open.id],ids:[...characters(n)].map(t=>t.id),zone:'node',reason:`Ожидается парная сторона: ${p.label}`}]:[];}
+  signature(builder) {const tree=n=>({kind:n.kind,id:n.id,operator:n.meta.operator,comparison:n.meta.comparison,parts:n.parts.map(p=>isNode(p)?tree(p):p.char?{id:p.id,char:p.char,role:p.role}:p)});return JSON.stringify({tree:tree(builder.top.root),pairs:this.pairs(builder)});}
+  resolutions(editor,r) {
+    const complete=new Map();for(const v of r.complete){const bindings=this.confirmationBindings(editor,v.builder);if(bindings!==null)complete.set(this.signature(v.builder),{...v,pairPlan:bindings});}return [...complete.values()];
+  }
+  confirmationBindings(editor,builder) {
+    // A whole matching is one result. Two compatible edges are not two choices.
+    const pairs=this.pairs(builder);if(!pairs)return null;
+    for(const t of editor.confirmed.tokens.filter(t=>t.origin==='AUTO'&&t.pairedWith)) {
+      const next=builder.tokens.find(v=>v.id===t.id);if(next&&builder.tokens.some(v=>v.id===t.pairedWith)&&next.pairedWith!==t.pairedWith)return null;
+    }
+    return pairs;
+  }
+  close(assembler,node,t) {assembler.append(t,node,'close');node.meta.closed=true;node.meta.close=t.id;assembler.stack.pop();}
+  inheritedOffers(assembler,out) {
+    const f=assembler.frame,p=Object.values(this.R.enclosures).find(p=>p.frame===f.frameKind&&p.inheritParent);
+    if(!p||f.node.meta.open||!p.contentPresent(f.node))return;
+    const denials=assembler.denials;assembler.stack.pop();const offers=assembler.offers();assembler.stack.push(f);assembler.denials=[...denials,...assembler.denials];
+    for(const o of offers)if(!p.inheritedExclusions.includes(o.law))out.push({...o,ascends:true,apply:t=>{assembler.stack.pop();return o.apply(t);}});
+  }
+  choose(editor,event) {
+    const d=editor.drafts.find(d=>d.root===event.id),choice=d?.choices.find(c=>c.law===event.law&&(!event.owner||c.owner===event.owner));
+    if(d&&choice){d.token.choice=choice.law;d.token.choiceOwner=choice.owner;editor.tokens=editor.tokens.map(t=>t.id===d.root?d.token:t);d.selected=choice;editor.journal.push({type:'DRAFT_INTERPRET',root:d.root,zones:this.zonesOf(d),reason:'EXPLICIT_ADDRESS',active:choice});this.refresh(editor);}
+    return editor.view();
+  }
+  assemblyOffers(assembler) {
+    const out=[],R=this.R,f=assembler.frame,last=f.last,add=(...a)=>assembler.offer(out,...a),future=kind=>({id:`new:${kind}:${f.target?.id||f.exp?.id}`,kind});
+    for(const p of Object.values(R.enclosures)) {
+      if(p.frame===f.frameKind) {
+        const n=p.family==='group'?f.root:f.node,{open}=this.pairParts(n);
+        if(open&&(p.family!=='module'||!f.expecting))add(p.closeLaw,n,'close',this.symbols(p)[open.char],c=>this.boundaryMatch(n.kind,'close',c,open.char),t=>this.close(assembler,n,t),p.family==='group'?{proposerKind:'union'}:{});
+      }
+    }
+    if(f.frameKind==='indices') {const n=f.node,item=n.meta.items.at(-1);if(!item.ids.length&&!n.meta.open&&n.meta.items.length===1)add('indices.open',n,'open','[ или {',c=>this.boundaryMatch('index_list','open',c),t=>{n.meta.open=t.id;n.meta.closeGlyph=R.groups[t.char];assembler.append(t,n,'open');});return out;}
+    if(f.frameKind==='period')return out;
+    if(last?.kind==='number'&&!f.expecting) {const frac=children(last).find(n=>n.kind==='fractional');if(frac&&!children(frac).some(n=>n.kind==='periodic'))add('number.period',frac,'periodic','(',c=>this.boundaryMatch('periodic','open',c),t=>{const n=assembler.make('periodic',t.id);assembler.append(t,n,'open');frac.parts.push(n);assembler.stack.push({frameKind:'period',node:n,parent:f,exp:f.exp,number:last});});}
+    if(last?.kind==='variable'&&!last.meta.indexed&&!f.expecting)add('variable.call',last,'argument_list','(',c=>this.boundaryMatch('argument_list','open',c),t=>this.startCall(assembler,f,last,t));
+    if(f.expecting)for(const family of ['group','module']){const p=R.enclosures[family];add(p.openLaw,future(p.kinds[0]),'operand',Object.keys(this.symbols(p)).join(' '),c=>this.boundaryMatch(p.kinds[0],'open',c),t=>family==='group'?this.startGroup(assembler,f,t):this.startModule(assembler,f,t));}
+    return out;
+  }
+  autoClose(editor) {
+    if(!editor.drafts.length||editor.pending||editor.drafts.some(d=>d.interpretations.some(i=>i.mode==='outside')))return false;
+    const b=editor.candidateBuilder,f=b.frame,p=Object.values(this.R.enclosures).find(p=>p.frame===f.frameKind&&p.autoKey&&this.R.auto[p.autoKey]);if(!p)return false;
+    const n=f.node,{open}=this.pairParts(n);if(!open)return false;
+    const ready=p.autoRequires==='digits'?digits(n).length>0:!f.expecting&&b.complete(f.root);if(!ready)return false;
+    const glyph=this.symbols(p)[open.char],key=`${open.id}:${glyph}`;if(editor._autoAttempted.has(key))return false;editor._autoAttempted.add(key);
+    const last=[...characters(n)].at(-1),at=editor.projection().map.find(m=>m.id===last?.id)?.end??editor.caret,before=editor.tokens.length;
+    this.edit(editor,at,at,glyph,'AUTO',open.id);editor.journal.push({type:'AUTO',char:glyph,position:at,cause:open.id});return editor.tokens.length>before;
+  }
+  blockingDraft(editor) {return editor.drafts.find(d=>this.orientation(d.token.char).kind)||[...editor.drafts].reverse().find(d=>d.blocking)||editor.drafts.at(-1);}
+  zonesOf(d) {return structuredClone(d.zones||[]);}
+  withdraw(editor,root,reason='EXIT_ZONE') {
+    const d=editor.drafts.find(d=>d.root===root);if(!d)return;
+    if(editor.rollback){const before=editor.rollback.before;editor.restore(before);editor.journal.push({type:'RESOLVE_FOCUS',outcome:'ROLLBACK',reason});return;}
+    const old=editor.projection(),removed=old.map.find(t=>t.id===root);editor.tokens=editor.tokens.filter(t=>t.id!==root);editor.drafts=editor.drafts.filter(d=>d.root!==root);
+    editor.journal.push({type:'DRAFT_DECAY',root,displayCandidate:d.interpretations.find(i=>i.id===d.active)?.displayCandidate,zones:this.zonesOf(d),reason});
+    if(removed&&editor.caret>removed.start)editor.caret=Math.max(removed.start,editor.caret-d.token.char.length);editor.selectionEnd=editor.caret;editor.revision++;
+    if(!editor.drafts.length&&editor.rollback?.cause==='replacement')editor.restore(editor.rollback.before);
+    else {const r=this.evaluate(editor,editor.tokens);this.refresh(editor,true,r);}editor.settleConfirmation();
+  }
+  focus(editor,position=editor.caret,hint=null,exit=false) {
+    editor._autoAttempted=new Set();const old=editor.projection(),anchor=old.map.find(t=>t.start>=position)?.id||null;
+    const address=this.structuralAddress(editor,position,hint);editor.focusHint=hint||null;
+    for(const d of editor.drafts){const active=this.activate(d,address);if(active!==d.active){d.active=active;editor.journal.push({type:'DRAFT_INTERPRET',root:d.root,active,zones:this.zonesOf(d),reason:'FOCUS_ZONE'});}}
+    const leaving=()=>editor.drafts.filter(d=>!this.inZone(d,address).length);
+    if(!exit&&!leaving().length&&editor.drafts.length&&!editor.interpretationOverflow){const complete=this.resolutions(editor,{complete:editor._completeCandidates||[]});if(complete.length===1)editor.adopt(complete[0].builder,'focus-interpretation');}
+    if(editor.rollback&&(exit||leaving().length)){const before=editor.rollback.before;editor.restore(before);editor.journal.push({type:'RESOLVE_FOCUS',outcome:'ROLLBACK'});}
+    else if(exit||leaving().length){let rounds=0;while(editor.drafts.length&&rounds++<this.R.limits.symbols){if(!exit&&!leaving().length)break;
+      // Several complete readings of unchanged boundaries require a real choice.
+      if((editor._completeCandidates||[]).length>1)break;
+      if(this.autoClose(editor))continue;const d=exit?this.blockingDraft(editor):leaving().find(d=>this.orientation(d.token.char).kind)||leaving().at(-1);if(!d)break;this.withdraw(editor,d.root,exit?'BLUR':'EXIT_ZONE');
+    }}
+    const now=editor.projection(),anchored=now.map.find(t=>t.id===anchor);editor.caret=anchored?anchored.start:Math.min(position,now.text.length);editor.selectionEnd=editor.caret;editor.settleConfirmation();return editor.view();
+  }
+  refresh(editor,commit=true,evaluated=null) {const r=evaluated||this.evaluate(editor,editor.tokens);this.rebuildZones(editor,r);const resolved=this.resolutions(editor,r);if(commit&&resolved.length===1&&!editor.interpretationOverflow)editor.adopt(resolved[0].builder,'draft-resolution');editor.settleConfirmation();return r;}
+
+structuralIndex(editor,tape=editor.tokens,candidate=editor.candidateBuilder) {
+  const stamp=editor.drafts.map(d=>d.root).join(','); const cached=this.indexCache; if(cached&&cached.tape===tape&&cached.candidate===candidate&&cached.tree===editor.tree&&cached.stamp===stamp)return cached.value;
+  const nodes=new Map(),parents=new Map(),paths=new Map(),contactPaths=new Map(),tokens=new Map(),visible=new Set(tape.map(t=>t.id));
+  const visit=(n,path=[])=>{
+    if(!isNode(n))return;nodes.set(n.id,n);parents.set(n.id,path.at(-1)||null);
+    for(const p of n.parts)if(isToken(p)&&visible.has(p.id)){
+      const current=[...path,n.id];tokens.set(p.id,p);paths.set(p.id,current);
+      contactPaths.set(p.id,[...(contactPaths.get(p.id)||[]),current]);
+    }
+    else if(isNode(p))visit(p,[...path,n.id]);
+  };
+  if(candidate)visit(candidate.top.root);visit(editor.tree);
+  let offset=0;const map=tape.map(t=>{const start=offset;offset+=t.char.length;return {id:t.id,start,end:offset,token:tokens.get(t.id)||t,path:paths.get(t.id)||[],paths:contactPaths.get(t.id)||[]};});
+  const byID=new Map(map.map(m=>[m.id,m]));
+  const memberCache=new WeakMap();const members=n=>{if(!memberCache.has(n))memberCache.set(n,[...characters(n)].filter(t=>visible.has(t.id)).map(t=>t.id));return memberCache.get(n);};
+  const value={nodes,parents,paths,contactPaths,tokens,map,byID,members,addressCache:new Map()};this.indexCache={tape,candidate,tree:editor.tree,stamp,value};return value;
+}
+
+structuralAddress(editor,position,hint=null) {
+  const index=this.structuralIndex(editor),{map,nodes}=index,live=new Set(editor.drafts.map(d=>d.root));
+  const contactKey=JSON.stringify([position,hint]);if(index.addressCache.has(contactKey))return index.addressCache.get(contactKey);
+  const left=map.findLast(m=>m.end<=position),right=map.find(m=>m.start>=position),inside=map.find(m=>m.start<position&&m.end>position);
+  const direct=(m,side)=>live.has(m.id)?this.draftEdge(m.id,side):this.edge(m.token,side);
+  const immediate=inside?[direct(inside,'inside')]:[...(left?[direct(left,'right')]:[]),...(right?[direct(right,'left')]:[])];
+  const contacts=[...immediate];
+  for(const [m,side] of inside?[[inside,'inside']]:[[left,'right'],[right,'left']])if(m)for(const path of m.paths)for(const owner of path) {
+    const n=nodes.get(owner),{open,close}=this.pairParts(n);
+    const outside=open?.id===m.id&&side==='left'||close?.id===m.id&&side==='right';
+    const child=path[path.indexOf(owner)+1],slot=child?nodes.get(child)?.kind:m.token.role;
+    contacts.push({owner,slot:'body',side,anchor:m.id,region:outside?'outside':'body',member:child||m.id,path:path.slice(path.indexOf(owner)+1),via:slot,level:path.indexOf(owner)});
+  }
+  if(!contacts.length)contacts.push({owner:editor.tree.id,slot:'body',side:'inside',anchor:null,region:'body',path:[],level:0});
+  // A click on an explicit block chooses its actual level; a text caret retains
+  // every competent contact until an alternative supplies a region to match it.
+  const matching=hint?.owner?contacts.filter(a=>a.owner===hint.owner):[];
+  const scoped=[...new Map((matching.length?matching:contacts).map(a=>[JSON.stringify(a),a])).values()];
+  const result={...scoped[0],contacts:scoped,immediate,level:(inside||left||right)?.path.length||0,
+    offset:inside?position-inside.start:0,touching:[...new Set(contacts.map(a=>a.owner))]};
+  index.addressCache.set(contactKey,result);return result;
+}
+
+partnershipContext(editor,at,{tape=editor.tokens,candidate=editor.candidateBuilder,root=null,addressed=[]}={}) {
+  const index=this.structuralIndex(editor,tape,candidate),map=index.map.filter(m=>m.id!==root);
+  const left=map.findLast(m=>m.end<=at),right=map.find(m=>m.start>=at),near=new Set([...(left?.paths.flat()||[]),...(right?.paths.flat()||[])]);
+  const levels=[];
+  const parentChain=id=>{const out=[];for(let p=index.parents.get(id);p;p=index.parents.get(p))out.push(index.nodes.get(p));return out;};
+  for(const n of index.nodes.values()) {
+    const ids=index.members(n).filter(id=>id!==root),first=index.byID.get(ids[0]),last=index.byID.get(ids.at(-1));
+    if(ids.length&&!near.has(n.id)&&!ids.includes(left?.id)&&!ids.includes(right?.id))continue;
+    if(!ids.length&&n.id!==editor.tree.id&&!near.has(n.id))continue;
+    const ancestors=parentChain(n.id),collectionAllowed=ancestors.every(p=>p.kind==='collection'||p.kind==='expression'&&p.id===editor.tree.id);
+    const before=!first||at<=first.start,after=!!last&&at>=last.end;
+    const actualGroup=n.meta.grouped||n.kind==='argument_list'||n.kind==='periodic'||n.kind==='index_list'&&n.meta.open||n.kind==='unod'&&n.meta.position==='circumfix';
+    const toks=ids.map(id=>index.tokens.get(id)||tape.find(t=>t.id===id));
+    const callable=left?.path.some(id=>{const p=index.nodes.get(id);return p?.kind==='variable'&&!p.meta.indexed&&index.members(p).at(-1)===left.id;});
+    levels.push({owner:n.id,node:n,level:ancestors.length,members:ids,tokens:toks,collectionAllowed,
+      collectionBody:n.kind==='expression'&&n.parts.some(p=>['relation','collection'].includes(p.kind)),
+      before,after,openReachable:before||actualGroup&&!after,
+      numericPrefix:after&&['integer','fractional','number'].includes(n.kind),callablePrefix:!!callable&&after,
+      indexPrefix:n.kind==='index_list'&&!n.meta.open});
+  }
+  const gapOwner=`gap:${root||left?.id||right?.id||editor.tree.id}`;
+  levels.push({owner:gapOwner,node:{id:gapOwner,kind:'vacancy',parts:[],meta:{}},level:Math.min(left?.path.length||0,right?.path.length||0),
+    members:[],tokens:[],collectionAllowed:false,openReachable:addressed.some(o=>['group.open','module.open'].includes(o.law)),
+    numericPrefix:false,callablePrefix:false,indexPrefix:false});
+  return {index,levels,left,right,at,root,addressed};
+}
+
+boundaryProfile(R,glyph,context) {
+  const offers=this.draftPartners(glyph,context);
+  return {eligible:!!offers.length,open:offers.some(o=>o.side==='open'),close:offers.some(o=>o.side==='close'),
+    module:offers.some(o=>o.family==='module'),separator:offers.some(o=>o.side==='separator'),offers};
+}
+
+buildInterpretations(editor,draft,at,addressed=[],context=null) {
+  context ||= this.partnershipContext(editor,at,{root:draft.root,addressed});
+  const {index,left,right}=context,profile=this.boundaryProfile(editor.registry,draft.token.char,context),rootEdges=['left','right'].map(side=>this.draftEdge(draft.root,side));
+  const leftPath=left?.path||[],rightPath=right?.path||[];
+  draft.presentationOwner=leftPath.filter(id=>rightPath.includes(id)&&[...walk(editor.tree)].some(n=>n.id===id)).at(-1)||editor.tree.id;
+  const interpretations=[],seen=new Map();
+  const proposals=profile.offers.map(o=>({...o,...this.competition(o,context,editor)}));
+  draft.potentialOffers=profile.offers;
+  const concrete=proposals.filter(o=>o.found);
+  for(const o of proposals) {
+    const partner=o.found?.token,contest=o.contest,n=contest||o.found?.node||index.nodes.get(o.scope);
+    // Same partner reached through several paths is one alternative, with all
+    // its reachable levels retained. Equal different partners stay alternatives.
+    const key=JSON.stringify([o.family,o.type,partner?.id||null,o.scope,o.law,o.side]);
+    if(seen.has(key)){for(const i of seen.get(key))i.possibleLevels=[...new Set([...i.possibleLevels,o.level,draft.level])];continue;}
+    const basis=[...addressed.map(p=>({...p,source:'addressed-offer'})),{...o,found:undefined,contest:undefined}];
+    const common={owner:n?.id||o.scope,scope:n?.id||o.scope,type:o.type,pairFamily:o.family,law:o.law,role:o.side,
+      partner:partner?.id||null,partnerGlyph:o.partner,requires:o.requires,possibleLevels:[...new Set([draft.level,o.level])],
+      reason:'Предложение исполняемого закона на достижимом структурном уровне'};
+    const created=[];
+    const add=(mode,displayCandidate,addresses,areas,binding=null)=>{
+      const i={...common,id:`${draft.root}:${o.family}:${o.type}:${partner?.id||o.scope}:${o.side}:${mode}`,mode,displayCandidate,binding,
+        zone:this.zone(mode,addresses,areas,basis)};interpretations.push(i);created.push(i);
+    };
+    if(contest&&['open','close'].includes(o.side)) {
+      const {open,close}=this.pairParts(contest),opening=index.byID.get(open.id),closing=index.byID.get(close.id);
+      const enteredInside=at>opening.start&&at<=closing.start,all=this.bodyEdges(index,contest).filter(a=>a.anchor!==draft.root);
+      const before=new Set(index.map.filter(m=>m.id!==draft.root&&m.end<=at).map(m=>m.id));
+      const forward=all.filter(a=>o.side==='open'?!before.has(a.anchor):before.has(a.anchor));
+      const backward=all.filter(a=>!forward.includes(a));
+      const same=o.side==='open'?open:close,opposite=o.side==='open'?close:open;
+      const ownBinding=partner?{candidate:draft.root,partner:partner.id}:null;
+      if(enteredInside) {
+        const insideRoot=this.draftEdge(draft.root,o.side==='open'?'right':'left'),outsideRoot=this.draftEdge(draft.root,o.side==='open'?'left':'right');
+        add('inside',draft.root,[insideRoot],[this.area(contest.id,forward)],ownBinding);
+        add('outside',same.id,[outsideRoot],[this.area(contest.id,backward)],{candidate:same.id,partner:opposite.id});
+      } else {
+        add('inside',opposite.id,[],[this.area(contest.id,all)],{candidate:opposite.id,partner:same.id});
+        const outer=[this.edge(open,'left'),this.edge(close,'right')];
+        add('outside',draft.root,rootEdges,[this.area(contest.id,outer,'outside')],null);
+      }
+    } else {
+      const members=(o.found?index.members(n):o.members||[]).filter(id=>id!==draft.root),directional=members.filter(id=>{const m=index.byID.get(id);return m&&(o.side==='separator'||(o.side==='open'?m.start>=at:m.end<=at));});
+      // A future proposal never expands past a concrete competing enclosure.
+      const capture=concrete.find(c=>c.contest)?.contest;
+      const allowed=capture?directional.filter(id=>index.members(capture).includes(id)):directional;
+      const addresses=allowed.flatMap(id=>{const t=index.tokens.get(id);return [this.edge(t,'left'),this.edge(t,'right')];});
+      add('inside',draft.root,rootEdges,n?[this.area(n.id,addresses)]:[],partner?{candidate:draft.root,partner:partner.id}:null);
+    }
+    if(contest){const shared=[draft.token,...Object.values(this.pairParts(contest))].filter(t=>t&&index.byID.has(t.id));for(const i of created)i.zone.addresses=this.unique([...i.zone.addresses,...shared.flatMap(t=>[this.edge(t,'left'),this.edge(t,'right')])]);}
+    seen.set(key,created);
+  }
+  const unrepresented=addressed.filter(o=>!profile.offers.some(p=>p.law===o.law));
+  if(!interpretations.length||profile.separator&&unrepresented.length) {
+    const basis=addressed.map(o=>({...o,source:'addressed-offer'}));
+    for(const o of interpretations.length?unrepresented:addressed.length?addressed:[{law:'continuation',owner:draft.address?.owner,role:'continuation'}])interpretations.push({
+      id:`${draft.root}:${o.law}:${o.owner}`,owner:o.owner,law:o.law,role:o.role,displayCandidate:draft.root,possibleLevels:[draft.level],
+      zone:this.zone('continuation',[...rootEdges,...(left?[this.edge(left.token,'right')]:[])],[],basis)});
+  }
+  return interpretations;
+}
+
+logicalZones(draft) {
+  const kinds=draft.interpretations.some(i=>i.mode==='outside')?['inside','outside']:[...new Set(draft.interpretations.map(i=>i.zone.kind))];
+  return kinds.map(kind=>{const options=draft.interpretations.filter(i=>i.zone.kind===kind);return {kind,
+    alternatives:options.map(i=>i.id),addresses:this.unique(options.flatMap(i=>i.zone.addresses)),areas:options.flatMap(i=>i.zone.areas),basis:options.flatMap(i=>i.zone.basis)};});
+}
+
+extendZones(editor) {
+  const {drafts,tokens,candidateBuilder}=editor,index=this.structuralIndex(editor,tokens,candidateBuilder),live=new Set(tokens.map(t=>t.id));
+  const allObligations=candidateBuilder.obligations();
+  const candidatePaths=new Map();
+  const candidateNodes=new Map(),candidateParents=new Map();
+  const visit=(n,path=[])=>{candidateNodes.set(n.id,n);candidateParents.set(n.id,path.at(-1));for(const p of n.parts)if(isToken(p))candidatePaths.set(p.id,[...path,n.id]);else if(isNode(p))visit(p,[...path,n.id]);};visit(candidateBuilder.top.root);
+  const causeScopes=parent=>{
+    if(parent.tentative?.role!=='open')return [];
+    const owner=parent.tentative.owner,kind=candidateNodes.get(owner)?.kind,scopes=[owner];
+    let host=candidateParents.get(owner);
+    if(['argument_list','index_list','periodic'].includes(kind))while(host) {
+      const n=candidateNodes.get(host);if(!['function','variable','fractional','number'].includes(n?.kind))break;
+      scopes.push(host);host=candidateParents.get(host);
+    }
+    return scopes;
+  };
+  for(const d of drafts) {
+    const own=candidateBuilder.tokens.find(t=>t.id===d.root),ownPath=candidatePaths.get(d.root)||[];
+    const obligations=allObligations.filter(o=>o.causes.includes(d.root));
+    const causes=obligations.map(o=>o.owner);
+    d.structuralDependencies=drafts.filter(parent=>parent.root!==d.root&&(
+      allObligations.some(o=>o.causes.includes(parent.root)&&ownPath.includes(o.owner))||
+      causeScopes(parent).some(owner=>ownPath.includes(owner)))).map(p=>p.root);
+    for(const i of d.interpretations) {
+      i.zone.addresses=i.zone.addresses.filter(a=>!a.owner?.startsWith('draft:')||live.has(a.anchor));
+      const owners=[...causes,...(own?.role==='open'?[own.owner]:[])];
+      const continuation=drafts.filter(other=>other.root!==d.root&&owners.some(owner=>candidatePaths.get(other.root)?.includes(owner))&&
+        (!i.partner||!index.byID.get(i.partner)||index.byID.get(other.root)?.start<=index.byID.get(i.partner).start)&&
+        this.contains(i,this.structuralAddress(editor,index.byID.get(other.root)?.start ?? editor.caret)));
+      i.zone.dependents=continuation.map(t=>t.root);
+      i.zone.addresses=this.unique([...i.zone.addresses,...continuation.flatMap(t=>['left','right'].map(side=>this.draftEdge(t.root,side)))]);
+    }
+  }
+  // Only material structurally owned by an unresolved ancestor inherits that
+  // ancestor's focus region. Unrelated drafts never lend each other a zone.
+  const byRoot=new Map(drafts.map(d=>[d.root,d])),areaKeys=new WeakMap();
+  const areaKey=a=>{if(!areaKeys.has(a))areaKeys.set(a,JSON.stringify(a));return areaKeys.get(a);};
+  for(const d of drafts){
+    const pending=[...d.structuralDependencies],visited=new Set(),addresses=new Map(),areas=new Map();
+    while(pending.length){const root=pending.pop();if(root===d.root||visited.has(root))continue;visited.add(root);const parent=byRoot.get(root);if(!parent)continue;pending.push(...parent.structuralDependencies);
+      for(const p of parent.interpretations){for(const a of p.zone.addresses)addresses.set(this.addressKey(a),a);for(const a of p.zone.areas)areas.set(areaKey(a),a);}
+    }
+    for(const i of d.interpretations)if(!i.mode){i.zone.addresses=this.unique([...i.zone.addresses,...addresses.values()]);i.zone.areas=[...new Map([...i.zone.areas,...areas.values()].map(a=>[areaKey(a),a])).values()];}
+  }
+  for(const d of drafts)d.zones=this.logicalZones(d);
+}
+
+inZone(draft,address) {
+  return draft.interpretations.filter(i=>this.contains(i,address));
+}
+
+activate(draft,address) {
+  const options=this.inZone(draft,address);draft.activeOptions=options.map(i=>i.id);
+  const modes=[...new Set(options.map(i=>i.mode).filter(Boolean))];draft.activeZone=modes.length===1?modes[0]:null;
+  const keys=new Set(options.map(i=>JSON.stringify([i.mode,i.displayCandidate,i.binding,i.pairFamily,i.type])));
+  if(keys.size!==1){draft.displayCandidateId=draft.mutationKind==='delete'?draft.root:null;draft.potentialPartnerId=null;draft.pairAlternative=null;return null;}
+  const active=options.find(i=>i.id===draft.active)?.id||options[0]?.id||null,chosen=options.find(i=>i.id===active);draft.displayCandidateId=chosen?.displayCandidate||null;draft.potentialPartnerId=chosen?.partner||null;draft.pairAlternative=chosen?.binding||null;return active;
+}
+
+enclosureOffers(level) {
+    const R=this.R,out=[],n=level.node,kind=n.kind,empty=!level.tokens.length;
+    const add=(type,family,side,law,requires=[])=>out.push({type,family,side,law,
+      owner:level.owner,scope:level.owner,level:level.level,actual:kind===type,
+      requires,conditions:{content:true,reachable:true},members:level.members});
+    const math=['expression','binod','unod','number','variable','function'].includes(kind)&&
+      !(kind==='expression'&&n.meta.grouped&&level.collectionBody);
+    if(math||kind==='vacancy')for(const side of ['open','close']) {
+      if(side==='open'&&!level.openReachable)continue;
+      add('expression','group',side,`group.${side}`,kind==='expression'&&n.meta.grouped?[]:[side==='open'?'closing-side':'opening-side',...(empty?['operand']:[])]);
+    }
+    if(level.collectionAllowed&&['relation','collection'].includes(kind))for(const side of ['open','close']) {
+      if(side==='open'&&!level.openReachable)continue;
+      add('collection','group',side,`group.${side}`,n.meta.grouped?[]:[side==='open'?'closing-side':'opening-side']);
+    }
+    if(kind==='periodic'||(['integer','fractional'].includes(kind)&&level.tokens.every(t=>R.alphabets.digit(t.char)))||kind==='vacancy') {
+      if(level.tokens.length<=R.limits.digits)for(const side of ['open','close']) {
+        if(side==='open'&&kind!=='periodic'&&!level.numericPrefix)continue;
+        add('periodic','period',side,side==='open'?'number.period':'period.close',kind==='periodic'?[]:
+          [...(kind==='integer'||kind==='vacancy'?['fractional-parent','decimal-side']:[]),side==='open'?'period-digits-and-close':'opening-side',...(empty?['period-digits']:[])]);
+      }
+    }
+    if(kind==='argument_list'||math||kind==='vacancy')for(const side of ['open','close']) {
+      if(side==='open'&&kind!=='argument_list'&&!level.callablePrefix)continue;
+      add('argument_list','arguments',side,side==='open'?'variable.call':'arguments.close',kind==='argument_list'?[]:
+        [...(level.callablePrefix?[]:['function-name']),side==='open'?'argument-and-close':'opening-side',...(empty?['argument']:[])]);
+    }
+    if(kind==='index_list'||['integer','variable_base','vacancy'].includes(kind)&&level.tokens.every(t=>R.alphabets.index(t.char))&&level.tokens.length<=R.limits.index)
+      for(const side of ['open','close']) {
+        if(side==='open'&&kind!=='index_list'&&!level.indexPrefix)continue;
+        add('index_list','indices',side,`indices.${side}`,kind==='index_list'?[]:['variable-base','index-base-separator',side==='open'?'index-and-close':'opening-side',...(empty?['index']:[])]);
+      }
+    if(kind==='unod'&&n.meta.position==='circumfix'||math||kind==='vacancy')for(const side of ['open','close']) {
+      if(side==='open'&&!level.openReachable)continue;
+      add('unod','module',side,`module.${side}`,kind==='unod'&&n.meta.position==='circumfix'?[]:[side==='open'?'operand-and-close':'opening-side']);
+    }
+    if(kind==='argument_list')out.push({type:kind,family:'arguments',side:'separator',law:'arguments.separator',owner:level.owner,scope:level.owner,level:level.level,requires:['next-argument'],members:level.members,conditions:{content:true,reachable:true}});
+    if(kind==='index_list')out.push({type:kind,family:'indices',side:'separator',law:'indices.separator',owner:level.owner,scope:level.owner,level:level.level,requires:['next-index'],members:level.members,conditions:{content:true,reachable:true}});
+    return out.filter(p=>R.enclosures[p.family]&&!R.disabledLaws?.includes(p.law));
+  }
+
+draftPartners(glyph, context) {
+    if(!context?.levels)return [];
+    const offers=[];
+    for(const level of context.levels)for(const o of this.enclosureOffers(level)) {
+      const match=o.side==='separator'?o.type==='argument_list'?this.R.blocks.argument_list.separator.includes(glyph):this.boundaryMatch(o.type,o.side,glyph):this.boundaryMatch(o.type,o.side,glyph);
+      if(!match)continue;
+      const partner=o.side==='separator'?null:o.type==='unod'?glyph:o.type==='periodic'||o.type==='argument_list'?o.side==='open'?')':'(':
+        o.side==='open'?this.R.groups[glyph]:Object.keys(this.R.groups).find(c=>this.R.groups[c]===glyph);
+      offers.push({...o,partner,source:'registry-partner-offer'});
+    }
+    return offers;
+  }
+
+startCall(assembler,f, variable, t) {
+    const base = children(variable)[0];
+    const fname = assembler.make('function_name', base.parts[0].id, base.parts);
+    for (const tok of fname.parts) assembler.token(tok, fname, 'name');
+    const list = ChainBehavior.mark(assembler.make('argument_list', t.id, [], { closed: false })); assembler.append(t, list, 'open');
+    const exp = assembler.make('expression', `arg:${t.id}`, [hole(t.id)]); list.parts.push(exp);
+    const fn = assembler.make('function', base.parts[0].id, [fname, list]);
+    assembler.replace(f.exp, variable, fn); f.last = fn;
+    const inner = assembler.math(exp, f, 'arguments', list); inner.host = list; inner.published = exp; assembler.stack.push(inner);
+  }
+
+startGroup(assembler,f, t) {
+    const g = assembler.make('expression', `group:${t.id}`, [], { grouped: true, closed: false, opener: t.id, level: 'pending' });
+    assembler.append(t, g, 'open'); const h = hole(t.id); g.parts.push(h);
+    const wasEmptyRoot = f.frameKind === 'root' && !f.relation && !f.collection && f.exp.parts[0]?.hole;
+    const body = f.exp.parts.find(p => isNode(p) || p?.hole);
+    const allowCollection = wasEmptyRoot || f.frameKind === 'group' && f.allowCollection && !f.relation && body?.hole || !!f.collection && !f.relation?.meta.comparison && body?.hole;
+    assembler.attach(f, g);
+    const inner = assembler.math(g, f, 'group', g); inner.target = h; inner.host = f.exp; inner.closeGlyph = assembler.R.groups[t.char]; inner.allowCollection = allowCollection;
+    assembler.stack.push(inner);
+  }
+
+startModule(assembler,f, t) {
+    const exp = assembler.make('expression', `module:${t.id}`, [hole(t.id)]);
+    const n = assembler.make('unod', t.id, [], { position: 'circumfix', closed: false });
+    assembler.append(t, n, 'open'); n.parts.push(exp); assembler.attach(f, n);
+    const inner = assembler.math(exp, f, 'module', n); inner.host = n; assembler.stack.push(inner);
+  }
+
+candidateTape(editor,tape=editor.tokens) {
+    const byID=new Map(editor.drafts.map(d=>[d.root,d]));
+    return tape.map(t=>{
+      const d=byID.get(t.id);if(!d)return t;
+      const tentative={...(d.tentative || t)};delete tentative.choice;delete tentative.choiceOwner;
+      return {...tentative,...t,...(t.choice?{choice:t.choice,choiceOwner:t.choiceOwner}:{}),
+        wasAccepted:!!d.tentative?.wasAccepted};
+    });
+  }
+
+evaluate(editor,tape,incoming=null,source='REPLAY') {
+    editor.interpretationOverflow=false;
+    const queue=[{tape:this.candidateTape(editor,tape),selections:{}}],variants=[],seen=new Set();let first=null;
+    const budget=editor.registry.limits.interpretations || 128;
+    while(queue.length) {
+      const v=queue.shift(),key=JSON.stringify(v.selections);if(seen.has(key))continue;seen.add(key);
+      const r=editor.assemble(v.tape,incoming,source);if(!first)first=r;
+      const conflict=r.builder.trace.find(e=>e.choices?.length && ['WAIT_ADDRESS','WAIT_REPAIR'].includes(e.outcome));
+      if(conflict) {
+        const t=v.tape.find(t=>t.id===conflict.event.id);
+        // AUTO has a fixed address and never takes part in a pairing contest.
+        const choices=t.origin==='AUTO'?[]:conflict.choices.filter(c=>{
+          return true;
+        });
+        if(choices.length && seen.size+queue.length+choices.length<=budget) {
+          for(const c of choices)queue.push({tape:v.tape.map(x=>x.id===t.id?{...x,choice:c.law,choiceOwner:c.owner}:x),
+            selections:{...v.selections,[t.id]:c}});
+        } else if(choices.length) editor.interpretationOverflow=true;
+      }
+      variants.push({...r,selections:v.selections,full:this.full(r.builder,tape)});
+    }
+    const complete=variants.filter(v=>v.full);
+    const best=[...variants].sort((a,b)=>(b.builder.tokens.length-b.builder.drafts.length*2)-(a.builder.tokens.length-a.builder.drafts.length*2))[0];
+    return {first,variants,complete,best};
+  }
+
+rebuildZones(editor,r) {
+    editor.candidateBuilder=r.best?.builder || editor.builder;
+    editor._completeCandidates=r.complete;
+    const tentative=new Map(editor.candidateBuilder.tokens.map(t=>[t.id,t]));const waitingPairs=this.pairs(editor.candidateBuilder,false)||[];
+    for(const d of editor.drafts) {
+      const t=tentative.get(d.root);if(t?.placement && !editor.candidateBuilder.drafts.some(x=>x.token.id===d.root))d.tentative=this.clone(t);
+      d.orientation=this.orientation(d.token.char);d.rootId=d.root;d.mutationKind ||= 'insert';
+      const placements=new Map();for(const v of r.variants){const t=v.builder.tokens.find(t=>t.id===d.root);if(t?.role&&!v.builder.drafts.some(x=>x.token.id===d.root))placements.set(JSON.stringify([t.owner,t.role,t.enclosureFamily]),t);}
+      if(d.orientation.kind&&placements.size===1&&d.tentative?.placement){const t=[...placements.values()][0];d.kind='D_addr';d.address={...t.placement,owner:t.owner,slot:t.role};}
+      else if(d.orientation.kind&&placements.size>1){d.kind='D_free';d.address=null;}
+      d.addressState=d.kind==='D_addr'?'defined':'unresolved';d.resolvedRole=null;
+      const pair=waitingPairs.find(p=>p.open===d.root||p.close===d.root);d.waitingLevel=pair?.level||null;d.resolvedRole=pair?(pair.open===d.root?'open':'close'):null;
+      const at=editor.projection().map.find(m=>m.id===d.root)?.start;
+      if(at!==undefined)d.interpretations=this.buildInterpretations(editor,d,at,d.plans || d.choices || []);
+    }
+    this.extendZones(editor);
+    for(const d of editor.drafts)d.active=this.activate(d,this.structuralAddress(editor,editor.caret,editor.focusHint));
+  }
+
+edit(editor,start,end,text,origin='USER',cause=null) {
+    const transactionMark=editor._transaction?{cChanged:editor._transaction.cChanged,historyBase:editor._transaction.historyBase}:null;
+    const current=editor.projection(),from=editor.tokenIndex(start,current.entries),to=editor.tokenIndex(end,current.entries);
+    const removed=current.entries.slice(from,to),previous=editor.snapshot();previous.caret=start;previous.selectionEnd=end;
+    let tape=current.entries.filter((_,i)=>i<from||i>=to),index=from,accepted=0,acceptedLength=0,rejected=null;
+    if(!text) {
+      if(!removed.length)return editor.view();
+      for(const d of editor.drafts.filter(d=>removed.some(t=>t.id===d.root)))editor.journal.push({type:'DRAFT_DECAY',root:d.root,zones:this.zonesOf(d),reason:'DELETE_ROOT'});
+      editor.drafts=editor.drafts.filter(d=>tape.some(t=>t.id===d.root));editor.tokens=tape;editor.caret=start;editor.selectionEnd=start;
+      const r=this.evaluate(editor,tape),resolved=this.resolutions(editor,r);
+      if(resolved.length===1&&!editor.interpretationOverflow)editor.adopt(resolved[0].builder,'addressed-deletion');
+      else {
+        editor.candidateBuilder=r.best.builder;
+        const old=removed.filter(t=>editor.confirmed.tokens.some(c=>c.id===t.id));
+        if(old.length)editor.rollback ||= {before:editor.episode?.before||previous,removed:structuredClone(old),zones:[],cause:'structural-loss',mutationKind:'delete'};
+        for(const deleted of old.filter(t=>['open','close'].includes(t.role))) {
+          const survivor=tape.find(t=>t.id===deleted.pairedWith);if(!survivor||editor.drafts.some(d=>d.root===survivor.id))continue;
+          editor.drafts.push({root:survivor.id,id:survivor.id,token:structuredClone(survivor),tentative:structuredClone(survivor),kind:'D_free',address:null,level:0,reason:'Сторона сохранена; ожидается допустимое перепаривание после удаления',choices:[],plans:[],blocking:true,dependency:null,interpretations:[],active:null,mutationKind:'delete',causeId:deleted.id});
+        }
+        this.rebuildZones(editor,r);editor.revision++;
+      }
+      editor.journal.push({type:'BOUNDARY_DELTA',mutationKind:'delete',removed:removed.map(t=>t.id),added:[],baseRevision:editor.revision});
+      editor.settleConfirmation();return editor.view();
+    }
+    for(const char of Array.from(text)) {
+      const token=editor.fresh(char,origin,cause);if(editor.focusHint)token.hint=editor.focusHint;
+      const proposed=[...tape];proposed.splice(index,0,token);
+      if(proposed.length>editor.registry.limits.symbols) {
+        const entry={event:{type:'INSERT',id:token.id,char,source:origin,origin,cause},address:this.structuralAddress(editor,start+acceptedLength),whiteFilters:[],
+          outcome:'REJECT_LIMIT',reason:'Лимит числа символов'};
+        editor.journal.push({type:'EDIT',...entry});rejected={char,reason:entry.reason,entry};continue;
+      }
+      editor.interpretationOverflow=false;const r=this.evaluate(editor,proposed,token,origin);
+      const limitOf=v=>v.builder.trace.find(e=>e.outcome==='REJECT_LIMIT'||e.outcome==='REJECT_CONSTRAINT'&&/лимит/iu.test(e.reason || ''));
+      const feasible=r.variants.filter(v=>v.admission?.admitted&&!limitOf(v));
+      const result=r.first.admission?.choices?.length?r.first.admission:feasible[0]?.admission || r.first.admission;
+      const limit=feasible.length?null:r.variants.map(limitOf).find(Boolean);
+      const context=this.partnershipContext(editor,start+acceptedLength,{tape:proposed,candidate:r.best.builder,root:token.id,addressed:result?.choices || []});
+      const profile=this.boundaryProfile(editor.registry,char,context),eligible=!limit && (result?.admitted || origin!=='AUTO' && (result?.choices?.length ||
+        profile.eligible && ['REJECT_UNADDRESSED','WAIT_REPAIR'].includes(result?.entry.outcome)));
+      editor.journal.push({type:'EDIT',...result.entry});
+      if(!eligible) {rejected={char,reason:limit?.reason || result.reason,entry:limit || result.entry};continue;}
+      if(!accepted && removed.length) {
+        editor.drafts=editor.drafts.filter(d=>proposed.some(t=>t.id===d.root));
+        if(removed.some(t=>editor.confirmed.tokens.some(c=>c.id===t.id)) && !r.complete.length)
+          editor.rollback ||= {before:editor.episode?.before||previous,removed:this.clone(removed),zones:[],cause:'replacement'};
+      }
+      const beforeDraft=editor.episode?null:editor.snapshot();
+      editor.tokens=proposed;tape=proposed;index++;accepted++;acceptedLength+=char.length;
+      editor.caret=start+acceptedLength;editor.selectionEnd=editor.caret;
+      this.rebuildZones(editor,r);const resolved=this.resolutions(editor,r);
+      if(resolved.length===1&&!editor.interpretationOverflow) {
+        editor.adopt(resolved[0].builder,'addressed-input');tape=editor.tokens;
+      } else {
+        editor.episode ||= {before:removed.length&&accepted===1?previous:beforeDraft,base:this.clone(editor.confirmed)};
+        const obligations=r.best.builder.obligations();
+        const oldConflict=r.best.builder.drafts.some(d=>editor.confirmed.tokens.some(t=>t.id===d.token.id));
+        const possiblePlans=[...new Map(feasible.map(v=>v.admission.entry.plan).filter(Boolean).map(p=>[JSON.stringify([p.law,p.owner,p.slot]),p])).values()];
+        const plans=result.choices?.length ? result.choices : possiblePlans.map(p=>({law:p.law,owner:p.owner,role:p.slot,label:p.slot}));
+        const addressed=result.admitted&&possiblePlans.length===1;
+        const d={rootId:token.id,mutationKind:removed.length?'replace':'insert',orientation:this.orientation(char),addressState:addressed?'defined':'unresolved',root:token.id,id:token.id,token,kind:addressed?'D_addr':'D_free',address:addressed?this.clone(result.entry.plan):null,
+          level:result.entry.address.level,reason:result.reason || (oldConflict?'Совместимость с подтверждённой структурой ещё не разрешена':'Ожидается завершение'),
+          choices:result.choices || [],plans,blocking:!result.admitted || obligations.some(o=>o.causes.includes(token.id)) || oldConflict,
+          dependency:editor.drafts.at(-1)?.root || null,interpretations:[],active:null};
+        d.interpretations=this.buildInterpretations(editor,d,start+acceptedLength-char.length,plans);
+        editor.drafts.push(d);editor.candidateBuilder=r.best.builder;
+        editor.journal.push({type:'DRAFT_OPEN',root:d.root,kind:d.kind,zones:this.zonesOf(d),reason:d.reason,cause:token.cause});
+        this.refresh(editor,false,r);const active=this.activate(d,this.structuralAddress(editor,editor.caret));d.active=active;
+        editor.revision++;
+      }
+    }
+    if(accepted&&editor.episode){editor.episode.operations ||= [];editor.episode.operations.push({kind:removed.length?'replace':'insert',removed:removed.map(t=>t.id),added:tape.filter(t=>!current.entries.some(c=>c.id===t.id)).map(t=>t.id)});}
+    if(!accepted){editor.caret=start;editor.selectionEnd=end;}
+    if(rejected&&(removed.length||origin==='PASTE'||origin==='IME'||Array.from(text).length>1)){editor.restore(previous);if(transactionMark)Object.assign(editor._transaction,transactionMark);editor.journal.push({type:'INPUT_REJECT',reason:rejected.reason,atomic:true,text});editor.lastRejection=rejected;return editor.view();}
+    editor.lastRejection=rejected;editor.focusHint=null;editor.settleConfirmation();return editor.view();
+  }
+}
+return {EnclosureSystem};
+})();
+const module_measurements = (()=>{
+const {isNode,isToken,children,walk,characters,hole}=module_0;
+const U=module_units;
+// A registry extension: juxtaposition creates a binary multiplication block,
+// never a character, an AUTO token or a vacant operator slot in the input tape.
+function extendImplicit(profile){
+  const original=profile.executor,priorLifecycle=profile.lifecycle||{};
+  const starts=['operand.number','operand.variable','group.open','module.open','unary.prefix'];
+  const rule={operator:'*',priority:profile.arithmetic['*'].priority,tokenWidth:0,replaceWithSeparator:true,
+    enclosureDistribution:{open:'right',close:'left',bidirectional:'draft-until-paired'}};
+  const laws={
+    implicitLink(f,t,periodAlternative=false){
+      this.nameFinalize?.(f);
+      const left=[...characters(f.last)].at(-1)?.id||this.tokens.at(-2)?.id;
+      const anchor=`adjacent:${left}:${t.id}`;
+      const registry=this.R;this.R={...registry,arithmetic:{...registry.arithmetic,[rule.operator]:{...registry.arithmetic[rule.operator],chain:false}}};
+      try{original.binary.call(this,f,{id:anchor,char:rule.operator,origin:'STRUCTURE'});}finally{this.R=registry;}
+      const bin=[...walk(f.exp)].find(n=>n.kind==='binod'&&n.parts.some(p=>p.hole&&p.id===hole(anchor,'right').id));
+      bin.parts=bin.parts.filter(p=>!isToken(p)||p.id!==anchor);
+      Object.assign(bin.meta,{implicit:true,behavior:'binary',adjacency:{left,right:t.id},operatorWidth:0,periodAlternative});
+      return bin;
+    },
+    implicitOffers(){
+      const f=this.frame,saved={last:f.last,expecting:f.expecting,target:f.target},denials=this.denials;
+      f.last=null;f.expecting=true;f.target=null;
+      try{return original.offers.call(this).filter(o=>starts.includes(o.law));}
+      finally{Object.assign(f,saved);this.denials=denials;}
+    },
+    offers(){
+      const out=original.offers.call(this),f=this.frame,last=f.last;
+      if(!this.R.arithmetic[rule.operator])return out;
+      if(f.expecting||!last||['period','indices'].includes(f.frameKind)||last.kind==='collection')return out;
+      if(last.meta.rightSlot&&!this.slotValueValid(last.meta.rightSlot,children(last)[1]))return out;
+      if(last.kind==='quantity'){
+        const dimension=children(last)[1],power=dimension.parts[0];
+        if(power?.meta.rightSlot&&!this.slotValueValid(power.meta.rightSlot,children(power)[1]))return out;
+      }
+      const available=out.slice(),denied=this.denials.slice();
+      for(const candidate of this.implicitOffers()){
+        const periodAlternative=c=>candidate.law==='group.open'&&available.some(o=>o.law==='number.period'&&o.match(c));
+        const match=c=>candidate.match(c)&&!available.some(o=>o.match(c)&&!(periodAlternative(c)&&o.law==='number.period'))&&!denied.some(d=>d.match(c))&&
+          !(last.kind==='quantity'&&(this.R.alphabets.letter(c)||c==='°'));
+        this.offer(out,`implicit.${candidate.law}`,candidate.proposer,'operand',candidate.accepts,match,t=>{
+          if(f.last.kind==='measurement_draft'){
+            const spelling=this.measurementText(f.last);
+            this.measurementFinish(f,U.resolve(spelling,this.R.measurements)?'unit':'variable');
+            // Finishing a name can expose its ordinary function-call offer.
+            const ordinary=original.offers.call(this).filter(o=>o.match(t.char)&&o.law!=='measurement.spacing');
+            if(ordinary.length===1&&ordinary[0].law==='variable.call')return ordinary[0].apply(t);
+          }
+          this.implicitLink(f,t,periodAlternative(t.char));
+          const start=original.offers.call(this).find(o=>o.law===candidate.law&&o.match(t.char));
+          return start?start.apply(t):{reject:'Нет допустимого правого операнда неявного умножения'};
+        },{proposerKind:candidate.ownerKind});
+      }
+      return out;
+    },
+    complete(n){
+      if(n.kind==='binod'&&n.meta.implicit&&n.meta.periodAlternative){
+        const group=children(n)[1],body=group&&children(group)[0];
+        // Digits alone keep the existing decimal-period spelling. A group with
+        // a name or operation instead completes the implicit-product branch.
+        if(body?.kind==='number'&&children(body).length===1&&children(body)[0].kind==='integer')return false;
+      }
+      return original.complete.call(this,n);
+    }
+  };
+  const afterRebuildZones=(editor,result)=>{
+    priorLifecycle.afterRebuildZones?.(editor,result);
+    const entered=new Map(editor.tokens.map(t=>[t.id,t]));
+    for(const variant of result.variants)for(const token of variant.builder.tokens){
+      if(['number.period','implicit.group.open'].includes(token.choice)&&token.origin!=='AUTO'&&!entered.get(token.id)?.choice){
+        // A unique automatic interpretation is a result, not an explicit user
+        // constraint. Replaying an edited body must be able to reconsider it.
+        delete token.choice;delete token.choiceOwner;
+      }
+    }
+    const pairs=editor.boundaries.pairs(editor.candidateBuilder,false)||[];
+    for(const draft of editor.drafts){
+      if(draft.orientation.kind!=='bidirectional')continue;
+      const pair=pairs.find(p=>p.open===draft.root||p.close===draft.root);
+      draft.tokenDistribution={orientation:pair?(pair.open===draft.root?'right':'left'):null,operatorWidth:0,pending:!pair};
+      if(!pair){draft.kind='D_free';draft.address=null;draft.addressState='unresolved';draft.resolvedRole=null;draft.positionDraft=true;}
+      else draft.positionDraft=false;
+    }
+  };
+  return {...profile,version:profile.version+' / implicit-adjacency-1',implicitMultiplication:rule,
+    executor:{...original,...laws},lifecycle:{...priorLifecycle,afterRebuildZones}};
+}
+
+// Local name recognition over registered name-token blocks. All rebuilding
+// remains in the same Assembler event route; source text is never reparsed.
+function extendNames(profile){
+  const original=profile.executor,prior=profile.lifecycle||{};
+  const laws={
+    nameText(variable){return children(variable)[0]?.parts.filter(p=>isToken(p)&&p.role==='name').map(t=>t.char).join('')||'';},
+    nameWords(){return [...new Set([...this.R.nameRules.functions,...this.R.nameRules.variables,...U.spellings(this.R.measurements)])];},
+    nameRegistered(text){return this.nameWords().includes(text);},
+    nameFunction(variable){return this.R.nameRules.functions.includes(this.nameText(variable));},
+    nameFinalize(f){
+      const variable=f.last;if(variable?.kind!=='variable'||variable.meta.indexed)return;
+      const base=children(variable)[0],tokens=base.parts.filter(p=>isToken(p)&&p.role==='name'),text=tokens.map(t=>t.char).join('');
+      if(tokens.length<2||this.nameRegistered(text)||tokens.some(t=>!this.R.alphabets.letter(t.char))){variable.meta.namePending=false;return;}
+      const words=this.nameWords().sort((a,b)=>b.length-a.length),fragments=[];let at=0;
+      while(at<tokens.length){const word=words.find(w=>tokens.slice(at,at+Array.from(w).length).map(t=>t.char).join('')===w),length=word?Array.from(word).length:1;fragments.push(tokens.slice(at,at+length));at+=length;}
+      const make=part=>{const leaf=this.make('variable_base',part[0].id,[]);for(const t of part)this.append(t,leaf,'name');return this.make('variable',part[0].id,[leaf],{namePending:false});};
+      const first=make(fragments[0]);this.replace(f.exp,variable,first);f.last=first;
+      for(const part of fragments.slice(1)){this.implicitLink(f,part[0]);this.attach(f,make(part));}
+      this.syncArgumentScopes();
+    },
+    measurementFinish(f,role){const result=original.measurementFinish.call(this,f,role);if(role==='variable')this.nameFinalize(f);return result;},
+    offers(){
+      let out=original.offers.call(this);const f=this.frame,last=f.last;
+      if(last?.kind==='variable'){
+        const text=this.nameText(last),words=this.nameWords();
+        out=out.filter(o=>o.law!=='variable.call'||this.nameFunction(last)).map(o=>{
+          if(o.law==='name.fill')return {...o,match:c=>o.match(c)&&words.some(w=>w.startsWith(text+c)),apply:t=>{
+            const result=o.apply(t);if(result?.reject)return result;
+            if(f.last?.kind==='variable'){
+              const name=this.nameText(f.last);f.last.meta.namePending=Array.from(name).length>1&&!this.nameRegistered(name);
+              if(t.extension?.names?.closed===name)this.nameFinalize(f);
+            }return result;
+          }};
+          if(!last.meta.namePending)return o;
+          return {...o,apply:t=>{this.nameFinalize(f);const next=this.offers().find(p=>p.law===o.law&&p.match(t.char));return next?next.apply(t):{reject:'Имя не допускает выбранное продолжение'};}};
+        });
+      }
+      return out;
+    },
+    complete(n){if(n.kind==='variable'&&n.meta.namePending)return false;return original.complete.call(this,n);},
+    obligations(){const out=original.obligations.call(this);for(const n of walk(this.top.root))if(n.kind==='variable'&&n.meta.namePending){const ids=[...characters(n)].map(t=>t.id);out.push({kind:'name',owner:n.id,causes:ids.slice(-1),ids,zone:'node',reason:'Черновик зарегистрированного имени'});}return out;}
+  };
+  const beforeEvent=(editor,event)=>{
+    prior.beforeEvent?.(editor,event);
+    if(['INSERT','REPLACE','DELETE'].includes(event.type)){
+      const map=new Map(editor.projection().map.map(m=>[m.id,m])),start=event.start??event.position??(event.type==='DELETE'?Math.max(0,editor.caret-1):editor.caret),end=event.end??event.position??editor.selectionEnd;
+      if(event.type==='DELETE'||Array.from(event.text||'').some(c=>editor.registry.alphabets.letter(c)))for(const token of editor.tokens){
+        const closed=token.extension?.names?.closed,at=map.get(token.id);
+        if(closed&&at&&start<=at.end&&end>=at.end-closed.length)delete token.extension.names;
+      }
+    }
+    if(event.type!=='FOCUS')return;
+    const positions=new Map(editor.projection().map.map(m=>[m.id,m]));let changed=false;
+    for(const n of walk(editor.candidateBuilder.top.root))if(n.kind==='variable'&&n.meta.namePending){
+      const tokens=[...characters(n)],first=positions.get(tokens[0].id),last=positions.get(tokens.at(-1).id),at=event.position??editor.caret;
+      if(!event.exit&&at>=first?.start&&at<=last?.end)continue;
+      const token=editor.tokens.find(t=>t.id===tokens.at(-1).id);if(!token)continue;
+      token.extension={...token.extension,names:{closed:tokens.map(t=>t.char).join('')}};changed=true;
+    }
+    if(changed)editor.boundaries.refresh(editor,true);
+  };
+  return {...profile,nameRules:profile.measurements.names,executor:{...original,...laws},lifecycle:{...prior,beforeEvent}};
+}
+
+// A structurally defined argument list has priority over juxtaposition.
+// Decisions are carried by source-token metadata and replayed by ordinary EDIT.
+function extendArgumentLists(profile){
+  const original=profile.executor,prior=profile.lifecycle||{};
+  const tagged=n=>n?.kind==='variable'&&children(n)[0]?.parts.some(t=>t.extension?.argumentList?.opening);
+  const bind=(editor,variable,opening)=>{
+    const ids=new Set(children(variable)[0].parts.filter(isToken).map(t=>t.id));
+    for(const token of editor.tokens)if(ids.has(token.id))token.extension={...token.extension,argumentList:{opening}};
+  };
+  const productPair=(editor,position=null,openingId=null)=>{
+    let scope=null;
+    if(position!==null){
+      const map=new Map(editor.projection().map.map(t=>[t.id,t]));let deepest=null;
+      const visit=(node,depth=0)=>{
+        const opening=node.parts.find(t=>isToken(t)&&(t.role==='open'||node.kind==='index_list'&&t.role==='base_separator')),closing=node.parts.findLast(t=>isToken(t)&&t.role==='close'),a=map.get(opening?.id),b=map.get(closing?.id),end=[...characters(node)].map(t=>map.get(t.id)?.end).filter(v=>v!==undefined).at(-1);
+        if(a&&position>=a.end&&position<=(b?.start??end)&&(!deepest||depth>deepest.depth))deepest={node,depth};
+        for(const child of children(node))visit(child,depth+1);
+      };visit(editor.candidateBuilder.top.root);
+      if(deepest?.node.kind!=='expression'||!deepest.node.meta.grouped)return null;scope=deepest.node.id;
+    }
+    for(const n of [...walk(editor.candidateBuilder.top.root)].reverse()){
+      if(n.kind!=='binod'||!n.meta.implicit)continue;
+      const [left,group]=children(n),opening=group?.parts.find(t=>isToken(t)&&t.role==='open'),edge=n.meta.adjacency?.left||[...characters(left)].at(-1)?.id;
+      const variable=[...walk(left)].find(v=>v.kind==='variable'&&!v.meta.indexed&&[...characters(v)].at(-1)?.id===edge);
+      if(!variable||group?.kind!=='expression'||!group.meta.grouped||opening?.char!=='(')continue;
+      if(openingId&&opening.id!==openingId||scope&&group.id!==scope)continue;
+      return {variable,group,opening};
+    }return null;
+  };
+  const separator=(editor,char,position)=>{
+    if(!editor.registry.enclosures.arguments||editor.registry.disabledLaws?.includes('variable.call')||![';',','].includes(char))return;
+    const pair=productPair(editor,position);if(!pair)return;
+    if(char===','&&editor.registry.decimal.includes(char)){
+      const map=editor.projection().map,left=map.findLast(t=>t.end===position),positions=new Map(map.map(t=>[t.id,t])),candidate=[...characters(editor.candidateBuilder.top.root)].find(t=>t.id===left?.id);
+      if(candidate?.role==='digits')for(const number of walk(editor.candidateBuilder.top.root))if(number.kind==='number'&&[...characters(number)].some(t=>t.id===left.id)&&!number.parts.some(t=>t.role==='decimal'&&(positions.get(t.id)?.start??Infinity)<position))return;
+    }
+    bind(editor,pair.variable,pair.opening.id);
+  };
+  const renameTarget=(editor,event)=>{
+    const map=new Map(editor.projection().map.map(t=>[t.id,t])),from=event.start??event.position??(event.type==='DELETE'?Math.max(0,editor.caret-1):editor.caret),to=event.end??event.position??editor.selectionEnd;
+    for(const n of walk(editor.tree))if(n.kind==='function'){
+      const name=children(n).find(c=>c.kind==='function_name'),list=children(n).find(c=>c.kind==='argument_list'),open=list?.parts.find(t=>isToken(t)&&t.role==='open'),opening=map.get(open?.id);
+      if(!name||!opening||from<=opening.start&&to>=opening.end)continue;
+      const parts=[...characters(name)].map(t=>map.get(t.id)).filter(Boolean),a=parts[0]?.start,b=parts.at(-1)?.end;
+      if(parts.length?from<=b&&to>=a:from===opening.start){
+        const ids=new Set([...characters(name)].map(t=>t.id));for(const token of editor.tokens)if(ids.has(token.id))token.extension={...token.extension,argumentList:{opening:open.id}};
+        return open.id;
+      }
+    }return null;
+  };
+  const beforeEvent=(editor,event)=>{
+    prior.beforeEvent?.(editor,event);
+    if(event.type==='CHOOSE'&&event.law==='arguments.explicit'){
+      const pair=productPair(editor,null,event.id);if(pair){bind(editor,pair.variable,pair.opening.id);editor.journal.push({type:'ARGUMENT_LIST_DECISION',route:'EDIT_REPLAY',opening:pair.opening.id,origin:'USER'});editor.boundaries.refresh(editor,true);}return;
+    }
+    if(!['INSERT','REPLACE','DELETE'].includes(event.type))return;
+    const from=event.start??event.position??(event.type==='DELETE'?Math.max(0,editor.caret-1):editor.caret),to=event.end??event.position??editor.selectionEnd,map=editor.projection().map;
+    const live=new Set(map.filter(t=>t.end<=from||t.start>=to).map(t=>t.id));
+    for(const token of editor.tokens)if(token.extension?.argumentList&&!live.has(token.extension.argumentList.opening))delete token.extension.argumentList;
+    editor._argumentInput={from,seen:0,opening:renameTarget(editor,event)};
+    separator(editor,Array.from(event.text||'')[0],from);
+  };
+  const beforeFresh=(editor,token)=>{
+    prior.beforeFresh?.(editor,token);
+    const input=editor._argumentInput;if(!input)return;
+    separator(editor,token.char,input.seen?editor.caret:input.from);input.seen++;
+    if(input.opening&&editor.registry.alphabets.letter(token.char))token.extension={...token.extension,argumentList:{opening:input.opening}};
+  };
+  const laws={
+    nameFunction(variable){return original.nameFunction.call(this,variable)||!!tagged(variable);},
+    nameFinalize(f){if(tagged(f.last)){f.last.meta.namePending=false;return;}return original.nameFinalize.call(this,f);},
+    offers(){const f=this.frame,out=original.offers.call(this);if(!tagged(f.last))return out;return out.filter(o=>o.law!=='implicit.operand.variable').map(o=>o.law==='name.fill'?{...o,match:c=>this.R.alphabets.letter(c),apply:t=>{const result=o.apply(t);if(tagged(f.last))f.last.meta.namePending=false;return result;}}:o);}
+  };
+  const argumentChoices=editor=>{const pair=productPair(editor,editor.caret);return pair?[{id:pair.opening.id,law:'arguments.explicit',label:'Список аргументов'}]:[];};
+  return {...profile,version:profile.version+' / explicit-argument-list-1',executor:{...original,...laws},lifecycle:{...prior,beforeEvent,beforeFresh,argumentChoices}};
+}
+
+function extendRegistry(baseRegistry){
+  const original=baseRegistry.executor;
+  const block=(name,family,slots,extra={})=>({name,family,slots,...extra});
+  const laws={
+    slotLeaf(node){return node?.kind==='unod'?this.slotLeaf(children(node)[0]):node;},
+    slotValueText(node,rule){return this.slotLeaf(node)?.parts.filter(p=>isToken(p)&&p.role===rule.contentRole).map(t=>U.superscript[t.char]??t.char).join('')||'';},
+    slotSign(rule,char){return rule.unary.operators.find(op=>op.symbols.includes(char));},
+    slotValueValid(slot,node,depth=0){
+      const rule=this.R.slotRules?.[slot];if(!rule||!isNode(node)||!rule.allowedKinds.includes(node.kind))return false;
+      if(node.kind==='unod'){
+        const kids=children(node),ops=node.parts.filter(isToken);
+        return depth<rule.unary.maxDepth&&node.meta.position===rule.unary.position&&kids.length===1&&ops.length===1&&ops[0].role==='operator'&&!!this.slotSign(rule,ops[0].char)&&node.parts.length===2&&rule.unary.operandKinds.includes(kids[0].kind)&&this.slotValueValid(slot,kids[0],depth+1);
+      }
+      if(node.parts.some(p=>!isToken(p)||p.role!==rule.contentRole))return false;
+      const text=this.slotValueText(node,rule);
+      return text.length>=rule.minimumDigits&&text.length<=this.R.limits[rule.limit]&&rule.first.includes(text[0])&&Array.from(text.slice(1)).every(c=>rule.rest.includes(c));
+    },
+    slotNextDigit(slot,node,char){const rule=this.R.slotRules[slot],text=this.slotValueText(node,rule),digit=U.superscript[char]??char;return digit.length===1&&text.length<this.R.limits[rule.limit]&&(text.length?rule.rest:rule.first).includes(digit);},
+    measurementValue(f){let value=f.last,parent;while((parent=[...walk(f.exp)].find(n=>n.kind==='unod'&&n.meta.position==='prefix'&&['+','-','−'].includes(n.parts.find(p=>p.role==='operator')?.char)&&children(n)[0]===value)))value=parent;return value;},
+    measurementText(draft){return children(draft)[1]?.parts.filter(p=>isToken(p)&&p.role==='name').map(t=>t.char).join('')||'';},
+    measurementCanSettle(node,draft){if(node===draft)return this.complete(children(draft)[0]);if(![...walk(node)].includes(draft))return this.complete(node);return !node.parts.some(p=>p.hole)&&children(node).every(n=>this.measurementCanSettle(n,draft));},
+    measurementStart(f,t,gap=false){
+      const value=this.measurementValue(f),name=this.make('variable_base',t.id,[],{measurementName:true}),draft=this.make('measurement_draft',t.id,[value],{phase:'name',nameClosed:false});
+      this.replace(f.exp,value,draft);if(gap)this.append(t,draft,'quantity_separator');draft.parts.push(name);f.last=draft;f.expecting=false;f.target=null;
+      if(!gap){this.append(t,name,'name');this.measurementRecognize(f,t);}
+    },
+    measurementFinish(f,role){
+      const draft=f.last,value=children(draft)[0],base=children(draft)[1],spelling=this.measurementText(draft),reg=U.resolve(spelling,this.R.measurements),gap=draft.parts.filter(isToken);
+      if(!spelling){for(const t of gap)this.append(t,value,'spacing');this.replace(f.exp,draft,value);f.last=value;this.syncArgumentScopes();return;}
+      let wrapper;
+      if(role==='unit'&&reg){
+        const unit=this.make('dimension_unit',base.parts[0].id,[],{spelling,registration:reg,sealed:true}),dim=this.make('dimension',base.parts[0].id,[unit],{unitId:reg.unitId});
+        for(const t of base.parts)this.append(t,unit,t.role==='name'?'unit_name':t.role);
+        wrapper=this.make('quantity',base.parts[0].id,[value],{behavior:'unary-binding'});for(const t of gap)this.append(t,wrapper,'quantity_separator');wrapper.parts.push(dim);f.last=wrapper;
+      }else{
+        base.meta.measurementName=false;const variable=this.make('variable',base.parts[0].id,[base],{finalizedName:true});
+        wrapper=this.make('binod',base.parts[0].id,[value],{domain:'arithmetic',operator:'*',operatorKey:'*',priority:20,behavior:'binary',implicit:true,operatorWidth:0,measurementCandidate:true});
+        for(const t of gap)this.append(t,wrapper,'spacing');wrapper.parts.push(variable);f.last=variable;
+      }
+      this.replace(f.exp,draft,wrapper);this.syncArgumentScopes();
+    },
+    measurementRecognize(f,t){
+      const draft=f.last,text=this.measurementText(draft),reg=U.resolve(text,this.R.measurements),policy=this.R.measurements.nameRecognition;
+      const decision=t?.extension?.measurements;
+      if(decision?.spelling===text){this.measurementFinish(f,decision.role);return;}
+      const longer=reg&&U.continuations(text,this.R.measurements).some(s=>s.length>text.length);
+      if(reg&&(!policy.deferAmbiguousExact||!longer))this.measurementFinish(f,'unit');
+    },
+    measurementAppend(f,t){const result=this.fillLeaf(children(f.last)[1],t,'name');if(result?.reject)return result;this.measurementRecognize(f,t);},
+    measurementReopen(f,wrapper,base,value,gap){
+      base.meta.measurementName=true;const draft=this.make('measurement_draft',base.parts[0].id,[value],{phase:'name',nameClosed:false});
+      for(const t of gap)this.append(t,draft,'quantity_separator');draft.parts.push(base);this.replace(f.exp,wrapper,draft);f.last=draft;
+    },
+    measurementContinueUnit(f,t){
+      const q=f.last,leaf=U.unitLeaf(children(q)[1]),base=this.make('variable_base',leaf.parts[0].id,[],{measurementName:true});
+      for(const token of leaf.parts)this.append(token,base,token.role==='unit_name'?'name':token.role);
+      this.measurementReopen(f,q,base,children(q)[0],q.parts.filter(isToken));return this.measurementAppend(f,t);
+    },
+    measurementSpacing(t){
+      const previous=this.tokens.at(-2),owner=previous&&[...walk(this.top.root)].find(n=>n.parts.some(p=>isToken(p)&&p.id===previous.id));
+      if(owner?.meta.slot&&this.R.slotRules[owner.meta.slot]){this.append(t,owner.meta.slot===this.R.measurements.quantityPowers.slot?this.frame.exp:children(this.frame.last).find(n=>n.kind==='dimension'),'spacing');return;}
+      if(owner){const at=owner.parts.findIndex(p=>isToken(p)&&p.id===previous.id);owner.parts.splice(at+1,0,this.token(t,owner,'spacing'));}else this.append(t,this.frame.exp,'spacing');
+      if(this.frame.last?.kind==='variable')this.frame.last.meta.nameClosed=true;
+    },
+    measurementPower(q,t,implicit=false){
+      const slot='dimension.power',dim=children(q)[1],bin=this.make('binod',t.id,[dim.parts[0]],{domain:'dimension',operator:'^',operatorKey:'^',priority:40,behavior:'binary',rightSlot:slot,superscript:implicit});
+      if(!implicit)this.append(t,bin,'operator');bin.parts.push(hole(t.id,'integer-power'));dim.parts=[bin];
+    },
+    quantityPower(f,t,implicit=false){
+      original.binary.call(this,f,implicit?{...t,char:'^'}:t);
+      const bin=[...walk(f.exp)].find(n=>n.kind==='binod'&&n.parts.some(p=>p.hole&&p.id===hole(t.id,'right').id));
+      bin.meta.rightSlot=this.R.measurements.quantityPowers.slot;bin.meta.powerScope='quantity';bin.meta.superscript=implicit;
+      if(implicit)bin.parts=bin.parts.filter(p=>!isToken(p));
+      f.last=bin;f.expecting=false;f.target=null;
+      return bin;
+    },
+    slotExponent(bin,t,sign=false){
+      const slot=bin.meta.rightSlot;let value=children(bin)[1];
+      if(sign){
+        const unary=this.make('unod',t.id,[],{slot,position:'prefix',priority:30});this.append(t,unary,'operator');unary.parts.push(hole(t.id,'integer-digits'));bin.parts[bin.parts.findIndex(p=>p.hole)]=unary;return;
+      }
+      if(!value||value.kind==='unod'&&value.parts.some(p=>p.hole)){
+        const integer=this.make('integer',t.id,[],{slot});const host=value?.kind==='unod'?value:bin;host.parts[host.parts.findIndex(p=>p.hole)]=integer;value=children(bin)[1];
+      }
+      this.append(t,this.slotLeaf(value),this.R.slotRules[slot].contentRole);
+      if(!this.slotValueValid(slot,value))return {reject:'Показатель: целое число до двух цифр и не более одного знака + или −'};
+    },
+    measurementExponent(q,t,sign=false){
+      const dim=children(q)[1],result=this.slotExponent(dim.parts[0],t,sign);if(result?.reject)return result;
+      if(sign)return;
+      const reg=U.registration(q);if(reg.offset!=='0'&&BigInt(U.powerText(dim))!==1n)return {reject:'Аффинная шкала °С допускает только степень 1; сначала преобразуйте в К'};
+    },
+    quantityPowerOffers(out,bin){
+      const slot=bin.meta.rightSlot,rule=this.R.slotRules[slot],power=children(bin)[1],text=this.slotValueText(power,rule),add=(...a)=>this.offer(out,...a);
+      out=out.filter(o=>o.law!=='unary.postfix').map(o=>o.law==='binary.link'?{...o,match:c=>c!=='^'&&o.match(c)}:o);
+      if(!power&&rule.unary.maxDepth>0)add('quantity.sign',bin,slot,'+ −',c=>!!this.slotSign(rule,c),t=>this.slotExponent(bin,t,true));
+      if(text.length<this.R.limits[rule.limit])add('quantity.exponent',bin,slot,'0…9 (до двух цифр)',c=>this.slotNextDigit(slot,power,c),t=>this.slotExponent(bin,t));
+      else this.denials.push({match:c=>/^[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]$/u.test(c),reason:'Лимит показателя степени: две цифры',owner:bin.id});
+      const ready=!!power&&this.slotValueValid(slot,power);
+      if(ready)this.offer(out,'measurement.spacing',bin,'spacing','пробел',U.space,t=>this.measurementSpacing(t));
+      return ready?out:out.filter(o=>['quantity.sign','quantity.exponent'].includes(o.law));
+    },
+    measurementPowerOffers(out,f){
+      const q=f.last,dim=children(q)[1],bin=dim.parts[0],slot=bin.meta.rightSlot,rule=this.R.slotRules[slot],power=U.exponentNode(dim),text=this.slotValueText(power,rule),add=(...a)=>this.offer(out,...a);
+      if(!power&&rule.unary.maxDepth>0)add('dimension.sign',dim,slot,'+ −',c=>!!this.slotSign(rule,c),t=>this.measurementExponent(q,t,true));
+      if(text.length<this.R.limits[rule.limit])add('dimension.exponent',dim,slot,'0…9 (до двух цифр)',c=>this.slotNextDigit(slot,power,c),t=>this.measurementExponent(q,t));
+      else this.denials.push({match:c=>/^[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]$/u.test(c),reason:'Лимит показателя степени: две цифры',owner:dim.id});
+      const ready=!!power&&this.slotValueValid(slot,power);
+      return ready?out.filter(o=>o.law!=='unary.postfix'):out.filter(o=>['dimension.sign','dimension.exponent'].includes(o.law));
+    },
+    offers(){
+      let out=original.offers.call(this);const f=this.frame,last=f.last,R=this.R,add=(...a)=>this.offer(out,...a),nameChar=c=>R.alphabets.letter(c)||c==='°';
+      if(['period','indices'].includes(f.frameKind))return out;
+      if(last?.kind==='number'&&!f.expecting){
+        add('measurement.gap',last,'name-draft','пробел → черновик',U.space,t=>this.measurementStart(f,t,true));add('measurement.name',last,'name-draft','имя / единица',nameChar,t=>this.measurementStart(f,t));
+      }else if(last?.kind==='measurement_draft'){
+        const name=children(last)[1],text=this.measurementText(last),reg=U.resolve(text,R.measurements);
+        // A delimiter settles the name through the same executable event route.
+        out=out.filter(o=>!['unary.postfix','collection.link'].includes(o.law)).map(o=>({...o,match:c=>!(reg&&c==='^')&&o.match(c),apply:t=>{this.measurementFinish(f,reg?'unit':'variable');return o.apply(t);}}));
+        if(this.relationAllowed(f)&&f.relation?.meta.comparison&&!R.disabledLaws?.includes('collection.link')&&this.measurementCanSettle(f.relation,last))add('collection.link',f.collection||{id:`new:collection:${f.target?.id||f.exp?.id}`,kind:'collection'},'logical',Object.keys(R.logical).join(' '),c=>Object.hasOwn(R.logical,c),t=>{this.measurementFinish(f,reg?'unit':'variable');return this.logical(f,t);});
+        if(!last.meta.nameClosed&&name.parts.filter(p=>p.role==='name').length<R.limits.name)add('measurement.name.append',name,'name','буква',nameChar,t=>this.measurementAppend(f,t));
+        else if(!last.meta.nameClosed)this.denials.push({match:nameChar,reason:'Превышен лимит длины имени',owner:name.id});
+        add('measurement.draft.space',last,'spacing','пробел',U.space,t=>{
+          if(reg){this.measurementFinish(f,'unit');this.measurementSpacing(t);}else{this.append(t,last,'spacing');if(text)last.meta.nameClosed=true;}
+        });
+        if(reg){
+          add('dimension.draft.power',last,'operator','^',c=>c==='^',t=>{this.measurementFinish(f,'unit');this.measurementPower(f.last,t);});
+          add('dimension.draft.superscript',last,'integer-power','целая степень',c=>Object.hasOwn(U.superscript,c)||['⁺','⁻'].includes(c),t=>{
+            this.measurementFinish(f,'unit');this.measurementPower(f.last,t,true);return this.measurementExponent(f.last,t,['⁺','⁻'].includes(t.char));
+          });
+        }
+        return out;
+      }else if(last?.kind==='quantity'){
+        const dim=children(last)[1],leaf=U.unitLeaf(dim),reg=leaf.meta.registration,hasPower=dim.parts[0]?.kind==='binod';
+        out=out.map(o=>o.law==='binary.link'?{...o,match:c=>c!=='^'&&o.match(c)}:o);
+        if(hasPower)out=this.measurementPowerOffers(out,f);
+        else{
+          // A complete prefixed unit is sealed. An unprefixed ambiguous base may
+          // only continue toward one registered prefix+base spelling (m → mm).
+          if(!U.space(this.tokens.at(-1)?.char))add('measurement.unit.continue',leaf,'unit_name','зарегистрированное продолжение',c=>nameChar(c)&&(!R.measurements.nameRecognition.lockAfterRecognition||!reg.prefixId&&U.continuations(leaf.meta.spelling+c,R.measurements).length>0),t=>this.measurementContinueUnit(f,t));
+          add('dimension.power',dim,'operator','^',c=>c==='^',t=>this.measurementPower(last,t));
+          add('dimension.superscript',dim,'integer-power','целая степень',c=>Object.hasOwn(U.superscript,c)||['⁺','⁻'].includes(c),t=>{this.measurementPower(last,t,true);return this.measurementExponent(last,t,['⁺','⁻'].includes(t.char));});
+        }
+        const power=hasPower?U.exponentNode(dim):null;
+        if(!hasPower||power&&this.slotValueValid('dimension.power',power))add('measurement.spacing',last,'spacing','пробел',U.space,t=>this.measurementSpacing(t));
+        return out;
+      }else if(last?.meta.rightSlot===R.measurements.quantityPowers.slot){
+        return this.quantityPowerOffers(out,last);
+      }else{
+        if(R.arithmetic['^']&&last?.kind==='expression'&&last.meta.grouped&&last.meta.closed&&U.quantityForm(last)){
+          out=out.map(o=>o.law==='binary.link'?{...o,match:c=>c!=='^'&&o.match(c)}:o);
+          this.offer(out,'quantity.power',last,'operator','^',c=>c==='^',t=>this.quantityPower(f,t));
+          this.offer(out,'quantity.superscript',last,R.measurements.quantityPowers.slot,'целая степень',c=>Object.hasOwn(U.superscript,c)||['⁺','⁻'].includes(c),t=>this.slotExponent(this.quantityPower(f,t,true),t,['⁺','⁻'].includes(t.char)));
+        }
+        this.offer(out,'measurement.spacing',f.exp,'spacing','пробел',U.space,t=>this.measurementSpacing(t));
+      }
+      if(last?.kind==='variable')out=out.filter(o=>o.law!=='name.fill'||!last.meta.nameClosed).map(o=>o.law==='name.fill'?{...o,apply:t=>{
+        const result=o.apply(t);if(result?.reject)return result;
+        const binding=[...walk(f.exp)].find(n=>n.meta.measurementCandidate&&children(n)[1]===last);
+        if(binding){this.measurementReopen(f,binding,children(last)[0],children(binding)[0],binding.parts.filter(isToken));this.measurementRecognize(f,t);}return result;
+      }}:o);
+      return out;
+    },
+    complete(n){
+      if(!isNode(n))return false;
+      if(n.meta.slot&&this.R.slotRules[n.meta.slot])return this.slotValueValid(n.meta.slot,n);
+      const kids=children(n),valid=kids.every(k=>this.complete(k));
+      if(n.kind==='measurement_draft')return false;
+      if(n.kind==='binod'&&n.meta.rightSlot){const ops=n.parts.filter(isToken);return valid&&kids.length===2&&this.slotValueValid(n.meta.rightSlot,kids[1])&&!n.parts.some(p=>p.hole)&&(n.meta.superscript?ops.length===0:ops.length===1&&ops[0].role==='operator'&&ops[0].char==='^');}
+      if(n.kind==='quantity')return valid&&kids.length===2&&kids[1].kind==='dimension';
+      if(n.kind==='dimension_unit')return !!n.meta.registration;
+      if(n.kind==='dimension'){const spec=this.R.blocks.dimension,body=kids[0],base=body&&children(body)[0];return valid&&kids.length===1&&(spec.baseKinds.includes(body.kind)||body.kind==='binod'&&body.meta.domain==='dimension'&&body.meta.rightSlot===spec.slotRules.power&&(spec.baseKinds.includes(base?.kind)||n.meta.derived&&base?.meta.domain==='dimension'));}
+      if(n.kind==='binod'&&(n.meta.implicit||n.meta.superscript))return valid&&kids.length===2&&!n.parts.some(p=>p.hole);
+      return original.complete.call(this,n);
+    },
+    obligations(){const out=original.obligations.call(this);for(const n of walk(this.top.root))if(n.kind==='measurement_draft'||(n.kind==='quantity'||n.meta.rightSlot===this.R.measurements.quantityPowers.slot)&&!this.complete(n)){
+      const ids=(n.kind==='measurement_draft'?[...characters(children(n)[1])]:[...characters(n)]).map(t=>t.id),causes=ids.length?ids:n.parts.filter(isToken).map(t=>t.id);
+      out.push({kind:'measurement',owner:n.id,causes,ids,zone:'node',reason:n.kind==='measurement_draft'?'Черновик имени: основная единица ещё не определена':'Ожидается целый показатель до двух цифр'});
+    }return out;}
+  };
+  const beforeEvent=(editor,event)=>{
+    if(event.type!=='FOCUS')return;
+    const projected=editor.projection(),positions=new Map(projected.map.map(m=>[m.id,m])),drafts=[...walk(editor.candidateBuilder.top.root)].filter(n=>n.kind==='measurement_draft');let changed=false;
+    for(const draft of drafts){const base=children(draft)[1],tokens=base.parts.filter(p=>isToken(p)&&p.role==='name');if(!tokens.length)continue;
+      const first=positions.get(tokens[0].id),last=positions.get(tokens.at(-1).id),at=event.position??editor.caret;
+      if(!event.exit&&at>=first?.start&&at<=last?.end)continue;
+      const spelling=tokens.map(t=>t.char).join(''),reg=U.resolve(spelling,editor.registry.measurements),token=editor.tokens.find(t=>t.id===tokens.at(-1).id);if(!token)continue;
+      token.extension={...token.extension,measurements:{role:reg?'unit':'variable',spelling}};changed=true;
+      editor.journal.push({type:'NAME_FOCUS_DECISION',id:token.id,role:reg?'unit':'variable',spelling});
+    }
+    if(changed)editor.boundaries.refresh(editor,true);
+  };
+  return extendArgumentLists(extendImplicit(extendNames({...baseRegistry,version:baseRegistry.version+' / measurements-addon-1.5',measurements:U.catalogue,
+    limits:{...baseRegistry.limits,dimensionExponentDigits:U.catalogue.integerPowers.maximumDigits},slotRules:{...baseRegistry.slotRules,'dimension.power':U.catalogue.integerPowers,[U.catalogue.quantityPowers.slot]:{...U.catalogue[U.catalogue.quantityPowers.integerRule],slot:U.catalogue.quantityPowers.slot}},
+    lifecycle:{...baseRegistry.lifecycle,beforeEvent},
+    blocks:{...baseRegistry.blocks,
+      quantity:block('Величина','quantity',['value','dimension'],{behavior:'unary-binding'}),
+      measurement_draft:block('Черновик величины','quantity',['value','name'],{draft:true}),
+      dimension:block('Размерность','dimension',['registered-unit','integer-power?'],{baseKinds:['dimension_unit'],slotRules:{power:'dimension.power'}}),
+      dimension_unit:block('Единица СИ','unit',['unit_name'],{alphabet:'registered-name',limit:'name'})},executor:{...original,...laws},
+    projections:{
+      integer:(n,{base,local,children})=>['dimension.power',U.catalogue.quantityPowers.slot].includes(n.meta.slot)?{...base,value:Array.from(local(n,'digits'),c=>U.superscript[c]??c).join(''),children:[]}:null,
+      unod:(n,{base,local,children})=>['dimension.power',U.catalogue.quantityPowers.slot].includes(n.meta.slot)?{...base,operator:U.catalogue.integerPowers.unary.operators.find(op=>op.symbols.includes(local(n,'operator')))?.key,glyph:local(n,'operator'),position:n.meta.position,children:children()}:null,
+      quantity:(n,{base,children})=>({...base,binding:'unary',children:children()}),
+      dimension:(n,{base,children})=>({...base,unitId:n.meta.unitId,power:U.powerText(n),children:children()}),
+      dimension_unit:(n,{base,local})=>({...base,value:local(n,'unit_name'),registration:n.meta.registration,children:[]}),
+      binod:(n,{base,children})=>n.meta.implicit||n.meta.superscript?{...base,operator:n.meta.implicit?'*':'^',implicit:!!n.meta.implicit,children:children()}:null
+    }})));
+}
+return {extendRegistry,registry:extendRegistry(module_3.registry)};
+})();
+
+
+const inputSnapshot={"measurements":{"source":{"repository":"Cube3-C3/Packages","ref":"main","revision":"426ac092838645e182737c2baec8ac6f88fe17e2","files":{"physi_quant":"Fis_data/physi_quant.json","usages":"Fis_data/usages.json","units":"Fis_data/units.json","domains":"Fis_data/domains.json","quantity_constraints":"Fis_data/quantity_constraints.json","constraints":"math_data/constraints.json","transformations":"math_data/transformations.json"}},"units":[{"id":"U001","baseId":"U001","transformId":null,"name":"единица","symbol":"1","symbols":["1"],"dimension":"[1]","prefixes":[],"scale":"1","offset":"0"},{"id":"U002","baseId":"U001","transformId":"U002","name":"радиан","symbol":"рад","symbols":["рад"],"dimension":"[1]","prefixes":[],"scale":"1","offset":"0"},{"id":"U003","baseId":"U001","transformId":"U003","name":"градус","symbol":"°","symbols":["°"],"dimension":"[1]","prefixes":[],"scale":"0.017453292519943295","offset":"0"},{"id":"U004","baseId":"U004","transformId":null,"name":"метр","symbol":"м","symbols":["м"],"dimension":"[L]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U028","baseId":"U004","transformId":"U028","name":"сантиметр","symbol":"см","symbols":["см"],"dimension":"[L]","prefixes":[],"scale":"0.01","offset":"0"},{"id":"U031","baseId":"U004","transformId":"U031","name":"километр","symbol":"км","symbols":["км"],"dimension":"[L]","prefixes":[],"scale":"1000","offset":"0"},{"id":"U032","baseId":"U004","transformId":"U032","name":"миллиметр","symbol":"мм","symbols":["мм"],"dimension":"[L]","prefixes":[],"scale":"0.001","offset":"0"},{"id":"U030","baseId":"U004","transformId":"U030","name":"световая секунда","symbol":"сс","symbols":["сс"],"dimension":"[L]","prefixes":[],"scale":"299792458","offset":"0"},{"id":"U005","baseId":"U005","transformId":null,"name":"килограмм","symbol":"кг","symbols":["кг"],"dimension":"[M]","prefixes":[],"scale":"1","offset":"0"},{"id":"U029","baseId":"U005","transformId":"U029","name":"грамм","symbol":"г","symbols":["г"],"dimension":"[M]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"0.001","offset":"0"},{"id":"U006","baseId":"U006","transformId":null,"name":"секунда","symbol":"с","symbols":["с"],"dimension":"[T]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U007","baseId":"U007","transformId":null,"name":"ампер","symbol":"А","symbols":["А"],"dimension":"[I]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U008","baseId":"U008","transformId":null,"name":"кельвин","symbol":"К","symbols":["К"],"dimension":"[Θ]","prefixes":[],"scale":"1","offset":"0"},{"id":"U009","baseId":"U008","transformId":"U009","name":"градус Цельсия","symbol":"°С","symbols":["°С"],"dimension":"[Θ]","prefixes":[],"scale":"1","offset":"273.15"},{"id":"U010","baseId":"U008","transformId":"U010","name":"градус Фаренгейта","symbol":"°Ф","symbols":["°Ф"],"dimension":"[Θ]","prefixes":[],"scale":"0.5555555555555556","offset":"255.3722222222222"},{"id":"U011","baseId":"U011","transformId":null,"name":"моль","symbol":"моль","symbols":["моль"],"dimension":"[N]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U012","baseId":"U012","transformId":null,"name":"кандела","symbol":"кд","symbols":["кд"],"dimension":"[J]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U013","baseId":"U013","transformId":null,"name":"квадратный метр","symbol":"м²","symbols":["м²"],"dimension":"[L^2]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U014","baseId":"U014","transformId":null,"name":"диоптрия","symbol":"дптр","symbols":["дптр"],"dimension":"[L^{-1}]","prefixes":[],"scale":"1","offset":"0"},{"id":"U015","baseId":"U015","transformId":null,"name":"герц","symbol":"Гц","symbols":["Гц"],"dimension":"[T^{-1}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U016","baseId":"U016","transformId":null,"name":"ньютон","symbol":"Н","symbols":["Н"],"dimension":"[M L T^{-2}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U017","baseId":"U017","transformId":null,"name":"джоуль","symbol":"Дж","symbols":["Дж"],"dimension":"[M L^2 T^{-2}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U018","baseId":"U018","transformId":null,"name":"ватт","symbol":"Вт","symbols":["Вт"],"dimension":"[M L^2 T^{-3}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U019","baseId":"U019","transformId":null,"name":"паскаль","symbol":"Па","symbols":["Па"],"dimension":"[M L^{-1} T^{-2}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U020","baseId":"U020","transformId":null,"name":"кулон","symbol":"Кл","symbols":["Кл"],"dimension":"[T I]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U021","baseId":"U021","transformId":null,"name":"вольт","symbol":"В","symbols":["В"],"dimension":"[M L^2 T^{-3} I^{-1}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U022","baseId":"U022","transformId":null,"name":"ом","symbol":"Ом","symbols":["Ом"],"dimension":"[M L^2 T^{-3} I^{-2}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U023","baseId":"U023","transformId":null,"name":"сименс","symbol":"См","symbols":["См"],"dimension":"[M^{-1} L^{-2} T^3 I^2]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U024","baseId":"U024","transformId":null,"name":"фарад","symbol":"Ф","symbols":["Ф"],"dimension":"[M^{-1} L^{-2} T^4 I^2]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U025","baseId":"U025","transformId":null,"name":"генри","symbol":"Гн","symbols":["Гн"],"dimension":"[M L^2 T^{-2} I^{-2}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U026","baseId":"U026","transformId":null,"name":"вебер","symbol":"Вб","symbols":["Вб"],"dimension":"[M L^2 T^{-2} I^{-1}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"},{"id":"U027","baseId":"U027","transformId":null,"name":"тесла","symbol":"Тл","symbols":["Тл"],"dimension":"[M T^{-2} I^{-1}]","prefixes":["quetta","ronna","yotta","zetta","exa","peta","tera","giga","mega","kilo","hecto","deca","deci","centi","milli","micro","nano","pico","femto","atto","zepto","yocto","ronto","quecto"],"scale":"1","offset":"0"}],"prefixes":[{"id":"quetta","name":"кветта","symbols":["Кв"],"power":30},{"id":"ronna","name":"ронна","symbols":["Рн"],"power":27},{"id":"yotta","name":"иотта","symbols":["И"],"power":24},{"id":"zetta","name":"зетта","symbols":["З"],"power":21},{"id":"exa","name":"экса","symbols":["Э"],"power":18},{"id":"peta","name":"пета","symbols":["П"],"power":15},{"id":"tera","name":"тера","symbols":["Т"],"power":12},{"id":"giga","name":"гига","symbols":["Г"],"power":9},{"id":"mega","name":"мега","symbols":["М"],"power":6},{"id":"kilo","name":"кило","symbols":["к"],"power":3},{"id":"hecto","name":"гекто","symbols":["г"],"power":2},{"id":"deca","name":"дека","symbols":["да"],"power":1},{"id":"deci","name":"деци","symbols":["д"],"power":-1},{"id":"centi","name":"санти","symbols":["с"],"power":-2},{"id":"milli","name":"милли","symbols":["м"],"power":-3},{"id":"micro","name":"микро","symbols":["мк"],"power":-6},{"id":"nano","name":"нано","symbols":["н"],"power":-9},{"id":"pico","name":"пико","symbols":["п"],"power":-12},{"id":"femto","name":"фемто","symbols":["ф"],"power":-15},{"id":"atto","name":"атто","symbols":["а"],"power":-18},{"id":"zepto","name":"зепто","symbols":["з"],"power":-21},{"id":"yocto","name":"иокто","symbols":["и"],"power":-24},{"id":"ronto","name":"ронто","symbols":["р"],"power":-27},{"id":"quecto","name":"квекто","symbols":["кв"],"power":-30}],"transforms":[{"id":"U002","name":"радиан","symbols":["рад"],"unit":"U001","scale":"1","offset":"0","inverseScale":"1","inverseOffset":"0","inverseSymbol":"рад"},{"id":"U003","name":"градус","symbols":["°"],"unit":"U001","scale":"0.017453292519943295","offset":"0","inverseScale":"57.29577951308232","inverseOffset":"0","inverseSymbol":"°"},{"id":"U028","name":"сантиметр","symbols":["см"],"unit":"U004","scale":"0.01","offset":"0","inverseScale":"100","inverseOffset":"0","inverseSymbol":"см"},{"id":"U031","name":"километр","symbols":["км"],"unit":"U004","scale":"1000","offset":"0","inverseScale":"0.001","inverseOffset":"0","inverseSymbol":"км"},{"id":"U032","name":"миллиметр","symbols":["мм"],"unit":"U004","scale":"0.001","offset":"0","inverseScale":"1000","inverseOffset":"0","inverseSymbol":"мм"},{"id":"U030","name":"световая секунда","symbols":["сс"],"unit":"U004","scale":"299792458","offset":"0","inverseScale":"0.0000000033356409519815204","inverseOffset":"0","inverseSymbol":"сс"},{"id":"U029","name":"грамм","symbols":["г"],"unit":"U005","scale":"0.001","offset":"0","inverseScale":"1000","inverseOffset":"0","inverseSymbol":"г"},{"id":"U009","name":"градус Цельсия","symbols":["°С"],"unit":"U008","scale":"1","offset":"273.15","inverseScale":"1","inverseOffset":"-273.15","inverseSymbol":"°С"},{"id":"U010","name":"градус Фаренгейта","symbols":["°Ф"],"unit":"U008","scale":"0.5555555555555556","offset":"255.3722222222222","inverseScale":"1.7999999999999998","inverseOffset":"-459.66999999999996","inverseSymbol":"°Ф"}]},"functions":["sqrt","root","ln","log","tan","cot","asin","acos","sin","cos","exp","tg","ctg","arcsin","arccos"]};
+Object.assign(module_units.catalogue,inputSnapshot.measurements);
+module_units.catalogue.names.functions=[...new Set([...module_units.catalogue.names.functions,...inputSnapshot.functions])];
+const module_tree = (()=>{
+const {isNode, isToken}=module_0;
+
+// A detached expression tree projected ONLY from the confirmed block structure.
+// No source string, replay, precedence table or parser participates here.
+// Lists keep their item order. Operation chains become ((a op b) op c).
+function buildExpressionTree(root,registry=module_measurements.registry) {
+  const local = (n, role) => n.parts.filter(p=>isToken(p)&&p.role===role).map(p=>p.char).join('');
+  const visit = n => {
+    if(n?.hole)return {kind:'hole',id:`tree:${n.id}`,role:n.role,children:[]};
+    if(!isNode(n))throw Error('Expression tree requires a block or a structural vacancy');
+    const base={kind:n.kind,id:`tree:${n.id}`,blockId:n.id};
+    const operands=n.parts.filter(p=>isNode(p)||p?.hole);
+    const children=()=>operands.map(visit);
+    const extension=registry.projections?.[n.kind]?.(n,{base,operands,children,visit,local});
+    if(extension)return extension;
+    switch(n.kind) {
+      case 'binod':
+      case 'collection': {
+        if(n.kind==='collection'&&n.meta.grouped)return {...base,grouped:true,children:children()};
+        const role=n.kind==='binod'?'operator':'logical';
+        // parts already encode precedence and nesting. Only fold this block's
+        // own ordered operands; never flatten a child block or regroup powers.
+        let left=null,operator=null;
+        for(const p of n.parts) {
+          if(isToken(p)&&p.role===role) {
+            if(!left||operator)throw Error(`Invalid operation slots in ${n.id}`);
+            operator=p;
+          } else if(isNode(p)||p?.hole) {
+            const right=visit(p);
+            if(!left)left=right;
+            else {
+              if(!operator)throw Error(`Missing operation slot in ${n.id}`);
+              left={...base,id:`tree:${n.id}:${operator.id}`,operator:n.meta.operatorKey || operator.char,
+                operatorTokenId:operator.id,glyph:operator.char,children:[left,right]};
+              operator=null;
+            }
+          }
+        }
+        if(operator||!left)throw Error(`Incomplete operation slots in ${n.id}`);
+        return left;
+      }
+      case 'unod':
+        return {...base,operator:local(n,'operator') || local(n,'open'),position:n.meta.position,children:children()};
+      case 'operation_pair':
+        return {...base,operator:n.meta.operator||null,children:children()};
+      case 'relation':
+        return {...base,operator:n.meta.comparison,children:children()};
+      case 'expression':
+        return {...base,grouped:!!n.meta.grouped,children:children()};
+      case 'integer': case 'fractional': case 'periodic':
+        return {...base,value:local(n,'digits'),children:children()};
+      case 'variable_base': case 'function_name':
+        return {...base,value:local(n,'name'),children:children()};
+      case 'number':
+        return {...base,decimal:local(n,'decimal') || null,children:children()};
+      case 'index_list': {
+        const tokens=new Map(n.parts.filter(isToken).map(p=>[p.id,p]));
+        return {...base,items:n.meta.items.map(item=>({id:item.id,
+          value:item.ids.map(id=>tokens.get(id).char).join('')})),children:children()};
+      }
+      case 'variable': case 'function': case 'argument_list':
+        return {...base,children:children()};
+      default: throw Error(`Unsupported expression tree block ${n.kind}`);
+    }
+  };
+  return visit(root);
+}
+return {buildExpressionTree};
+})();
+const module_7 = (()=>{
+const {registry:defaultRegistry}=module_measurements;
+const {Assembler:Assembler}=module_4;
+const {AssemblyCache:AssemblyCache, registryKey:registryKey}=module_5;
+const {isNode:isNode, isToken:isToken, characters:characters, walk:walk, digits:digits}=module_0;
+const {EnclosureSystem}=module_6;
+const {buildExpressionTree}=module_tree;
+const clone = x => structuredClone(x);
+let serial = 0;
+
+class Editor {
+  constructor(options={}) {
+    this.registry=options.registry || defaultRegistry;this.boundaries=new EnclosureSystem(this);this.tokens=[];this.drafts=[];
+    this.caret=0;this.selectionEnd=0;this.history=[];this.future=[];this.journal=[];
+    this.rollback=null;this.episode=null;this.pending=null;this.lastRejection=null;this.revision=0;
+    this.builder=new Assembler(this.registry);this.tree=this.builder.top.root;
+    this.expressionTree=buildExpressionTree(this.tree,this.registry);
+    this.confirmed={tokens:[],tree:this.tree};this.complete=true;this.candidateBuilder=this.builder;
+    this.assemblyCache=new AssemblyCache(()=>new Assembler(this.registry),{enabled:options.cache!==false,...options.cacheOptions});
+    this.lastAddress=this.boundaries.structuralAddress(this,0);
+  }
+  dispose() {
+    this.disposed=true;this.tokens=[];this.drafts=[];this.history=[];this.future=[];this.journal=[];
+    this.tree=null;this.expressionTree=null;this.confirmed=null;this.builder=null;this.candidateBuilder=null;this.assemblyCache=null;this.boundaries=null;
+    this.rollback=null;this.episode=null;this.pending=null;this.lastRejection=null;this.lastAddress=null;this.focusHint=null;this._transaction=null;this._completeCandidates=[];this._autoAttempted=null;this.complete=false;this.caret=0;this.selectionEnd=0;
+  }
+  fresh(char,origin='USER',cause=null) {return {id:`s${++serial}`,char,origin,cause,createdAt:this.revision+1};}
+  snapshot() {return clone({tokens:this.tokens,caret:this.caret,selectionEnd:this.selectionEnd,confirmed:this.confirmed,
+    rollback:this.rollback,drafts:this.drafts.map(({interpretations,zones,potentialOffers,structuralDependencies,activeOptions,...cause})=>cause),episode:this.episode,focusHint:this.focusHint});}
+  restore(s) {
+    this.tokens=clone(s.tokens);this.confirmed=clone(s.confirmed);this.tree=this.confirmed.tree;
+    this.expressionTree=buildExpressionTree(this.tree,this.registry);
+    this.builder=this.assemble(this.confirmed.tokens).builder;this.rollback=clone(s.rollback);this.drafts=clone(s.drafts || []);
+    this.episode=clone(s.episode || null);this.focusHint=clone(s.focusHint||null);this.caret=s.caret;this.selectionEnd=s.selectionEnd;this.lastRejection=null;
+    this.revision++;this.boundaries.refresh(this,false);this.settleConfirmation();
+  }
+  applyEdits(events,verify=null) {
+    if(this.disposed||this._transaction)return {ok:false,reason:'Редактор сейчас недоступен'};
+    const before=this.snapshot(),history=this.history.slice(),future=this.future.slice(),journal=this.journal.slice();
+    try {
+      this.transaction(()=>{
+        for(const event of events){if(!['INSERT','FOCUS'].includes(event.type))throw Error('Недопустимая команда автопилота');const v=this.dispatch(event);if(v.rejection)throw Error(v.rejection.reason);}
+        const view=this.view();if(!view.complete||view.drafts.length||view.rollback)throw Error('Операция оставила незавершённые блоки');
+        if(verify)verify(view);
+      });
+      return {ok:true,view:this.view()};
+    }catch(error){this.restore(before);this.history=history;this.future=future;this.journal=journal;return {ok:false,reason:error.message};}
+  }
+  checkpoint() {this.history.push(this.snapshot());if(this.history.length>120)this.history.shift();this.future=[];}
+  assemble(tokens,incoming=null,source='REPLAY',cause=incoming?.id || null) {
+    const r=this.assemblyCache.run(tokens,incoming,source,registryKey(this.registry),cause);r.builder.cacheInfo=r.cache;return r;
+  }
+  cacheStats() {return this.assemblyCache.diagnostics();}
+  proposalsAt(position=this.caret) {
+    const prefix=this.tokens.slice(0,this.tokenIndex(position)),b=this.assemble(this.boundaries.candidateTape(this,prefix)).builder;
+    return b.offers().map(p=>({law:p.law,owner:p.owner,ownerKind:p.ownerKind,proposer:p.proposer,role:p.role,accepts:p.accepts,label:p.choice}));
+  }
+  transaction(work,{silent=false}={}) {
+    if(this._transaction)return work();
+    const transaction={before:this.snapshot(),historyBase:null,cChanged:false,silent};this._transaction=transaction;
+    try {return work();} finally {
+      this._transaction=null;
+      if(transaction.cChanged&&!transaction.silent) {
+        this.history.push(transaction.historyBase || transaction.before);
+        if(this.history.length>120)this.history.shift();this.future=[];
+      }
+    }
+  }
+  adopt(b,reason='complete') {
+    const checked=this.boundaries.confirmationBindings(this,b);if(checked===null)return false;
+    const roots=this.drafts.map(d=>d.root),before=this.episode?.before || this._transaction?.before || this.snapshot();
+    if(roots.length) {
+      const bindings=this.boundaries.confirmationBindings(this,b);if(!bindings)return false;
+      const committed=b.event({type:'DRAFT_COMMIT',roots,bindings},'EDIT');if(!committed.admitted)return false;
+      for(const d of this.drafts)this.journal.push({type:'DRAFT_COMMIT',root:d.root,zones:this.boundaries.zonesOf(d),active:d.active,reason});
+    }
+    const changed=this.boundaries.signature(this.builder)!==this.boundaries.signature(b);
+    if(changed&&this._transaction){this._transaction.cChanged=true;this._transaction.historyBase ||= before;}
+    this.builder=b;this.tree=b.top.root;
+    const treeTokens=new Map([...characters(this.tree)].map(t=>[t.id,t]));
+    this.tokens=changed?b.tokens.map(t=>clone(treeTokens.get(t.id) || t)):clone(this.confirmed.tokens);
+    if(changed)this.confirmed={tokens:clone(this.tokens),tree:clone(this.tree)};this.tree=this.confirmed.tree;
+    if(changed)this.expressionTree=buildExpressionTree(this.tree,this.registry);
+    this.drafts=[];this.pending=null;this.rollback=null;this.episode=null;this.candidateBuilder=b;
+    this.revision++;
+    this.journal.push({type:'RECONSTRUCT',reason,scope:this.tree.id,policy:'checkpoint-prefix',cache:b.cacheInfo,
+      ids:this.tokens.map(t=>t.id),pairs:checked,events:b.trace.filter(e=>e.event.type==='INSERT')});
+    return true;
+  }
+  settleConfirmation() {
+    this.complete=!this.drafts.length&&!this.rollback;
+    this.pending=this.drafts.find(d=>d.choices.length>1&&!d.selected) || null;
+    this.lastAddress=this.boundaries.structuralAddress(this,this.caret,this.focusHint);
+  }
+  dispatch(event) {
+    if(event.type==='UNDO') {
+      if(this.drafts.length)return this.transaction(()=>{this.boundaries.withdraw(this,this.boundaries.blockingDraft(this).root,'UNDO');return this.view();},{silent:true});
+      if(this.rollback){this.restore(this.rollback.before);return this.view();}
+      if(this.history.length){this.future.push(this.snapshot());this.restore(this.history.pop());}return this.view();
+    }
+    if(event.type==='REDO') {if(this.future.length){this.history.push(this.snapshot());this.restore(this.future.pop());}return this.view();}
+    return this.transaction(()=>{
+      this.registry.lifecycle?.beforeEvent?.(this,event);
+      if(event.type==='FOCUS')return this.boundaries.focus(this,event.position ?? this.caret,event.hint,event.exit);
+      if(event.type==='CANCEL_PENDING') {if(this.drafts.length)this.boundaries.withdraw(this,(this.pending || this.boundaries.blockingDraft(this)).root,'CANCEL');this.lastRejection=null;return this.view();}
+      if(event.type==='CHOOSE')return this.boundaries.choose(this,event);
+      if(['INSERT','REPLACE','AUTO'].includes(event.type))return this.boundaries.edit(this,event.start ?? event.position ?? this.caret,
+        event.end ?? event.position ?? this.selectionEnd,event.text || '',event.type==='AUTO'?'AUTO':event.origin || 'USER',event.cause);
+      if(event.type==='DELETE')return this.boundaries.edit(this,event.start ?? Math.max(0,this.caret-1),event.end ?? this.caret,'','USER');
+      throw Error(`Unknown EDIT event ${event.type}`);
+    });
+  }
+  tokenIndex(position,entries=this.projection().entries) {
+    let i=0,offset=0;for(const t of entries){if(offset>=position)break;offset+=t.char.length;i++;}return i;
+  }
+  projection() {
+    const ancestry=new Map(),ranges=new Map(),visible=new Set(this.tokens.map(t=>t.id));
+    const visit=(n,parents=[])=>{const ids=[];for(const p of n.parts){
+      if(isToken(p)&&visible.has(p.id)){ids.push(p.id);ancestry.set(p.id,[...parents,n.id]);}
+      else if(isNode(p)){visit(p,[...parents,n.id]);ids.push(...ranges.get(p.id).ids);}
+    }ranges.set(n.id,{ids});};visit(this.tree);
+    const accepted=new Map(this.confirmed.tokens.map(t=>[t.id,t])),drafts=new Map(this.drafts.map(d=>[d.root,d]));
+    const entries=this.tokens.map(t=>accepted.get(t.id) || t);let offset=0;
+    const map=entries.map(t=>{const start=offset;offset+=t.char.length;const d=drafts.get(t.id),parents=ancestry.get(t.id) || [];
+      return {id:t.id,char:t.char,start,end:offset,owner:d?`draft:${d.root}`:t.owner,role:d?'root':t.role,level:d?d.level:parents.length,
+        ancestors:parents,origin:t.origin,cause:t.cause,draft:!!d,root:d?.root};});
+    const byID=new Map(map.map(m=>[m.id,m]));for(const range of ranges.values()){
+      range.start=byID.get(range.ids[0])?.start ?? 0;range.end=byID.get(range.ids.at(-1))?.end ?? range.start;
+    }
+    return {text:entries.map(t=>t.char).join(''),entries,map,ranges,acceptedOrder:map.filter(m=>!m.draft).map(m=>m.id)};
+  }
+  view() {
+    return {...this.projection(),tree:this.tree,expressionTree:this.expressionTree,confirmed:this.confirmed,complete:this.complete,drafts:this.drafts,
+      obligations:this.drafts.length||this.rollback?this.candidateBuilder.obligations():[],rollback:this.rollback,pending:this.pending,
+      rejection:this.lastRejection,caret:this.caret,selectionEnd:this.selectionEnd,address:this.lastAddress,revision:this.revision};
+  }
+}
+return {Editor:Editor};
+})();
+// Integration points live outside the preserved kernel modules.
+const module_inherited_editor=(()=>{
+  class Boundaries extends module_6.EnclosureSystem {
+    rebuildZones(editor,result){super.rebuildZones(editor,result);this.R.lifecycle?.afterRebuildZones?.(editor,result);}
+  }
+  class Editor extends module_7.Editor {
+    constructor(options={}){super(options);this.boundaries=new Boundaries(this);this.lastAddress=this.boundaries.structuralAddress(this,this.caret);}
+    projection(){const value=super.projection(),current=new Map(this.tokens.map(t=>[t.id,t]));return {...value,entries:value.entries.map(t=>({...t,extension:current.get(t.id)?.extension}))};}
+    fresh(char,origin='USER',cause=null){const token=super.fresh(char,origin,cause);this.registry.lifecycle?.beforeFresh?.(this,token);return token;}
+    dispatch(event){const previous=this._argumentInput;try{return super.dispatch(event);}finally{this._argumentInput=previous;}}
+    view(){const value=super.view();return {...value,argumentChoices:this.registry.lifecycle?.argumentChoices?.(this)||[]};}
+  }
+  return {Editor,Boundaries};
+})();
+
+const module_8 = (()=>{
+return {Editor:module_inherited_editor.Editor, Assembler:module_4.Assembler, buildExpressionTree:module_tree.buildExpressionTree, walk:module_0.walk, characters:module_0.characters, nodeText:module_0.nodeText};
+})();
+// module: app.js
+const {Editor}=module_8;
+const {walk,characters}=module_0;
+const registry=module_measurements.registry;
+const editor = new Editor(), input = document.querySelector('#source'), structure = document.querySelector('#structure'), state = document.querySelector('#state');
+let programmatic = false, composing = false, compositionBefore = null;
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+const visible = c => c === '\n' ? '↵' : c === '\t' ? '⇥' : c === ' ' ? '␣' : c;
+function render() {
+  const v = editor.view(); programmatic = true;
+  // Show the live candidate, including addressed incomplete input.
+  v.tree=editor.candidateBuilder.top.root;
+  const positionsById=new Map(v.map.map(m=>[m.id,m]));
+  v.ranges=new Map([...walk(v.tree)].map(n=>{const ms=[...characters(n)].map(t=>positionsById.get(t.id)).filter(Boolean);return [n.id,{start:ms[0]?.start??v.caret,end:ms.at(-1)?.end??v.caret}];}));
+  const scroll = input.scrollLeft;
+  if (input.value !== v.text) input.value = v.text;
+  if (document.activeElement === input) input.setSelectionRange(v.caret, v.selectionEnd);
+  input.scrollLeft = scroll;
+  const allNodes = new Map([...walk(v.tree)].map(n => [n.id, n]));
+  const maps = new Map(v.map.map(t => [t.id, t])), positions = new Map(v.entries.map((t, i) => [t.id, i]));
+  const assignments = new Map();
+  const represented=new Set([...characters(v.tree)].map(t=>t.id));
+  for (const d of v.drafts) {
+    if(represented.has(d.token.id))continue;
+    let owner = d.token.address?.owner;
+    if (!allNodes.has(owner)) owner = v.tree.id;
+    const a = assignments.get(owner) || []; a.push(d); assignments.set(owner, a);
+  }
+  const causes = new Set(v.obligations.flatMap(o => o.causes));
+  const glyph = t => {
+    const m = maps.get(t.id), n = el('span', `glyph${t.origin === 'AUTO' ? ' auto' : ''}${m && (m.start === v.caret || m.end === v.caret) ? ' at-caret' : ''}`, visible(t.char));
+    n.dataset.symbol = t.id; n.title = `${t.id} · ${t.role || 'черновик'} · ${t.origin}${t.cause ? ` ← ${t.cause}` : ''}${causes.has(t.id) ? ' · ожидание' : ''}`;
+    return n;
+  };
+  const draft = d => {
+    const box = el('div', 'draft'); box.title = d.reason; box.dataset.draft = d.token.id; box.append(glyph(d.token));
+    if (d.choices?.length) {
+      const c = el('div', 'choices');
+      for (const o of d.choices) { const b = el('button', 'choice', o.label); b.type = 'button'; b.dataset.choose = d.token.id; b.dataset.law = o.law; b.title = `${o.owner} · ${o.law}`; c.append(b); }
+      box.append(c);
+    } return box;
+  };
+  const firstPosition = p => {
+    if (p.char) return positions.get(p.id) ?? Infinity;
+    if (p.kind) { const first = [...characters(p)][0]; return first ? positions.get(first.id) : Infinity; }
+    const anchor = p.id?.split(':').at(-2); return (positions.get(anchor) ?? Infinity) + .1;
+  };
+  const renderNode = n => {
+    const spec = registry.blocks[n.kind], complete = editor.candidateBuilder.complete(n);
+    const box = el('div', `block ${spec.family}${complete ? '' : ' incomplete'}${v.address?.owner === n.id ? ' focused' : ''}`);
+    box.dataset.node = n.id; box.dataset.kind = n.kind;
+    const label = el('span', 'block-label', spec.name+(n.meta.implicit?' · неявное ×':'')+(n.meta.powerScope==='quantity'?' · степень величины':'') ); label.dataset.label = n.id; label.title = `${n.id}${n.meta.priority ? ` · приоритет ${n.meta.priority}` : ''}`; box.append(label);
+    const row = el('div', 'parts'), parts = n.parts.map((p, i) => ({ value: p, order: firstPosition(p), i }));
+    for (const d of assignments.get(n.id) || []) {
+      const order = positions.get(d.token.id), at = parts.findIndex(p => p.order > order);
+      parts.splice(at < 0 ? parts.length : at, 0, { draft: d, order });
+    }
+    let run = null, runRole = null;
+    for (const item of parts) {
+      const p = item.value;
+      if (item.draft) { row.append(draft(item.draft)); run = null; continue; }
+      if (p.kind) { row.append(renderNode(p)); run = null; }
+      else if (p.hole) {
+        const h = el('span', 'hole', '·'); h.title = `Незаполненная роль: ${p.role}`;
+        const next = parts.slice(parts.indexOf(item) + 1).find(x => x.value && firstPosition(x.value) < Infinity);
+        const nextToken = next && (next.value.char ? next.value : [...characters(next.value)][0]);
+        h.dataset.position = nextToken ? maps.get(nextToken.id)?.start : v.ranges.get(n.id)?.end ?? 0; h.dataset.owner = n.id; h.dataset.role = p.role;
+        row.append(h); run = null;
+      } else if (p.char) {
+        const content = ['digits', 'name', 'unit_name', 'spacing', 'quantity_separator'].includes(p.role) || p.role?.startsWith('index:');
+        if (content) {
+          if (!run || runRole !== p.role) { run = el('div', p.role.startsWith('index:') ? 'glyphs index-content' : 'glyphs'); row.append(run); runRole = p.role; }
+          run.append(glyph(p));
+        } else { const b = el('div', 'boundary'); b.dataset.role = p.role; b.append(glyph(p)); row.append(b); run = null; }
+      }
+    }
+    if (!parts.length) { const h = el('span', 'hole', '·'); h.title = 'Ожидается содержимое'; h.dataset.position = v.ranges.get(n.id)?.end ?? v.caret; h.dataset.owner = n.id; row.append(h); }
+    box.append(row); return box;
+  };
+  structure.replaceChildren(); structure.classList.toggle('rollback', !!v.rollback);
+  if (v.entries.length) structure.append(renderNode(v.tree));
+  if (v.pending) {
+    const pending = el('div', 'draft pending-address');
+    pending.append(el('span', 'block-label', `Адрес для «${visible(v.pending.token.char)}»`));
+    const choices = el('div', 'choices');
+    for (const option of v.pending.choices) {
+      const b = el('button', 'choice', option.label); b.type = 'button';
+      b.dataset.choose = v.pending.root; b.dataset.law = option.law; b.dataset.owner = option.owner;
+      choices.append(b);
+    }
+    pending.append(choices); structure.append(pending);
+  }
+  for(const option of v.argumentChoices||[]){const button=el('button','choice',option.label);button.type='button';button.dataset.choose=option.id;button.dataset.law=option.law;structure.append(button);}
+  if (v.rollback) structure.title = 'Черновик отката: удаление видно временно; прежнее подтверждённое дерево сохранено'; else structure.removeAttribute('title');
+  state.className = `state ${v.rejection ? 'rejected' : v.rollback ? 'rollback' : v.pending ? 'wait' : v.complete ? 'complete' : 'wait'}`;
+  state.setAttribute('aria-label', v.rejection ? `Символ «${visible(v.rejection.char)}» отклонён: ${v.rejection.reason}` : v.pending ? 'Выберите адрес до вставки символа' : v.rollback ? 'Черновик отката' : v.complete ? 'Структура подтверждена' : 'Ожидание: ' + [...new Set(v.obligations.map(o => o.reason))].join('; '));
+  state.title = state.getAttribute('aria-label');
+  input.setAttribute('aria-invalid', 'false');
+  programmatic = false;
+}
+function act(event) {
+  try { editor.dispatch(event); document.querySelector('.entry').classList.remove('fatal'); render(); }
+  catch (err) { console.error(err); const e = document.querySelector('.entry'); e.classList.add('fatal'); e.dataset.error = 'Правка сохранена в поле. Ошибка обработки; отмените последнее действие.'; }
+}
+function syncSelection() {
+  if (programmatic || composing || document.activeElement !== input) return;
+  const start = input.selectionStart, end = input.selectionEnd;
+  if (start !== editor.caret) {
+    editor.dispatch({ type: 'FOCUS', position: start });
+    editor.selectionEnd = Math.min(end, editor.view().text.length);
+    render();
+  } else editor.selectionEnd = Math.min(end, input.value.length);
+}
+const previous = p => p - (Array.from(input.value.slice(0, p)).at(-1)?.length || 0);
+const next = p => p + (Array.from(input.value.slice(p))[0]?.length || 0);
+input.addEventListener('beforeinput', e => {
+  if (composing || e.isComposing) return;
+  const type = e.inputType;
+  // Browser replacement, dictation and autofill may update the native value first.
+  if (input.value !== editor.view().text) nativeDiff(editor.view().text, input.value);
+  if (type === 'historyUndo' || type === 'historyRedo') { e.preventDefault(); act({ type: type === 'historyUndo' ? 'UNDO' : 'REDO' }); return; }
+  let start = input.selectionStart, end = input.selectionEnd;
+  if (type.startsWith('delete')) {
+    e.preventDefault();
+    if (start === end) {
+      if (type.includes('Backward')) start = type.includes('Word') ? start - (input.value.slice(0, start).match(/\s*\S+\s*$/u)?.[0].length || 0) : previous(start);
+      else end = type.includes('Word') ? end + (input.value.slice(end).match(/^\s*\S+\s*/u)?.[0].length || 0) : next(end);
+    }
+    act({ type: 'DELETE', start, end }); return;
+  }
+  if (type === 'insertLineBreak' || type === 'insertParagraph') { e.preventDefault(); input.blur(); return; }
+  if (e.data != null) { e.preventDefault(); act({ type: 'REPLACE', start, end, text: e.data }); }
+});
+input.addEventListener('paste', e => { e.preventDefault(); act({ type: 'REPLACE', start: input.selectionStart, end: input.selectionEnd, text: e.clipboardData.getData('text/plain'), origin: 'PASTE' }); });
+input.addEventListener('cut', e => {
+  const start = input.selectionStart, end = input.selectionEnd; if (start === end) return;
+  e.preventDefault(); e.clipboardData.setData('text/plain', input.value.slice(start, end)); act({ type: 'DELETE', start, end });
+});
+function nativeDiff(old, value, origin = 'USER') {
+  let start = 0; while (start < old.length && start < value.length && old[start] === value[start]) start++;
+  let end = old.length, newEnd = value.length;
+  while (end > start && newEnd > start && old[end - 1] === value[newEnd - 1]) { end--; newEnd--; }
+  if (start !== end || start !== newEnd) act({ type: 'REPLACE', start, end, text: value.slice(start, newEnd), origin });
+  else render();
+}
+input.addEventListener('compositionstart', () => { composing = true; compositionBefore = editor.view().text; });
+input.addEventListener('compositionend', () => { composing = false; nativeDiff(compositionBefore, input.value, 'IME'); compositionBefore = null; });
+input.addEventListener('input', () => { if (!composing) nativeDiff(editor.view().text, input.value); });
+input.addEventListener('blur', () => { if (!composing) act({ type: 'FOCUS', position: input.selectionStart, exit: true }); });
+input.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && editor.drafts.length) { e.preventDefault(); act({ type: 'CANCEL_PENDING' }); }
+  else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z') { e.preventDefault(); act({ type: e.shiftKey ? 'REDO' : 'UNDO' }); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); act({ type: 'REDO' }); }
+  else if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); input.blur(); }
+});
+document.addEventListener('selectionchange', syncSelection);
+input.addEventListener('select', syncSelection);
+structure.addEventListener('pointerdown', e => e.preventDefault());
+structure.addEventListener('click', e => {
+  const choice = e.target.closest('[data-choose]');
+  if (choice) { act({ type: 'CHOOSE', id: choice.dataset.choose, law: choice.dataset.law, owner: choice.dataset.owner }); input.focus({ preventScroll: true }); render(); return; }
+  const v = editor.view(), g = e.target.closest('[data-symbol]'), h = e.target.closest('[data-position]'), b = e.target.closest('[data-node]');
+  let position, owner, role;
+  if (g) { const m = v.map.find(m => m.id === g.dataset.symbol); if (!m) return; position = e.clientX < g.getBoundingClientRect().left + g.getBoundingClientRect().width / 2 ? m.start : m.end; owner = m.owner; role = m.role; }
+  else if (h) { position = Number(h.dataset.position); owner = h.dataset.owner; role = h.dataset.role; }
+  else if (b) {
+    const n = [...walk(editor.candidateBuilder.top.root)].find(n => n.id === b.dataset.node), range = v.ranges.get(b.dataset.node); if (!range) return;
+    const close = n.parts.at(-1); position = range.end - (close?.role === 'close' ? close.char.length : 0); owner = n.id; role = 'boundary';
+  } else return;
+  act({ type: 'FOCUS', position, hint: { owner, role } }); input.focus({ preventScroll: true }); render();
+});
+// Read-only diagnostics for reproducible audits; no mutation API outside EDIT.
+Object.defineProperty(window, 'dochin', { value: Object.freeze({ getState: () => structuredClone(editor.view()), getTrace: () => structuredClone(editor.journal), registry: JSON.parse(JSON.stringify(registry,(_,value)=>typeof value==='function'?undefined:value)) }) });
+render();
+
+})();
+</script>
+<script type="application/json" id="coverage-report">{"coverage_report": "# Matchin — отчёт о фактическом покрытии сборки\n\n**Артефакт / версия:** Dotchin_EDIT_Updated.html, 03.11.2026.\n**Эталон спецификации:** приложенные Dochin_EDIT_Standalone.html и Matchin-component-domains.html; последний использован как эталон актуальной логики ввода. Отдельная нормативная спецификация не предоставлена. Реестр: Cube3-C3/Packages, ревизия 426ac092838645e182737c2baec8ac6f88fe17e2, указанная в исходном Matchin.\n**Статус:** кандидат на выполнение задания по обновлению ввода; полное покрытие концепта EDIT не заявлено.\n**Область, объявленная до работы:** актуальная цепочка ввода в интерфейсе «строка и блоки», размерность, неявное умножение, имена и аргументы; без намеренного сокращения запроса.\n\n## 1. Реализовано и проверено\n| Требование / возможность | Где реализовано | Свидетельство проверки |\n|---|---|---|\n| Размерность и зарегистрированные единицы с приставками | module_units, module_measurements, встроенный inputSnapshot | PASS: 2м, 2мм, 2кг, 2Н, 2 м |\n| Целые степени, знак, надстрочные символы, ограничение двух цифр | dimension.power, quantity.power | PASS: 2м^2, 2м⁻², 2м^+12, отказ 2м^123 |\n| Различие степени размерности и всей величины | measurementPower, quantityPower | PASS: 2м^2 и (2м)^2 |\n| Ограничение аффинной шкалы | measurementExponent | PASS: отказ 2°С^2 |\n| Неявное умножение без синтетического знака в строке | extendImplicit, measurementFinish | PASS: xy, 2x, 2(x+1), (x+1)(y+2), x y; порядок символов сохранён |\n| Распознавание функций и списка аргументов | extendNames, extendArgumentLists | PASS: sin(x), f(x;y) |\n| Черновики и завершение по фокусу | lifecycle, кандидат в render | PASS: 2x до/после ухода фокуса |\n| Правки и история | общий EDIT-маршрут | PASS: удаление степени с сохранением ID, Undo/Redo, браузерная замена цифры степени |\n| Автономный интерфейс | встроенные JS, CSS и снимок таблиц | PASS: 11 сценариев Chromium через setContent; нет ошибок страницы |\n\n## 2. Реализовано частично или без проверки\n| Требование / возможность | Что именно работает | Что отсутствует / не проверено |\n|---|---|---|\n| Прочие ветви перенесённого ядра | Модули ввода перенесены из эталона без изменения законов | Исчерпывающий перебор всех неоднозначностей, AUTO, границ и вариантов CHOOSE: NOT RUN |\n| Источники ввода | Обработчики beforeinput, paste, cut, compositionend, input сохранены | Реальная IME, мобильная клавиатура, screen reader, другие браузеры: NOT RUN |\n| Каталог единиц | Встроены 32 единицы и таблица приставок из указанной ревизии | Автообновление удалённого реестра не выполняется; латинское m не подменяется кириллическим м |\n\n## 3. Не реализовано\n| Требование / возможность | Следствие для пользователя |\n|---|---|\n| Полная формальная верификация EDIT | Успех выполненных сценариев не доказывает полное соответствие концепту |\n| Семантический интерфейс Matchin: история преобразований, панели физических величин и областей | Сохранён запрошенный интерфейс Dotchin; перенесена логика ввода |\n\n## 4. Намеренные ограничения прототипа\n- Намеренного сокращения запроса не вводилось.\n- Реестр: 15 исходных типов и 4 дополнительных типа (quantity, measurement_draft, dimension, dimension_unit), всего 19. Сохранены профили и ограничения эталона.\n- API событий: INSERT, REPLACE, DELETE, AUTO, FOCUS, CHOOSE, CANCEL_PENDING, UNDO, REDO. Диагностика window.dochin доступна только для чтения.\n- Снимок реестра встроен для автономной работы, версия зафиксирована явно. Это адаптация упаковки, а не новый словарь правил.\n- В отличие от старой сборки, буфер и замена при отказе применяют атомарную политику актуального ядра. Неоднозначные введённые символы могут оставаться черновиками в строке; отображается кандидат, подтверждённое дерево доступно в диагностике.\n- Реконструкция использует исходный событийный Assembler и кэш эталона. Новый строковый парсер, синтетические токены умножения и прямые обходные мутации из UI не добавлены. Формальная проверка всех архитектурных инвариантов: NOT RUN.\n\n## 5. Тесты\n| Тест / сценарий | Статус PASS/FAIL/NOT RUN/BLOCKED | Свидетельство / причина |\n|---|---|---|\n| Ядро: единицы, степени, произведения, функции, регрессии, отказы, черновик, ID, история | PASS | node work/verify.cjs; 25 PASS, 0 FAIL |\n| Chromium: ввод 9 выражений, редактирование степени, уход фокуса | PASS | node work/browser-verify.cjs; 11 PASS, 0 FAIL; ошибок страницы нет |\n| Синтаксис извлечённых модулей | PASS | node --check work/core.js |\n| Двойной клик, весь набор вариантов CHOOSE, буфер ОС, реальная IME, мобильные устройства | NOT RUN | Отдельные сеансы не выполнялись |\n| Формальное полное покрытие нормативной спецификации | BLOCKED | Отдельная спецификация не предоставлена |\n\n## 6. Итог и следующий проверяемый шаг\n- Подтверждено: перечисленные сценарии актуальной логики в автономном интерфейсе Dotchin.\n- Не подтверждено: полное покрытие EDIT и все ветви исходного Matchin.\n- Известные дефекты в выполненном наборе: не обнаружены. Ограничения проверки указаны выше.\n- Следующий проверяемый шаг: открыть HTML локально и проверить свои выражения; для воспроизведения использовать window.dochin.getState() и getTrace().\n"}</script>
+</body>
+</html>
