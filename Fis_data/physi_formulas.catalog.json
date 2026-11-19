@@ -1,0 +1,1216 @@
+{
+  "schema_version": "1.0.0",
+  "id": "physi_formula_catalog",
+  "description": "Каталог целых физических формул: двуязычные названия [en, ru], домен и упорядоченные компоненты. Не содержит AST, structure_ref или граф промежуточных сборок.",
+  "source": {
+    "expressions": "Fis_data/physi_formulas.raw.txt",
+    "formula_names": "Fis_data/physi_formulas.json",
+    "component_references": [
+      "Fis_data/physi_quant.json",
+      "Fis_data/usages.json"
+    ],
+    "domain_registry": "Fis_data/domains.json"
+  },
+  "formula_count": 36,
+  "component_order": "Слева направо по первому и каждому последующему вхождению символа в expression; порядок массива components является значимым.",
+  "formulas": [
+    {
+      "law_id": "P001",
+      "name": [
+        "Speed in uniform motion",
+        "Скорость при равномерном движении"
+      ],
+      "domain": "kinematics",
+      "expression": "v = s / t",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "v",
+          "role": "velocity",
+          "ref_id": "Q005"
+        },
+        {
+          "order": 2,
+          "symbol": "s",
+          "role": "path_length",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 3,
+          "symbol": "t",
+          "role": "time",
+          "ref_id": "Q007"
+        }
+      ]
+    },
+    {
+      "law_id": "P002",
+      "name": [
+        "Acceleration",
+        "Ускорение"
+      ],
+      "domain": "kinematics",
+      "expression": "a = delta(v) / t",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "a",
+          "role": "acceleration",
+          "ref_id": "Q006"
+        },
+        {
+          "order": 2,
+          "symbol": "delta(v)",
+          "role": "velocity_change",
+          "ref_id": "Q005"
+        },
+        {
+          "order": 3,
+          "symbol": "t",
+          "role": "time",
+          "ref_id": "Q007"
+        }
+      ]
+    },
+    {
+      "law_id": "P003",
+      "name": [
+        "Position in uniform motion",
+        "Координата при равномерном движении"
+      ],
+      "domain": "kinematics",
+      "expression": "x = x_0 + v * t",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "x",
+          "role": "coordinate",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 2,
+          "symbol": "x_0",
+          "role": "initial_coordinate",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 3,
+          "symbol": "v",
+          "role": "velocity",
+          "ref_id": "Q005"
+        },
+        {
+          "order": 4,
+          "symbol": "t",
+          "role": "time",
+          "ref_id": "Q007"
+        }
+      ]
+    },
+    {
+      "law_id": "P004",
+      "name": [
+        "Displacement in uniformly accelerated motion",
+        "Путь при равноускоренном движении"
+      ],
+      "domain": "kinematics",
+      "expression": "s = v_0 * t + (a * t^2) / 2",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "s",
+          "role": "path_length",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 2,
+          "symbol": "v_0",
+          "role": "initial_velocity",
+          "ref_id": "Q005",
+          "instance": "linear_term"
+        },
+        {
+          "order": 3,
+          "symbol": "t",
+          "role": "time",
+          "ref_id": "Q007",
+          "instance": "linear_term"
+        },
+        {
+          "order": 4,
+          "symbol": "a",
+          "role": "acceleration",
+          "ref_id": "Q006"
+        },
+        {
+          "order": 5,
+          "symbol": "t",
+          "role": "time",
+          "ref_id": "Q007",
+          "instance": "quadratic_term"
+        }
+      ]
+    },
+    {
+      "law_id": "P005",
+      "name": [
+        "Newton's second law",
+        "Второй закон Ньютона"
+      ],
+      "domain": "dynamics",
+      "expression": "F = m * a",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "F",
+          "role": "force",
+          "ref_id": "Q004"
+        },
+        {
+          "order": 2,
+          "symbol": "m",
+          "role": "mass",
+          "ref_id": "Q003"
+        },
+        {
+          "order": 3,
+          "symbol": "a",
+          "role": "acceleration",
+          "ref_id": "Q006"
+        }
+      ]
+    },
+    {
+      "law_id": "P006",
+      "name": [
+        "Newton's law of universal gravitation",
+        "Закон всемирного тяготения"
+      ],
+      "domain": "dynamics",
+      "expression": "F = G * m_1 * m_2 / r^2",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "F",
+          "role": "gravitational_force",
+          "ref_id": "Q004"
+        },
+        {
+          "order": 2,
+          "symbol": "G",
+          "role": "gravitational_constant",
+          "ref_id": "C003"
+        },
+        {
+          "order": 3,
+          "symbol": "m_1",
+          "role": "mass",
+          "ref_id": "Q003",
+          "instance": "mass_1"
+        },
+        {
+          "order": 4,
+          "symbol": "m_2",
+          "role": "mass",
+          "ref_id": "Q003",
+          "instance": "mass_2"
+        },
+        {
+          "order": 5,
+          "symbol": "r",
+          "role": "intercenter_distance",
+          "ref_id": "Q008"
+        }
+      ]
+    },
+    {
+      "law_id": "P007",
+      "name": [
+        "Kinetic energy",
+        "Кинетическая энергия"
+      ],
+      "domain": "mechanics",
+      "expression": "E = (m * v^2) / 2",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "E",
+          "role": "kinetic_energy",
+          "ref_id": "Q001"
+        },
+        {
+          "order": 2,
+          "symbol": "m",
+          "role": "mass",
+          "ref_id": "Q003"
+        },
+        {
+          "order": 3,
+          "symbol": "v",
+          "role": "velocity",
+          "ref_id": "Q005"
+        }
+      ]
+    },
+    {
+      "law_id": "P008",
+      "name": [
+        "Elastic potential energy",
+        "Потенциальная энергия упругой деформации"
+      ],
+      "domain": "elasticity",
+      "expression": "E = (k * x^2) / 2",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "E",
+          "role": "elastic_potential_energy",
+          "ref_id": "Q001"
+        },
+        {
+          "order": 2,
+          "symbol": "k",
+          "role": "spring_constant",
+          "ref_id": "Q013"
+        },
+        {
+          "order": 3,
+          "symbol": "x",
+          "role": "deformation_coordinate",
+          "ref_id": "Q008"
+        }
+      ]
+    },
+    {
+      "law_id": "P009",
+      "name": [
+        "Ohm's law for a circuit section",
+        "Закон Ома (участок)"
+      ],
+      "domain": "circuit_theory",
+      "expression": "U = I * R",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "U",
+          "role": "potential_emf",
+          "ref_id": "Q012"
+        },
+        {
+          "order": 2,
+          "symbol": "I",
+          "role": "electric_current",
+          "ref_id": "Q031"
+        },
+        {
+          "order": 3,
+          "symbol": "R",
+          "role": "resistance",
+          "ref_id": "Q038"
+        }
+      ]
+    },
+    {
+      "law_id": "P010",
+      "name": [
+        "Thin lens formula",
+        "Формула тонкой линзы"
+      ],
+      "domain": "geometrical_optics",
+      "expression": "1/F = 1/d + 1/f",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "F",
+          "role": "focal_length",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 2,
+          "symbol": "d",
+          "role": "object_distance",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 3,
+          "symbol": "f",
+          "role": "image_distance",
+          "ref_id": "Q008"
+        }
+      ]
+    },
+    {
+      "law_id": "P011",
+      "name": [
+        "Torque",
+        "Момент силы"
+      ],
+      "domain": "statics",
+      "expression": "M = F * l",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "M",
+          "role": "torque",
+          "ref_id": "Q026"
+        },
+        {
+          "order": 2,
+          "symbol": "F",
+          "role": "force",
+          "ref_id": "Q004"
+        },
+        {
+          "order": 3,
+          "symbol": "l",
+          "role": "lever_arm",
+          "ref_id": "Q008"
+        }
+      ]
+    },
+    {
+      "law_id": "P012",
+      "name": [
+        "Law of the lever",
+        "Правило рычага"
+      ],
+      "domain": "statics",
+      "expression": "F * l = F * l",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "F",
+          "role": "force",
+          "ref_id": "Q004",
+          "instance": "left"
+        },
+        {
+          "order": 2,
+          "symbol": "l",
+          "role": "lever_arm",
+          "ref_id": "Q008",
+          "instance": "left"
+        },
+        {
+          "order": 3,
+          "symbol": "F",
+          "role": "force",
+          "ref_id": "Q004",
+          "instance": "right"
+        },
+        {
+          "order": 4,
+          "symbol": "l",
+          "role": "lever_arm",
+          "ref_id": "Q008",
+          "instance": "right"
+        }
+      ]
+    },
+    {
+      "law_id": "P013",
+      "name": [
+        "Buoyant force (Archimedes' principle)",
+        "Сила Архимеда"
+      ],
+      "domain": "fluid_mechanics",
+      "expression": "FA = rho * g * V",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "FA",
+          "role": "buoyant_force",
+          "ref_id": "Q004"
+        },
+        {
+          "order": 2,
+          "symbol": "rho",
+          "role": "density",
+          "ref_id": "Q025"
+        },
+        {
+          "order": 3,
+          "symbol": "g",
+          "role": "free_fall_acceleration",
+          "ref_id": "Q006"
+        },
+        {
+          "order": 4,
+          "symbol": "V",
+          "role": "volume",
+          "ref_id": "Q028"
+        }
+      ]
+    },
+    {
+      "law_id": "P014",
+      "name": [
+        "Hooke's law",
+        "Закон Гука"
+      ],
+      "domain": "elasticity",
+      "expression": "F_упр = k * delta(l)",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "F_упр",
+          "role": "elastic_force",
+          "ref_id": "Q004"
+        },
+        {
+          "order": 2,
+          "symbol": "k",
+          "role": "spring_constant",
+          "ref_id": "Q013"
+        },
+        {
+          "order": 3,
+          "symbol": "delta(l)",
+          "role": "length_change",
+          "ref_id": "Q008"
+        }
+      ]
+    },
+    {
+      "law_id": "P015",
+      "name": [
+        "Period of a simple pendulum",
+        "Период математического маятника"
+      ],
+      "domain": "oscillations",
+      "expression": "T = 2π * sqrt(l/g)",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "T",
+          "role": "period",
+          "ref_id": "Q007"
+        },
+        {
+          "order": 2,
+          "symbol": "2π",
+          "role": "two_pi",
+          "ref_id": "M009"
+        },
+        {
+          "order": 3,
+          "symbol": "l",
+          "role": "pendulum_length",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 4,
+          "symbol": "g",
+          "role": "free_fall_acceleration",
+          "ref_id": "Q006"
+        }
+      ]
+    },
+    {
+      "law_id": "P016",
+      "name": [
+        "Period of a mass–spring oscillator",
+        "Период пружинного маятника"
+      ],
+      "domain": "oscillations",
+      "expression": "T = 2π * sqrt(m/k)",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "T",
+          "role": "period",
+          "ref_id": "Q007"
+        },
+        {
+          "order": 2,
+          "symbol": "2π",
+          "role": "two_pi",
+          "ref_id": "M009"
+        },
+        {
+          "order": 3,
+          "symbol": "m",
+          "role": "mass",
+          "ref_id": "Q003"
+        },
+        {
+          "order": 4,
+          "symbol": "k",
+          "role": "spring_constant",
+          "ref_id": "Q013"
+        }
+      ]
+    },
+    {
+      "law_id": "P017",
+      "name": [
+        "Simple harmonic motion",
+        "Гармоническое колебание"
+      ],
+      "domain": "oscillations",
+      "expression": "x = A * sin(omega*t + phi_0)",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "x",
+          "role": "coordinate",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 2,
+          "symbol": "A",
+          "role": "amplitude",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 3,
+          "symbol": "omega",
+          "role": "angular_frequency",
+          "ref_id": "Q037"
+        },
+        {
+          "order": 4,
+          "symbol": "t",
+          "role": "time",
+          "ref_id": "Q007"
+        },
+        {
+          "order": 5,
+          "symbol": "phi_0",
+          "role": "initial_phase",
+          "ref_id": "Q043"
+        }
+      ]
+    },
+    {
+      "law_id": "P018",
+      "name": [
+        "Heat required for temperature change",
+        "Количество теплоты (нагревание)"
+      ],
+      "domain": "thermodynamics",
+      "expression": "Q = c * m * delta(T)",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "Q",
+          "role": "heat",
+          "ref_id": "Q010"
+        },
+        {
+          "order": 2,
+          "symbol": "c",
+          "role": "specific_heat",
+          "ref_id": "Q016"
+        },
+        {
+          "order": 3,
+          "symbol": "m",
+          "role": "mass",
+          "ref_id": "Q003"
+        },
+        {
+          "order": 4,
+          "symbol": "delta(T)",
+          "role": "temperature_change",
+          "ref_id": "Q029"
+        }
+      ]
+    },
+    {
+      "law_id": "P019",
+      "name": [
+        "Heat of fusion",
+        "Количество теплоты (плавление)"
+      ],
+      "domain": "thermodynamics",
+      "expression": "Q = lambda * m",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "Q",
+          "role": "heat",
+          "ref_id": "Q010"
+        },
+        {
+          "order": 2,
+          "symbol": "lambda",
+          "role": "latent_heat_fusion",
+          "ref_id": "Q017"
+        },
+        {
+          "order": 3,
+          "symbol": "m",
+          "role": "mass",
+          "ref_id": "Q003"
+        }
+      ]
+    },
+    {
+      "law_id": "P020",
+      "name": [
+        "Latent heat of vaporization",
+        "Количество теплоты (парообразование)"
+      ],
+      "domain": "thermodynamics",
+      "expression": "Q = L * m",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "Q",
+          "role": "heat",
+          "ref_id": "Q010"
+        },
+        {
+          "order": 2,
+          "symbol": "L",
+          "role": "latent_heat_vaporization",
+          "ref_id": "Q018"
+        },
+        {
+          "order": 3,
+          "symbol": "m",
+          "role": "mass",
+          "ref_id": "Q003"
+        }
+      ]
+    },
+    {
+      "law_id": "P021",
+      "name": [
+        "Pressure of an ideal gas in terms of particle energy",
+        "Давление идеального газа через энергию"
+      ],
+      "domain": "statistical_physics",
+      "expression": "p = (2/3) * n * E",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "p",
+          "role": "pressure",
+          "ref_id": "Q027"
+        },
+        {
+          "order": 2,
+          "symbol": "n",
+          "role": "number_density",
+          "ref_id": "Q023"
+        },
+        {
+          "order": 3,
+          "symbol": "E",
+          "role": "energy",
+          "ref_id": "Q001"
+        }
+      ]
+    },
+    {
+      "law_id": "P022",
+      "name": [
+        "Ideal gas law (Mendeleev–Clapeyron equation)",
+        "Уравнение Менделеева–Клапейрона"
+      ],
+      "domain": "thermodynamics",
+      "expression": "p * V = (m / mu) * R * T",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "p",
+          "role": "pressure",
+          "ref_id": "Q027"
+        },
+        {
+          "order": 2,
+          "symbol": "V",
+          "role": "volume",
+          "ref_id": "Q028"
+        },
+        {
+          "order": 3,
+          "symbol": "m",
+          "role": "mass",
+          "ref_id": "Q003"
+        },
+        {
+          "order": 4,
+          "symbol": "mu",
+          "role": "molar_mass",
+          "ref_id": "Q021"
+        },
+        {
+          "order": 5,
+          "symbol": "R",
+          "role": "molar_gas_constant",
+          "ref_id": "C004"
+        },
+        {
+          "order": 6,
+          "symbol": "T",
+          "role": "temperature",
+          "ref_id": "Q029"
+        }
+      ]
+    },
+    {
+      "law_id": "P023",
+      "name": [
+        "Ampère's force",
+        "Сила Ампера"
+      ],
+      "domain": "magnetostatics",
+      "expression": "FA = B * I * l * sin(alpha)",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "FA",
+          "role": "ampere_force",
+          "ref_id": "Q004"
+        },
+        {
+          "order": 2,
+          "symbol": "B",
+          "role": "magnetic_induction",
+          "ref_id": "Q032"
+        },
+        {
+          "order": 3,
+          "symbol": "I",
+          "role": "electric_current",
+          "ref_id": "Q031"
+        },
+        {
+          "order": 4,
+          "symbol": "l",
+          "role": "conductor_length",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 5,
+          "symbol": "alpha",
+          "role": "angle",
+          "ref_id": "Q043"
+        }
+      ]
+    },
+    {
+      "law_id": "P024",
+      "name": [
+        "Lorentz force",
+        "Сила Лоренца"
+      ],
+      "domain": "electromagnetism",
+      "expression": "Fl = q * v * B * sin(alpha)",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "Fl",
+          "role": "lorentz_force",
+          "ref_id": "Q004"
+        },
+        {
+          "order": 2,
+          "symbol": "q",
+          "role": "electric_charge",
+          "ref_id": "Q030"
+        },
+        {
+          "order": 3,
+          "symbol": "v",
+          "role": "velocity",
+          "ref_id": "Q005"
+        },
+        {
+          "order": 4,
+          "symbol": "B",
+          "role": "magnetic_induction",
+          "ref_id": "Q032"
+        },
+        {
+          "order": 5,
+          "symbol": "alpha",
+          "role": "angle",
+          "ref_id": "Q043"
+        }
+      ]
+    },
+    {
+      "law_id": "P025",
+      "name": [
+        "Electric current",
+        "Сила тока"
+      ],
+      "domain": "electrodynamics",
+      "expression": "I = q / t",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "I",
+          "role": "electric_current",
+          "ref_id": "Q031"
+        },
+        {
+          "order": 2,
+          "symbol": "q",
+          "role": "electric_charge",
+          "ref_id": "Q030"
+        },
+        {
+          "order": 3,
+          "symbol": "t",
+          "role": "time",
+          "ref_id": "Q007"
+        }
+      ]
+    },
+    {
+      "law_id": "P026",
+      "name": [
+        "Magnetic flux",
+        "Магнитный поток"
+      ],
+      "domain": "magnetostatics",
+      "expression": "Phi = B * S * cos(alpha)",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "Phi",
+          "role": "magnetic_flux",
+          "ref_id": "Q033"
+        },
+        {
+          "order": 2,
+          "symbol": "B",
+          "role": "magnetic_induction",
+          "ref_id": "Q032"
+        },
+        {
+          "order": 3,
+          "symbol": "S",
+          "role": "area",
+          "ref_id": "Q042"
+        },
+        {
+          "order": 4,
+          "symbol": "alpha",
+          "role": "angle",
+          "ref_id": "Q043"
+        }
+      ]
+    },
+    {
+      "law_id": "P027",
+      "name": [
+        "Flux linkage of an inductor",
+        "Поток через индуктивность"
+      ],
+      "domain": "circuit_theory",
+      "expression": "Phi = L * I",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "Phi",
+          "role": "magnetic_flux",
+          "ref_id": "Q033"
+        },
+        {
+          "order": 2,
+          "symbol": "L",
+          "role": "inductance",
+          "ref_id": "Q035"
+        },
+        {
+          "order": 3,
+          "symbol": "I",
+          "role": "electric_current",
+          "ref_id": "Q031"
+        }
+      ]
+    },
+    {
+      "law_id": "P028",
+      "name": [
+        "Faraday's law of electromagnetic induction",
+        "Закон электромагнитной индукции"
+      ],
+      "domain": "electrodynamics",
+      "expression": "Epsilon = -delta(Phi)/t",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "Epsilon",
+          "role": "emf",
+          "ref_id": "Q012"
+        },
+        {
+          "order": 2,
+          "symbol": "delta(Phi)",
+          "role": "magnetic_flux_change",
+          "ref_id": "Q033"
+        },
+        {
+          "order": 3,
+          "symbol": "t",
+          "role": "time",
+          "ref_id": "Q007"
+        }
+      ]
+    },
+    {
+      "law_id": "P029",
+      "name": [
+        "Parallel resistor combination",
+        "Параллельное соединение сопротивлений"
+      ],
+      "domain": "circuit_theory",
+      "expression": "1/R_0 = 1/R_1 + 1/R_2",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "R_0",
+          "role": "equivalent_resistance",
+          "ref_id": "Q038"
+        },
+        {
+          "order": 2,
+          "symbol": "R_1",
+          "role": "branch_resistance",
+          "ref_id": "Q038",
+          "instance": "branch_1"
+        },
+        {
+          "order": 3,
+          "symbol": "R_2",
+          "role": "branch_resistance",
+          "ref_id": "Q038",
+          "instance": "branch_2"
+        }
+      ]
+    },
+    {
+      "law_id": "P030",
+      "name": [
+        "Series resistor combination",
+        "Последовательное соединение сопротивлений"
+      ],
+      "domain": "circuit_theory",
+      "expression": "R_0 = R_1 + R_2",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "R_0",
+          "role": "equivalent_resistance",
+          "ref_id": "Q038"
+        },
+        {
+          "order": 2,
+          "symbol": "R_1",
+          "role": "series_resistance",
+          "ref_id": "Q038",
+          "instance": "section_1"
+        },
+        {
+          "order": 3,
+          "symbol": "R_2",
+          "role": "series_resistance",
+          "ref_id": "Q038",
+          "instance": "section_2"
+        }
+      ]
+    },
+    {
+      "law_id": "P031",
+      "name": [
+        "Snell's law of refraction",
+        "Закон преломления Снеллиуса"
+      ],
+      "domain": "geometrical_optics",
+      "expression": "n_1 * sin(alpha) = n_2 * sin(alpha)",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "n_1",
+          "role": "incident_refractive_index",
+          "ref_id": "Q015"
+        },
+        {
+          "order": 2,
+          "symbol": "alpha",
+          "role": "incident_angle",
+          "ref_id": "Q043",
+          "instance": "left"
+        },
+        {
+          "order": 3,
+          "symbol": "n_2",
+          "role": "refracted_refractive_index",
+          "ref_id": "Q015"
+        },
+        {
+          "order": 4,
+          "symbol": "alpha",
+          "role": "refracted_angle",
+          "ref_id": "Q043",
+          "instance": "right"
+        }
+      ],
+      "notes": "В исходной записи alpha стоит с обеих сторон равенства. Проверьте, не должен ли угол справа обозначаться beta."
+    },
+    {
+      "law_id": "P032",
+      "name": [
+        "Diffraction grating / single-slit equation",
+        "Дифракционная решётка / щель"
+      ],
+      "domain": "wave_optics",
+      "expression": "d * sin(alpha) = k * lambda",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "d",
+          "role": "grating_period",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 2,
+          "symbol": "alpha",
+          "role": "diffraction_angle",
+          "ref_id": "Q043"
+        },
+        {
+          "order": 3,
+          "symbol": "k",
+          "role": "diffraction_order",
+          "ref_id": "Q044"
+        },
+        {
+          "order": 4,
+          "symbol": "lambda",
+          "role": "wavelength",
+          "ref_id": "Q008"
+        }
+      ]
+    },
+    {
+      "law_id": "P033",
+      "name": [
+        "Path difference (integer wavelengths)",
+        "Разность хода (целые)"
+      ],
+      "domain": "wave_physics",
+      "expression": "delta = k * lambda",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "delta",
+          "role": "path_difference",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 2,
+          "symbol": "k",
+          "role": "interference_order",
+          "ref_id": "Q044"
+        },
+        {
+          "order": 3,
+          "symbol": "lambda",
+          "role": "wavelength",
+          "ref_id": "Q008"
+        }
+      ]
+    },
+    {
+      "law_id": "P034",
+      "name": [
+        "Path difference (odd half-wavelengths)",
+        "Разность хода (нечётные половины)"
+      ],
+      "domain": "wave_physics",
+      "expression": "delta = (2*k + 1) * lambda / 2",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "delta",
+          "role": "path_difference",
+          "ref_id": "Q008"
+        },
+        {
+          "order": 2,
+          "symbol": "k",
+          "role": "interference_order",
+          "ref_id": "Q044"
+        },
+        {
+          "order": 3,
+          "symbol": "lambda",
+          "role": "wavelength",
+          "ref_id": "Q008"
+        }
+      ]
+    },
+    {
+      "law_id": "P035",
+      "name": [
+        "Photon energy",
+        "Энергия фотона"
+      ],
+      "domain": "quantum_mechanics",
+      "expression": "E = h * nu",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "E",
+          "role": "photon_energy",
+          "ref_id": "Q001"
+        },
+        {
+          "order": 2,
+          "symbol": "h",
+          "role": "planck_constant",
+          "ref_id": "C002"
+        },
+        {
+          "order": 3,
+          "symbol": "nu",
+          "role": "frequency",
+          "ref_id": "Q037"
+        }
+      ]
+    },
+    {
+      "law_id": "P036",
+      "name": [
+        "Einstein's photoelectric equation",
+        "Уравнение фотоэффекта Эйнштейна"
+      ],
+      "domain": "photoelectric_effect",
+      "expression": "E_k = A_work + h * nu",
+      "components": [
+        {
+          "order": 1,
+          "symbol": "E_k",
+          "role": "electron_kinetic_energy",
+          "ref_id": "Q001"
+        },
+        {
+          "order": 2,
+          "symbol": "A_work",
+          "role": "work_function",
+          "ref_id": "Q009"
+        },
+        {
+          "order": 3,
+          "symbol": "h",
+          "role": "planck_constant",
+          "ref_id": "C002"
+        },
+        {
+          "order": 4,
+          "symbol": "nu",
+          "role": "frequency",
+          "ref_id": "Q037"
+        }
+      ]
+    }
+  ]
+}
