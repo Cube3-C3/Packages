@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "id": "physi_formula_catalog",
-  "description": "Каталог целых физических формул в текстовой записи с именем, доменом и упорядоченными компонентами. Не содержит AST, structure_ref или граф промежуточных сборок.",
+  "description": "Каталог целых физических формул: двуязычные названия [en, ru], домен и упорядоченные компоненты. Не содержит AST, structure_ref или граф промежуточных сборок.",
   "source": {
     "expressions": "Fis_data/physi_formulas.raw.txt",
     "formula_names": "Fis_data/physi_formulas.json",
@@ -16,7 +16,10 @@
   "formulas": [
     {
       "law_id": "P001",
-      "name": "Скорость при равномерном движении",
+      "name": [
+        "Speed in uniform motion",
+        "Скорость при равномерном движении"
+      ],
       "domain": "kinematics",
       "expression": "v = s / t",
       "components": [
@@ -42,7 +45,10 @@
     },
     {
       "law_id": "P002",
-      "name": "Ускорение",
+      "name": [
+        "Acceleration",
+        "Ускорение"
+      ],
       "domain": "kinematics",
       "expression": "a = delta(v) / t",
       "components": [
@@ -68,7 +74,10 @@
     },
     {
       "law_id": "P003",
-      "name": "Координата при равномерном движении",
+      "name": [
+        "Position in uniform motion",
+        "Координата при равномерном движении"
+      ],
       "domain": "kinematics",
       "expression": "x = x_0 + v * t",
       "components": [
@@ -100,7 +109,10 @@
     },
     {
       "law_id": "P004",
-      "name": "Путь при равноускоренном движении",
+      "name": [
+        "Displacement in uniformly accelerated motion",
+        "Путь при равноускоренном движении"
+      ],
       "domain": "kinematics",
       "expression": "s = v_0 * t + (a * t^2) / 2",
       "components": [
@@ -141,7 +153,10 @@
     },
     {
       "law_id": "P005",
-      "name": "Второй закон Ньютона",
+      "name": [
+        "Newton's second law",
+        "Второй закон Ньютона"
+      ],
       "domain": "dynamics",
       "expression": "F = m * a",
       "components": [
@@ -167,7 +182,10 @@
     },
     {
       "law_id": "P006",
-      "name": "Закон всемирного тяготения",
+      "name": [
+        "Newton's law of universal gravitation",
+        "Закон всемирного тяготения"
+      ],
       "domain": "dynamics",
       "expression": "F = G * m_1 * m_2 / r^2",
       "components": [
@@ -207,7 +225,10 @@
     },
     {
       "law_id": "P007",
-      "name": "Кинетическая энергия",
+      "name": [
+        "Kinetic energy",
+        "Кинетическая энергия"
+      ],
       "domain": "mechanics",
       "expression": "E = (m * v^2) / 2",
       "components": [
@@ -233,7 +254,10 @@
     },
     {
       "law_id": "P008",
-      "name": "Потенциальная энергия упругой деформации",
+      "name": [
+        "Elastic potential energy",
+        "Потенциальная энергия упругой деформации"
+      ],
       "domain": "elasticity",
       "expression": "E = (k * x^2) / 2",
       "components": [
@@ -259,7 +283,10 @@
     },
     {
       "law_id": "P009",
-      "name": "Закон Ома (участок)",
+      "name": [
+        "Ohm's law for a circuit section",
+        "Закон Ома (участок)"
+      ],
       "domain": "circuit_theory",
       "expression": "U = I * R",
       "components": [
@@ -285,7 +312,10 @@
     },
     {
       "law_id": "P010",
-      "name": "Формула тонкой линзы",
+      "name": [
+        "Thin lens formula",
+        "Формула тонкой линзы"
+      ],
       "domain": "geometrical_optics",
       "expression": "1/F = 1/d + 1/f",
       "components": [
@@ -311,7 +341,10 @@
     },
     {
       "law_id": "P011",
-      "name": "Момент силы",
+      "name": [
+        "Torque",
+        "Момент силы"
+      ],
       "domain": "statics",
       "expression": "M = F * l",
       "components": [
@@ -337,7 +370,10 @@
     },
     {
       "law_id": "P012",
-      "name": "Правило рычага",
+      "name": [
+        "Law of the lever",
+        "Правило рычага"
+      ],
       "domain": "statics",
       "expression": "F * l = F * l",
       "components": [
@@ -373,7 +409,10 @@
     },
     {
       "law_id": "P013",
-      "name": "Сила Архимеда",
+      "name": [
+        "Buoyant force (Archimedes' principle)",
+        "Сила Архимеда"
+      ],
       "domain": "fluid_mechanics",
       "expression": "FA = rho * g * V",
       "components": [
@@ -405,7 +444,10 @@
     },
     {
       "law_id": "P014",
-      "name": "Закон Гука",
+      "name": [
+        "Hooke's law",
+        "Закон Гука"
+      ],
       "domain": "elasticity",
       "expression": "F_упр = k * delta(l)",
       "components": [
@@ -431,7 +473,10 @@
     },
     {
       "law_id": "P015",
-      "name": "Период математического маятника",
+      "name": [
+        "Period of a simple pendulum",
+        "Период математического маятника"
+      ],
       "domain": "oscillations",
       "expression": "T = 2π * sqrt(l/g)",
       "components": [
@@ -463,7 +508,10 @@
     },
     {
       "law_id": "P016",
-      "name": "Период пружинного маятника",
+      "name": [
+        "Period of a mass–spring oscillator",
+        "Период пружинного маятника"
+      ],
       "domain": "oscillations",
       "expression": "T = 2π * sqrt(m/k)",
       "components": [
@@ -495,7 +543,10 @@
     },
     {
       "law_id": "P017",
-      "name": "Гармоническое колебание",
+      "name": [
+        "Simple harmonic motion",
+        "Гармоническое колебание"
+      ],
       "domain": "oscillations",
       "expression": "x = A * sin(omega*t + phi_0)",
       "components": [
@@ -533,7 +584,10 @@
     },
     {
       "law_id": "P018",
-      "name": "Количество теплоты (нагревание)",
+      "name": [
+        "Heat required for temperature change",
+        "Количество теплоты (нагревание)"
+      ],
       "domain": "thermodynamics",
       "expression": "Q = c * m * delta(T)",
       "components": [
@@ -565,7 +619,10 @@
     },
     {
       "law_id": "P019",
-      "name": "Количество теплоты (плавление)",
+      "name": [
+        "Heat of fusion",
+        "Количество теплоты (плавление)"
+      ],
       "domain": "thermodynamics",
       "expression": "Q = lambda * m",
       "components": [
@@ -591,7 +648,10 @@
     },
     {
       "law_id": "P020",
-      "name": "Количество теплоты (парообразование)",
+      "name": [
+        "Latent heat of vaporization",
+        "Количество теплоты (парообразование)"
+      ],
       "domain": "thermodynamics",
       "expression": "Q = L * m",
       "components": [
@@ -617,7 +677,10 @@
     },
     {
       "law_id": "P021",
-      "name": "Давление идеального газа через энергию",
+      "name": [
+        "Pressure of an ideal gas in terms of particle energy",
+        "Давление идеального газа через энергию"
+      ],
       "domain": "statistical_physics",
       "expression": "p = (2/3) * n * E",
       "components": [
@@ -643,7 +706,10 @@
     },
     {
       "law_id": "P022",
-      "name": "Уравнение Менделеева–Клапейрона",
+      "name": [
+        "Ideal gas law (Mendeleev–Clapeyron equation)",
+        "Уравнение Менделеева–Клапейрона"
+      ],
       "domain": "thermodynamics",
       "expression": "p * V = (m / mu) * R * T",
       "components": [
@@ -687,7 +753,10 @@
     },
     {
       "law_id": "P023",
-      "name": "Сила Ампера",
+      "name": [
+        "Ampère's force",
+        "Сила Ампера"
+      ],
       "domain": "magnetostatics",
       "expression": "FA = B * I * l * sin(alpha)",
       "components": [
@@ -725,7 +794,10 @@
     },
     {
       "law_id": "P024",
-      "name": "Сила Лоренца",
+      "name": [
+        "Lorentz force",
+        "Сила Лоренца"
+      ],
       "domain": "electromagnetism",
       "expression": "Fl = q * v * B * sin(alpha)",
       "components": [
@@ -763,7 +835,10 @@
     },
     {
       "law_id": "P025",
-      "name": "Сила тока",
+      "name": [
+        "Electric current",
+        "Сила тока"
+      ],
       "domain": "electrodynamics",
       "expression": "I = q / t",
       "components": [
@@ -789,7 +864,10 @@
     },
     {
       "law_id": "P026",
-      "name": "Магнитный поток",
+      "name": [
+        "Magnetic flux",
+        "Магнитный поток"
+      ],
       "domain": "magnetostatics",
       "expression": "Phi = B * S * cos(alpha)",
       "components": [
@@ -821,7 +899,10 @@
     },
     {
       "law_id": "P027",
-      "name": "Поток через индуктивность",
+      "name": [
+        "Flux linkage of an inductor",
+        "Поток через индуктивность"
+      ],
       "domain": "circuit_theory",
       "expression": "Phi = L * I",
       "components": [
@@ -847,7 +928,10 @@
     },
     {
       "law_id": "P028",
-      "name": "Закон электромагнитной индукции",
+      "name": [
+        "Faraday's law of electromagnetic induction",
+        "Закон электромагнитной индукции"
+      ],
       "domain": "electrodynamics",
       "expression": "Epsilon = -delta(Phi)/t",
       "components": [
@@ -873,7 +957,10 @@
     },
     {
       "law_id": "P029",
-      "name": "Параллельное соединение сопротивлений",
+      "name": [
+        "Parallel resistor combination",
+        "Параллельное соединение сопротивлений"
+      ],
       "domain": "circuit_theory",
       "expression": "1/R_0 = 1/R_1 + 1/R_2",
       "components": [
@@ -901,7 +988,10 @@
     },
     {
       "law_id": "P030",
-      "name": "Последовательное соединение сопротивлений",
+      "name": [
+        "Series resistor combination",
+        "Последовательное соединение сопротивлений"
+      ],
       "domain": "circuit_theory",
       "expression": "R_0 = R_1 + R_2",
       "components": [
@@ -929,7 +1019,10 @@
     },
     {
       "law_id": "P031",
-      "name": "Закон преломления Снеллиуса",
+      "name": [
+        "Snell's law of refraction",
+        "Закон преломления Снеллиуса"
+      ],
       "domain": "geometrical_optics",
       "expression": "n_1 * sin(alpha) = n_2 * sin(alpha)",
       "components": [
@@ -964,7 +1057,10 @@
     },
     {
       "law_id": "P032",
-      "name": "Дифракционная решётка / щель",
+      "name": [
+        "Diffraction grating / single-slit equation",
+        "Дифракционная решётка / щель"
+      ],
       "domain": "wave_optics",
       "expression": "d * sin(alpha) = k * lambda",
       "components": [
@@ -996,7 +1092,10 @@
     },
     {
       "law_id": "P033",
-      "name": "Разность хода (целые)",
+      "name": [
+        "Path difference (integer wavelengths)",
+        "Разность хода (целые)"
+      ],
       "domain": "wave_physics",
       "expression": "delta = k * lambda",
       "components": [
@@ -1022,7 +1121,10 @@
     },
     {
       "law_id": "P034",
-      "name": "Разность хода (нечётные половины)",
+      "name": [
+        "Path difference (odd half-wavelengths)",
+        "Разность хода (нечётные половины)"
+      ],
       "domain": "wave_physics",
       "expression": "delta = (2*k + 1) * lambda / 2",
       "components": [
@@ -1048,7 +1150,10 @@
     },
     {
       "law_id": "P035",
-      "name": "Энергия фотона",
+      "name": [
+        "Photon energy",
+        "Энергия фотона"
+      ],
       "domain": "quantum_mechanics",
       "expression": "E = h * nu",
       "components": [
@@ -1074,7 +1179,10 @@
     },
     {
       "law_id": "P036",
-      "name": "Уравнение фотоэффекта Эйнштейна",
+      "name": [
+        "Einstein's photoelectric equation",
+        "Уравнение фотоэффекта Эйнштейна"
+      ],
       "domain": "photoelectric_effect",
       "expression": "E_k = A_work + h * nu",
       "components": [
