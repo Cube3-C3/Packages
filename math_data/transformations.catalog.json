@@ -340,9 +340,9 @@
       "rule_id": "P008",
       "family": "powers",
       "mode": "normalize",
-      "expression": "−x ^ 2 = x ^ 2",
-      "rewrite": "−x ^ 2 → x ^ 2",
-      "lhs": "−x ^ 2",
+      "expression": "(-x)^2 = x^2",
+      "rewrite": "(-x) ^ 2 → x ^ 2",
+      "lhs": "(-x) ^ 2",
       "rhs": "x ^ 2"
     },
     {
