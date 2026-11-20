@@ -38,7 +38,22 @@
       "gt",
       "ge"
     ],
-    "rewriting": "lhs -> rhs only unless explicitly marked bidirectional. Generic assoc/comm rules live in normalization_strategies, never use unconstrained bidirectional rewrites."
+    "rewriting": "lhs -> rhs only unless explicitly marked bidirectional. Generic assoc/comm rules live in normalization_strategies, never use unconstrained bidirectional rewrites.",
+    "operator_laws": {
+      "scope": "default_number_domain R: scalar real arithmetic only",
+      "properties": {
+        "add": [
+          "associative",
+          "commutative"
+        ],
+        "mul": [
+          "associative",
+          "commutative"
+        ]
+      },
+      "matching": "Rule patterns are matched modulo the declared associative and commutative laws. One canonical rule covers equivalent operand orderings and associative groupings.",
+      "type_safety": "These laws apply only when operands satisfy the scalar real-number domain. Do not infer commutativity of multiplication for vectors, matrices, or other non-scalar operands."
+    }
   },
   "normalization_policy": {
     "starting_point": "Normalize candidate and reference on the original committed domain of their caret.",
@@ -58,7 +73,8 @@
       "max_transitions": 2048,
       "max_depth": 40
     },
-    "physical_rules": "Dimension compatibility is not identity. Physical laws may be connected as a separate authorized family under the same normalization graph."
+    "physical_rules": "Dimension compatibility is not identity. Physical laws may be connected as a separate authorized family under the same normalization graph.",
+    "algebraic_matching": "Before matching a rule, the matcher may compare operands modulo declared associative and commutative operator laws within their declared domain. Store one canonical orientation per rule; do not generate permutation rewrites. Flattening and canonical ordering are implementation strategies, not additional mathematical rules."
   },
   "normalization_strategies": [
     {
@@ -140,20 +156,6 @@
       "rhs": "$x"
     },
     {
-      "id": "A002",
-      "family": "arithmetic",
-      "mode": "normalize",
-      "lhs": [
-        "add",
-        [
-          "int",
-          "0"
-        ],
-        "$x"
-      ],
-      "rhs": "$x"
-    },
-    {
       "id": "A003",
       "family": "arithmetic",
       "mode": "normalize",
@@ -226,20 +228,6 @@
       "rhs": "$x"
     },
     {
-      "id": "A008",
-      "family": "arithmetic",
-      "mode": "normalize",
-      "lhs": [
-        "mul",
-        [
-          "int",
-          "1"
-        ],
-        "$x"
-      ],
-      "rhs": "$x"
-    },
-    {
       "id": "A009",
       "family": "arithmetic",
       "mode": "normalize",
@@ -250,23 +238,6 @@
           "int",
           "0"
         ]
-      ],
-      "rhs": [
-        "int",
-        "0"
-      ]
-    },
-    {
-      "id": "A010",
-      "family": "arithmetic",
-      "mode": "normalize",
-      "lhs": [
-        "mul",
-        [
-          "int",
-          "0"
-        ],
-        "$x"
       ],
       "rhs": [
         "int",
@@ -318,27 +289,6 @@
           "$x"
         ],
         "$y"
-      ],
-      "rhs": [
-        "neg",
-        [
-          "mul",
-          "$x",
-          "$y"
-        ]
-      ]
-    },
-    {
-      "id": "A014",
-      "family": "arithmetic",
-      "mode": "normalize",
-      "lhs": [
-        "mul",
-        "$x",
-        [
-          "neg",
-          "$y"
-        ]
       ],
       "rhs": [
         "neg",
