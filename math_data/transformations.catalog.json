@@ -7,7 +7,7 @@
     "domain_constraints": "math_data/constraints.json",
     "history_note": "Ссылка rules на math_data/transformations.json сохранена как исторический след прежнего AST-реестра; формулы текущей версии берутся из этого каталога."
   },
-  "rule_count": 78,
+  "rule_count": 79,
   "rule_order": "Сохранён порядок правил исходного реестра; несколько эквивалентных порядков операндов не размножают одну запись.",
   "expression_semantics": {
     "expression": "Для тождеств — строковая запись равенства; для преобразований отношений — направленная запись перехода.",
@@ -890,6 +890,18 @@
       "conditions": [
         "x ∈ R",
         "y ∈ R"
+      ]
+    },
+    {
+      "rule_id": "P012",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "(x ^ m) ^ n = x ^ (m * n), x > 0",
+      "rewrite": "(x ^ m) ^ n → x ^ (m * n)",
+      "lhs": "(x ^ m) ^ n",
+      "rhs": "x ^ (m * n)",
+      "conditions": [
+        "x > 0"
       ]
     },
     {
