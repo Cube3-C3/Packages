@@ -991,7 +991,7 @@
     {
       "rule_id": "L015",
       "family": "logarithms",
-      "mode": "normalize",
+      "mode": "manual_only",
       "expression": "log_a(x) = log_b(x) / log_b(a)",
       "rewrite": "log_a(x) → log_b(x) / log_b(a)",
       "lhs": "log_a(x)",
@@ -1002,6 +1002,9 @@
         "b > 0",
         "b ≠ 1",
         "x > 0"
+      ],
+      "parameters": [
+        "b"
       ]
     },
     {
