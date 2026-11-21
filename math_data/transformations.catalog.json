@@ -303,7 +303,7 @@
       "rule_id": "P005",
       "family": "powers",
       "mode": "normalize",
-      "expression": "(x ^ m) ^ n = x ^ (m * n)",
+      "expression": "(x ^ m) ^ n = x ^ (m * n), при x ≠ 0, m ∈ Z, n ∈ Z",
       "rewrite": "(x ^ m) ^ n → x ^ (m * n)",
       "lhs": "(x ^ m) ^ n",
       "rhs": "x ^ (m * n)",
