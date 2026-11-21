@@ -7,7 +7,7 @@
     "domain_constraints": "math_data/constraints.json",
     "history_note": "Ссылка rules на math_data/transformations.json сохранена как исторический след прежнего AST-реестра; формулы текущей версии берутся из этого каталога."
   },
-  "rule_count": 79,
+  "rule_count": 80,
   "rule_order": "Сохранён порядок правил исходного реестра; несколько эквивалентных порядков операндов не размножают одну запись.",
   "expression_semantics": {
     "expression": "Для тождеств — строковая запись равенства; для преобразований отношений — направленная запись перехода.",
@@ -1034,6 +1034,21 @@
         "a ≠ 1",
         "b > 0",
         "b ≠ 1"
+      ]
+    },
+    {
+      "rule_id": "L017",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log_{b ^ m}(a) = (1 / m) * log_b(a)",
+      "rewrite": "log_{b ^ m}(a) → (1 / m) * log_b(a)",
+      "lhs": "log_{b ^ m}(a)",
+      "rhs": "(1 / m) * log_b(a)",
+      "conditions": [
+        "b > 0",
+        "b ≠ 1",
+        "m ≠ 0",
+        "a > 0"
       ]
     }
   ],
