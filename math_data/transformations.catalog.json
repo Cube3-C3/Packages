@@ -1,17 +1,19 @@
 {
   "schema_version": "1.0.0",
   "id": "math_transformation_catalog",
-  "description": "Читаемый строковый каталог правил преобразования. Параллельное представление AST-реестра; не содержит исполняемых шаблонов и не заменяет transformations.json.",
+  "description": "Единый источник формул и правил преобразования Matchin. Строковые lhs/rhs компилируются загрузчиком в исполняемые AST-шаблоны.",
   "source": {
     "rules": "math_data/transformations.json",
-    "domain_constraints": "math_data/constraints.json"
+    "domain_constraints": "math_data/constraints.json",
+    "history_note": "Ссылка rules на math_data/transformations.json сохранена как исторический след прежнего AST-реестра; формулы текущей версии берутся из этого каталога."
   },
   "rule_count": 78,
   "rule_order": "Сохранён порядок правил исходного реестра; несколько эквивалентных порядков операндов не размножают одну запись.",
   "expression_semantics": {
     "expression": "Для тождеств — строковая запись равенства; для преобразований отношений — направленная запись перехода.",
     "rewrite": "Направление применения lhs → rhs; mode=normalize используется автоматической нормализацией, mode=manual_only требует отдельного подтверждённого шага.",
-    "metavariables": "x, y, a, b, c, d, l, r, m, n и t — шаблонные операнды, а не конкретные именованные переменные."
+    "metavariables": "x, y, a, b, c, d, l, r, m, n и t — шаблонные операнды, а не конкретные именованные переменные.",
+    "based_logarithm": "Запись log_b(x) означает логарифм x по основанию b; при компиляции она переводится в двухаргументный AST логарифма."
   },
   "operator_laws": {
     "scope": "default_number_domain R: scalar real arithmetic only",
@@ -1022,5 +1024,6 @@
         "b ≠ 1"
       ]
     }
-  ]
+  ],
+  "rule_source_of_truth": "catalog.rules"
 }
