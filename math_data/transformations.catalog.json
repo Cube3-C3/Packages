@@ -6,12 +6,13 @@
     "rules": "math_data/transformations.json",
     "domain_constraints": "math_data/constraints.json"
   },
-  "rule_count": 68,
+  "rule_count": 79,
   "rule_order": "Сохранён порядок правил исходного реестра; несколько эквивалентных порядков операндов не размножают одну запись.",
   "expression_semantics": {
     "expression": "Для тождеств — строковая запись равенства; для преобразований отношений — направленная запись перехода.",
     "rewrite": "Направление применения lhs → rhs; mode=normalize используется автоматической нормализацией, mode=manual_only требует отдельного подтверждённого шага.",
-    "metavariables": "x, y, a, b, c, d, l, r, m, n и t — шаблонные операнды, а не конкретные именованные переменные."
+    "metavariables": "x, y, a, b, c, d, l, r, m, n и t — шаблонные операнды, а не конкретные именованные переменные.",
+    "log_notation": "log(a; b): a — основание (a > 0, a ≠ 1), b — аргумент (b > 0)."
   },
   "operator_laws": {
     "scope": "default_number_domain R: scalar real arithmetic only",
@@ -579,9 +580,9 @@
       "rule_id": "L006",
       "family": "logarithms",
       "mode": "normalize",
-      "expression": "log_b(x) = ln(x) / ln(b)",
-      "rewrite": "log_b(x) → ln(x) / ln(b)",
-      "lhs": "log_b(x)",
+      "expression": "log(b; x) = ln(x) / ln(b)",
+      "rewrite": "log(b; x) → ln(x) / ln(b)",
+      "lhs": "log(b; x)",
       "rhs": "ln(x) / ln(b)",
       "conditions": [
         "b > 0",
@@ -876,6 +877,164 @@
         "t"
       ],
       "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "L008",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log(a; 1) = 0",
+      "rewrite": "log(a; 1) → 0",
+      "lhs": "log(a; 1)",
+      "rhs": "0",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1"
+      ]
+    },
+    {
+      "rule_id": "L009",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log(a; a) = 1",
+      "rewrite": "log(a; a) → 1",
+      "lhs": "log(a; a)",
+      "rhs": "1",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1"
+      ]
+    },
+    {
+      "rule_id": "L010",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log(a; b * c) = log(a; b) + log(a; c)",
+      "rewrite": "log(a; b * c) → log(a; b) + log(a; c)",
+      "lhs": "log(a; b * c)",
+      "rhs": "log(a; b) + log(a; c)",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1",
+        "b > 0",
+        "c > 0"
+      ]
+    },
+    {
+      "rule_id": "L011",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log(a; b / c) = log(a; b) − log(a; c)",
+      "rewrite": "log(a; b / c) → log(a; b) − log(a; c)",
+      "lhs": "log(a; b / c)",
+      "rhs": "log(a; b) − log(a; c)",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1",
+        "b > 0",
+        "c > 0"
+      ]
+    },
+    {
+      "rule_id": "L012",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log(a; b ^ x) = x * log(a; b)",
+      "rewrite": "log(a; b ^ x) → x * log(a; b)",
+      "lhs": "log(a; b ^ x)",
+      "rhs": "x * log(a; b)",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1",
+        "b > 0",
+        "x ∈ R"
+      ]
+    },
+    {
+      "rule_id": "L013",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log(a; sqrt(b)) = (1 / 2) * log(a; b)",
+      "rewrite": "log(a; sqrt(b)) → (1 / 2) * log(a; b)",
+      "lhs": "log(a; sqrt(b))",
+      "rhs": "(1 / 2) * log(a; b)",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1",
+        "b > 0"
+      ]
+    },
+    {
+      "rule_id": "L014",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log(a; a ^ x) = x",
+      "rewrite": "log(a; a ^ x) → x",
+      "lhs": "log(a; a ^ x)",
+      "rhs": "x",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1",
+        "x ∈ R"
+      ]
+    },
+    {
+      "rule_id": "L015",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "a ^ log(a; b) = b",
+      "rewrite": "a ^ log(a; b) → b",
+      "lhs": "a ^ log(a; b)",
+      "rhs": "b",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1",
+        "b > 0"
+      ]
+    },
+    {
+      "rule_id": "L016",
+      "family": "logarithms",
+      "mode": "manual_only",
+      "expression": "log(a; b) = 1 / log(b; a)",
+      "rewrite": "log(a; b) ⇢ 1 / log(b; a)",
+      "lhs": "log(a; b)",
+      "rhs": "1 / log(b; a)",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1",
+        "b > 0",
+        "b ≠ 1"
+      ]
+    },
+    {
+      "rule_id": "L017",
+      "family": "logarithms",
+      "mode": "manual_only",
+      "expression": "log(a; b) = log(c; b) / log(c; a)",
+      "rewrite": "log(a; b) ⇢ log(c; b) / log(c; a)",
+      "lhs": "log(a; b)",
+      "rhs": "log(c; b) / log(c; a)",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1",
+        "b > 0",
+        "c > 0",
+        "c ≠ 1"
+      ]
+    },
+    {
+      "rule_id": "L018",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log(a; 1 / b) = −log(a; b)",
+      "rewrite": "log(a; 1 / b) → −log(a; b)",
+      "lhs": "log(a; 1 / b)",
+      "rhs": "−log(a; b)",
+      "conditions": [
+        "a > 0",
+        "a ≠ 1",
+        "b > 0"
+      ]
     }
   ]
 }
