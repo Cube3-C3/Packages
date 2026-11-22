@@ -1,0 +1,550 @@
+{
+  "meta": {
+    "id": "math_data.constraints",
+    "version": "0.1.0",
+    "created": "2026-10-31",
+    "description": "Базовые школьные ограничения над действительными числами для проверки допустимости преобразований относительно исходного выражения.",
+    "status": "registry-data; interpreter required",
+    "language": "ru",
+    "number_model": "exact integers and reduced rationals; symbolic real expressions",
+    "companion": "math_data/transformations.json"
+  },
+  "notation": {
+    "ast": "prefix arrays: [operator, argument1, ...]; metavariables begin with $; integer literals ['int','2']; rational literals ['rat','1','2']",
+    "predicates": "prefix arrays [predicate, expression, ...]; repeated metavariable requires structural equality",
+    "numbers": "Integer values are strings, not JavaScript floating-point values.",
+    "logic": "conditions are conjunctions unless explicitly wrapped in ['or',...]; unknown never means true."
+  },
+  "sets": {
+    "R": {
+      "description": "Действительные числа",
+      "includes": [
+        "Q",
+        "Z",
+        "N0"
+      ]
+    },
+    "Q": {
+      "description": "Рациональные числа"
+    },
+    "Z": {
+      "description": "Целые числа"
+    },
+    "N0": {
+      "description": "Неотрицательные целые числа"
+    },
+    "N": {
+      "description": "Положительные целые числа"
+    }
+  },
+  "predicates": {
+    "defined": {
+      "arity": 1,
+      "meaning": "Выражение определено на рассматриваемой области"
+    },
+    "real": {
+      "arity": 1,
+      "meaning": "Принадлежит R"
+    },
+    "rational": {
+      "arity": 1,
+      "meaning": "Принадлежит Q"
+    },
+    "integer": {
+      "arity": 1,
+      "meaning": "Принадлежит Z"
+    },
+    "nonnegative_integer": {
+      "arity": 1,
+      "meaning": "Принадлежит N0"
+    },
+    "positive_integer": {
+      "arity": 1,
+      "meaning": "Принадлежит N"
+    },
+    "nonzero": {
+      "arity": 1,
+      "meaning": "Не равно 0"
+    },
+    "positive": {
+      "arity": 1,
+      "meaning": "Строго больше 0"
+    },
+    "nonnegative": {
+      "arity": 1,
+      "meaning": "Больше либо равно 0"
+    },
+    "negative": {
+      "arity": 1,
+      "meaning": "Строго меньше 0"
+    },
+    "le": {
+      "arity": 2,
+      "meaning": "Первый аргумент ≤ второго"
+    },
+    "ge": {
+      "arity": 2,
+      "meaning": "Первый аргумент ≥ второго"
+    },
+    "lt": {
+      "arity": 2,
+      "meaning": "Первый аргумент < второго"
+    },
+    "gt": {
+      "arity": 2,
+      "meaning": "Первый аргумент > второго"
+    },
+    "eq": {
+      "arity": 2,
+      "meaning": "Первый аргумент равен второму"
+    },
+    "neq": {
+      "arity": 2,
+      "meaning": "Первый аргумент не равен второму"
+    },
+    "even": {
+      "arity": 1,
+      "meaning": "Чётное целое"
+    },
+    "odd": {
+      "arity": 1,
+      "meaning": "Нечётное целое"
+    },
+    "reduced_rational_exponent": {
+      "arity": 1,
+      "meaning": "Показатель имеет приведённую рациональную форму p/q, q>0"
+    },
+    "even_denominator": {
+      "arity": 1,
+      "meaning": "У приведённой рациональной дроби q чётное"
+    },
+    "odd_denominator": {
+      "arity": 1,
+      "meaning": "У приведённой рациональной дроби q нечётное"
+    },
+    "and": {
+      "variadic": true,
+      "meaning": "Все условия"
+    },
+    "or": {
+      "variadic": true,
+      "meaning": "Хотя бы одно условие"
+    },
+    "not": {
+      "arity": 1,
+      "meaning": "Отрицание условия"
+    }
+  },
+  "domain_rules": [
+    {
+      "id": "division",
+      "match": [
+        "div",
+        "$a",
+        "$b"
+      ],
+      "requires": [
+        [
+          "nonzero",
+          "$b"
+        ]
+      ]
+    },
+    {
+      "id": "integer_power_zero",
+      "match": [
+        "pow",
+        "$a",
+        [
+          "int",
+          "0"
+        ]
+      ],
+      "requires": [
+        [
+          "nonzero",
+          "$a"
+        ]
+      ]
+    },
+    {
+      "id": "integer_power_negative",
+      "match": [
+        "pow",
+        "$a",
+        "$e"
+      ],
+      "when": [
+        [
+          "integer",
+          "$e"
+        ],
+        [
+          "negative",
+          "$e"
+        ]
+      ],
+      "requires": [
+        [
+          "nonzero",
+          "$a"
+        ]
+      ]
+    },
+    {
+      "id": "rational_power_even_positive",
+      "match": [
+        "pow",
+        "$a",
+        "$e"
+      ],
+      "when": [
+        [
+          "reduced_rational_exponent",
+          "$e"
+        ],
+        [
+          "even_denominator",
+          "$e"
+        ],
+        [
+          "positive",
+          "$e"
+        ]
+      ],
+      "requires": [
+        [
+          "nonnegative",
+          "$a"
+        ]
+      ]
+    },
+    {
+      "id": "rational_power_even_negative",
+      "match": [
+        "pow",
+        "$a",
+        "$e"
+      ],
+      "when": [
+        [
+          "reduced_rational_exponent",
+          "$e"
+        ],
+        [
+          "even_denominator",
+          "$e"
+        ],
+        [
+          "negative",
+          "$e"
+        ]
+      ],
+      "requires": [
+        [
+          "positive",
+          "$a"
+        ]
+      ]
+    },
+    {
+      "id": "rational_power_odd_negative",
+      "match": [
+        "pow",
+        "$a",
+        "$e"
+      ],
+      "when": [
+        [
+          "reduced_rational_exponent",
+          "$e"
+        ],
+        [
+          "odd_denominator",
+          "$e"
+        ],
+        [
+          "negative",
+          "$e"
+        ]
+      ],
+      "requires": [
+        [
+          "nonzero",
+          "$a"
+        ]
+      ]
+    },
+    {
+      "id": "sqrt",
+      "match": [
+        "sqrt",
+        "$a"
+      ],
+      "requires": [
+        [
+          "nonnegative",
+          "$a"
+        ]
+      ]
+    },
+    {
+      "id": "nth_root_degree",
+      "match": [
+        "root",
+        "$a",
+        "$n"
+      ],
+      "requires": [
+        [
+          "positive_integer",
+          "$n"
+        ]
+      ]
+    },
+    {
+      "id": "nth_root_even_degree",
+      "match": [
+        "root",
+        "$a",
+        "$n"
+      ],
+      "when": [
+        [
+          "even",
+          "$n"
+        ]
+      ],
+      "requires": [
+        [
+          "nonnegative",
+          "$a"
+        ]
+      ]
+    },
+    {
+      "id": "natural_log",
+      "match": [
+        "ln",
+        "$a"
+      ],
+      "requires": [
+        [
+          "positive",
+          "$a"
+        ]
+      ]
+    },
+    {
+      "id": "logarithm",
+      "match": [
+        "log",
+        "$b",
+        "$a"
+      ],
+      "requires": [
+        [
+          "positive",
+          "$b"
+        ],
+        [
+          "neq",
+          "$b",
+          [
+            "int",
+            "1"
+          ]
+        ],
+        [
+          "positive",
+          "$a"
+        ]
+      ]
+    },
+    {
+      "id": "tangent",
+      "match": [
+        "tan",
+        "$a"
+      ],
+      "requires": [
+        [
+          "nonzero",
+          [
+            "cos",
+            "$a"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "cotangent",
+      "match": [
+        "cot",
+        "$a"
+      ],
+      "requires": [
+        [
+          "nonzero",
+          [
+            "sin",
+            "$a"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "arcsine",
+      "match": [
+        "asin",
+        "$a"
+      ],
+      "requires": [
+        [
+          "ge",
+          "$a",
+          [
+            "int",
+            "-1"
+          ]
+        ],
+        [
+          "le",
+          "$a",
+          [
+            "int",
+            "1"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "arccosine",
+      "match": [
+        "acos",
+        "$a"
+      ],
+      "requires": [
+        [
+          "ge",
+          "$a",
+          [
+            "int",
+            "-1"
+          ]
+        ],
+        [
+          "le",
+          "$a",
+          [
+            "int",
+            "1"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "factorial",
+      "match": [
+        "factorial",
+        "$n"
+      ],
+      "requires": [
+        [
+          "nonnegative_integer",
+          "$n"
+        ]
+      ]
+    }
+  ],
+  "policy": {
+    "start": "Each independent caret starts with its own original expression or relation and original domain.",
+    "comparison_domain": "The original domain plus explicitly committed assumptions is the reference for every later history entry.",
+    "inherited_conditions": "Restrictions of the original expression survive cancellation and every normalization step.",
+    "candidate_definedness": "A candidate must be defined everywhere in the current committed comparison domain; extra requirements cannot be silently accepted.",
+    "extra_assumptions": "An additional assumption can be adopted only as an explicit conditional step; record it and do not silently mutate the original domain.",
+    "value_of_unknown": "unknown; never assume that missing domain rules prove unrestricted real-domain behavior.",
+    "outcomes": [
+      "proved",
+      "conditional",
+      "rejected",
+      "unknown"
+    ],
+    "equivalence_types": [
+      "expression_identity_on_domain",
+      "solution_set_equivalence",
+      "conditional_equivalence"
+    ],
+    "physical_dimension": "Not a replacement for equality; dimension matching is a separate compatibility property.",
+    "different_problems": "Start a new independent caret instead of implicitly introducing a system of equations."
+  },
+  "examples": [
+    {
+      "expression": [
+        "div",
+        "$x",
+        "$x"
+      ],
+      "condition": [
+        "nonzero",
+        "$x"
+      ],
+      "note": "Cancellation preserves x≠0 in original domain."
+    },
+    {
+      "expression": [
+        "pow",
+        "$x",
+        [
+          "int",
+          "-1"
+        ]
+      ],
+      "condition": [
+        "nonzero",
+        "$x"
+      ]
+    },
+    {
+      "expression": [
+        "sqrt",
+        [
+          "pow",
+          "$x",
+          [
+            "int",
+            "2"
+          ]
+        ]
+      ],
+      "condition": [
+        "real",
+        "$x"
+      ]
+    },
+    {
+      "expression": [
+        "ln",
+        "$x"
+      ],
+      "condition": [
+        "positive",
+        "$x"
+      ]
+    },
+    {
+      "expression": [
+        "pow",
+        "$x",
+        [
+          "int",
+          "0"
+        ]
+      ],
+      "condition": [
+        "nonzero",
+        "$x"
+      ]
+    }
+  ]
+}
