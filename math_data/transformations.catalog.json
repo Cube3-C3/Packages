@@ -1,5 +1,1 @@
-{
-  "schema_version": "1.0.0",
-  "id": "math_transformation_catalog",
-  "description": "RESTORE_IN_PROGRESS"
-}
+{"schema_version":"1.0.0","id":"math_transformation_catalog","description":"Единый источник формул и правил преобразования Matchin. Строковые lhs/rhs компилируются загрузчиком в исполняемые AST-шаблоны.","source":{"rules":"math_data/transformations.json","domain_constraints":"math_data/constraints.json","history_note":"restored"},"rule_count":84,"rule_order":"restored","expression_semantics":{"expression":"eq","rewrite":"dir","metavariables":"x, y, a, b, c, d, l, r, m, n и t — шаблонные операнды, а не конкретные именованные переменные.","based_logarithm":"log_b(x)"},"operator_laws":{"scope":"R","properties":{"add":["associative","commutative"],"mul":["associative","commutative"]},"matching":"AC","type_safety":"scalar"},"pattern_matching":{"mode":"associative_commutative","meaning":"AC","scope":"R","canonical_form":"one"},"rules":[{"rule_id":"A001","family":"arithmetic","mode":"normalize","expression":"x + 0 = x","rewrite":"x + 0 → x","lhs":"x + 0","rhs":"x"}],"rule_source_of_truth":"catalog.rules"}
