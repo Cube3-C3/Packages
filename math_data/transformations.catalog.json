@@ -1,1 +1,881 @@
-{"schema_version":"1.0.0","id":"math_transformation_catalog","description":"Единый источник формул и правил преобразования Matchin. Строковые lhs/rhs компилируются загрузчиком в исполняемые AST-шаблоны.","source":{"rules":"math_data/transformations.json","domain_constraints":"math_data/constraints.json","history_note":"restored"},"rule_count":84,"rule_order":"restored","expression_semantics":{"expression":"eq","rewrite":"dir","metavariables":"x, y, a, b, c, d, l, r, m, n и t — шаблонные операнды, а не конкретные именованные переменные.","based_logarithm":"log_b(x)"},"operator_laws":{"scope":"R","properties":{"add":["associative","commutative"],"mul":["associative","commutative"]},"matching":"AC","type_safety":"scalar"},"pattern_matching":{"mode":"associative_commutative","meaning":"AC","scope":"R","canonical_form":"one"},"rules":[{"rule_id":"A001","family":"arithmetic","mode":"normalize","expression":"x + 0 = x","rewrite":"x + 0 → x","lhs":"x + 0","rhs":"x"}],"rule_source_of_truth":"catalog.rules"}
+{
+  "schema_version": "1.0.0",
+  "id": "math_transformation_catalog",
+  "description": "Читаемый строковый каталог правил преобразования. Параллельное представление AST-реестра; не содержит исполняемых шаблонов и не заменяет transformations.json.",
+  "source": {
+    "rules": "math_data/transformations.json",
+    "domain_constraints": "math_data/constraints.json"
+  },
+  "rule_count": 68,
+  "rule_order": "Сохранён порядок правил исходного реестра; несколько эквивалентных порядков операндов не размножают одну запись.",
+  "expression_semantics": {
+    "expression": "Для тождеств — строковая запись равенства; для преобразований отношений — направленная запись перехода.",
+    "rewrite": "Направление применения lhs → rhs; mode=normalize используется автоматической нормализацией, mode=manual_only требует отдельного подтверждённого шага.",
+    "metavariables": "x, y, a, b, c, d, l, r, m, n и t — шаблонные операнды, а не конкретные именованные переменные."
+  },
+  "operator_laws": {
+    "scope": "default_number_domain R: scalar real arithmetic only",
+    "properties": {
+      "add": [
+        "associative",
+        "commutative"
+      ],
+      "mul": [
+        "associative",
+        "commutative"
+      ]
+    },
+    "matching": "Rule patterns are matched modulo the declared associative and commutative laws. One canonical rule covers equivalent operand orderings and associative groupings.",
+    "type_safety": "These laws apply only when operands satisfy the scalar real-number domain. Do not infer commutativity of multiplication for vectors, matrices, or other non-scalar operands."
+  },
+  "pattern_matching": {
+    "mode": "associative_commutative",
+    "meaning": "Сопоставление правил допускает перестановку и перегруппировку операндов для операторов, объявленных коммутативными и сочетательными.",
+    "scope": "Только область действительных скаляров R. Свойства не переносятся автоматически на векторы, матрицы и другие типы.",
+    "canonical_form": "Каждое правило записывается одной канонической строкой. Генерация дублирующих правил и перебор перестановок не требуются."
+  },
+  "rules": [
+    {
+      "rule_id": "A001",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "x + 0 = x",
+      "rewrite": "x + 0 → x",
+      "lhs": "x + 0",
+      "rhs": "x"
+    },
+    {
+      "rule_id": "A003",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "x − 0 = x",
+      "rewrite": "x − 0 → x",
+      "lhs": "x − 0",
+      "rhs": "x"
+    },
+    {
+      "rule_id": "A004",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "x − x = 0",
+      "rewrite": "x − x → 0",
+      "lhs": "x − x",
+      "rhs": "0"
+    },
+    {
+      "rule_id": "A005",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "x + −x = 0",
+      "rewrite": "x + −x → 0",
+      "lhs": "x + −x",
+      "rhs": "0"
+    },
+    {
+      "rule_id": "A006",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "−−x = x",
+      "rewrite": "−−x → x",
+      "lhs": "−−x",
+      "rhs": "x"
+    },
+    {
+      "rule_id": "A007",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "x * 1 = x",
+      "rewrite": "x * 1 → x",
+      "lhs": "x * 1",
+      "rhs": "x"
+    },
+    {
+      "rule_id": "A009",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "x * 0 = 0",
+      "rewrite": "x * 0 → 0",
+      "lhs": "x * 0",
+      "rhs": "0"
+    },
+    {
+      "rule_id": "A011",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "−0 = 0",
+      "rewrite": "−0 → 0",
+      "lhs": "−0",
+      "rhs": "0"
+    },
+    {
+      "rule_id": "A012",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "x − y = x + −y",
+      "rewrite": "x − y → x + −y",
+      "lhs": "x − y",
+      "rhs": "x + −y"
+    },
+    {
+      "rule_id": "A013",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "−x * y = −(x * y)",
+      "rewrite": "−x * y → −(x * y)",
+      "lhs": "−x * y",
+      "rhs": "−(x * y)"
+    },
+    {
+      "rule_id": "A015",
+      "family": "arithmetic",
+      "mode": "normalize",
+      "expression": "x ^ 1 = x",
+      "rewrite": "x ^ 1 → x",
+      "lhs": "x ^ 1",
+      "rhs": "x"
+    },
+    {
+      "rule_id": "R001",
+      "family": "rational",
+      "mode": "normalize",
+      "expression": "x / 1 = x",
+      "rewrite": "x / 1 → x",
+      "lhs": "x / 1",
+      "rhs": "x"
+    },
+    {
+      "rule_id": "R002",
+      "family": "rational",
+      "mode": "normalize",
+      "expression": "0 / x = 0",
+      "rewrite": "0 / x → 0",
+      "lhs": "0 / x",
+      "rhs": "0",
+      "conditions": [
+        "x ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "R003",
+      "family": "rational",
+      "mode": "normalize",
+      "expression": "x / x = 1",
+      "rewrite": "x / x → 1",
+      "lhs": "x / x",
+      "rhs": "1",
+      "conditions": [
+        "x ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "R004",
+      "family": "rational",
+      "mode": "normalize",
+      "expression": "a * b / (a * c) = b / c",
+      "rewrite": "a * b / (a * c) → b / c",
+      "lhs": "a * b / (a * c)",
+      "rhs": "b / c",
+      "conditions": [
+        "a ≠ 0",
+        "c ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "R005",
+      "family": "rational",
+      "mode": "normalize",
+      "expression": "a / c + b / c = (a + b) / c",
+      "rewrite": "a / c + b / c → (a + b) / c",
+      "lhs": "a / c + b / c",
+      "rhs": "(a + b) / c",
+      "conditions": [
+        "c ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "R006",
+      "family": "rational",
+      "mode": "normalize",
+      "expression": "a / c − b / c = (a − b) / c",
+      "rewrite": "a / c − b / c → (a − b) / c",
+      "lhs": "a / c − b / c",
+      "rhs": "(a − b) / c",
+      "conditions": [
+        "c ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "R007",
+      "family": "rational",
+      "mode": "normalize",
+      "expression": "a / b + c / d = (a * d + c * b) / (b * d)",
+      "rewrite": "a / b + c / d → (a * d + c * b) / (b * d)",
+      "lhs": "a / b + c / d",
+      "rhs": "(a * d + c * b) / (b * d)",
+      "conditions": [
+        "b ≠ 0",
+        "d ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "R008",
+      "family": "rational",
+      "mode": "normalize",
+      "expression": "a / b * (c / d) = a * c / (b * d)",
+      "rewrite": "a / b * (c / d) → a * c / (b * d)",
+      "lhs": "a / b * (c / d)",
+      "rhs": "a * c / (b * d)",
+      "conditions": [
+        "b ≠ 0",
+        "d ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "R009",
+      "family": "rational",
+      "mode": "normalize",
+      "expression": "a / b / (c / d) = a * d / (b * c)",
+      "rewrite": "a / b / (c / d) → a * d / (b * c)",
+      "lhs": "a / b / (c / d)",
+      "rhs": "a * d / (b * c)",
+      "conditions": [
+        "b ≠ 0",
+        "c ≠ 0",
+        "d ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "P001",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "x ^ 0 = 1",
+      "rewrite": "x ^ 0 → 1",
+      "lhs": "x ^ 0",
+      "rhs": "1",
+      "conditions": [
+        "x ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "P002",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "x ^ −n = 1 / x ^ n",
+      "rewrite": "x ^ −n → 1 / x ^ n",
+      "lhs": "x ^ −n",
+      "rhs": "1 / x ^ n",
+      "conditions": [
+        "n ∈ N",
+        "x ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "P003",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "x ^ m * x ^ n = x ^ (m + n)",
+      "rewrite": "x ^ m * x ^ n → x ^ (m + n)",
+      "lhs": "x ^ m * x ^ n",
+      "rhs": "x ^ (m + n)",
+      "conditions": [
+        "x ≠ 0",
+        "m ∈ Z",
+        "n ∈ Z"
+      ]
+    },
+    {
+      "rule_id": "P004",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "x ^ m / x ^ n = x ^ (m − n)",
+      "rewrite": "x ^ m / x ^ n → x ^ (m − n)",
+      "lhs": "x ^ m / x ^ n",
+      "rhs": "x ^ (m − n)",
+      "conditions": [
+        "x ≠ 0",
+        "m ∈ Z",
+        "n ∈ Z"
+      ]
+    },
+    {
+      "rule_id": "P005",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "(x ^ m) ^ n = x ^ (m * n)",
+      "rewrite": "(x ^ m) ^ n → x ^ (m * n)",
+      "lhs": "(x ^ m) ^ n",
+      "rhs": "x ^ (m * n)",
+      "conditions": [
+        "x ≠ 0",
+        "m ∈ Z",
+        "n ∈ Z"
+      ]
+    },
+    {
+      "rule_id": "P006",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "(x * y) ^ n = x ^ n * y ^ n",
+      "rewrite": "(x * y) ^ n → x ^ n * y ^ n",
+      "lhs": "(x * y) ^ n",
+      "rhs": "x ^ n * y ^ n",
+      "conditions": [
+        "n ∈ N"
+      ]
+    },
+    {
+      "rule_id": "P007",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "(x / y) ^ n = x ^ n / y ^ n",
+      "rewrite": "(x / y) ^ n → x ^ n / y ^ n",
+      "lhs": "(x / y) ^ n",
+      "rhs": "x ^ n / y ^ n",
+      "conditions": [
+        "n ∈ N",
+        "y ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "P008",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "(-x)^2 = x^2",
+      "rewrite": "(-x) ^ 2 → x ^ 2",
+      "lhs": "(-x) ^ 2",
+      "rhs": "x ^ 2"
+    },
+    {
+      "rule_id": "P009",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "(x + y) ^ 2 = x ^ 2 + 2 * x * y + y ^ 2",
+      "rewrite": "(x + y) ^ 2 → x ^ 2 + 2 * x * y + y ^ 2",
+      "lhs": "(x + y) ^ 2",
+      "rhs": "x ^ 2 + 2 * x * y + y ^ 2"
+    },
+    {
+      "rule_id": "P010",
+      "family": "powers",
+      "mode": "normalize",
+      "expression": "(x − y) ^ 2 = x ^ 2 − 2 * x * y + y ^ 2",
+      "rewrite": "(x − y) ^ 2 → x ^ 2 − 2 * x * y + y ^ 2",
+      "lhs": "(x − y) ^ 2",
+      "rhs": "x ^ 2 − 2 * x * y + y ^ 2"
+    },
+    {
+      "rule_id": "S001",
+      "family": "roots",
+      "mode": "normalize",
+      "expression": "sqrt(x ^ 2) = |x|",
+      "rewrite": "sqrt(x ^ 2) → |x|",
+      "lhs": "sqrt(x ^ 2)",
+      "rhs": "|x|",
+      "conditions": [
+        "x ∈ R"
+      ]
+    },
+    {
+      "rule_id": "S002",
+      "family": "roots",
+      "mode": "normalize",
+      "expression": "sqrt(x) ^ 2 = x",
+      "rewrite": "sqrt(x) ^ 2 → x",
+      "lhs": "sqrt(x) ^ 2",
+      "rhs": "x",
+      "conditions": [
+        "x ≥ 0"
+      ]
+    },
+    {
+      "rule_id": "S003",
+      "family": "roots",
+      "mode": "normalize",
+      "expression": "sqrt(a * b) = sqrt(a) * sqrt(b)",
+      "rewrite": "sqrt(a * b) → sqrt(a) * sqrt(b)",
+      "lhs": "sqrt(a * b)",
+      "rhs": "sqrt(a) * sqrt(b)",
+      "conditions": [
+        "a ≥ 0",
+        "b ≥ 0"
+      ]
+    },
+    {
+      "rule_id": "S004",
+      "family": "roots",
+      "mode": "normalize",
+      "expression": "sqrt(a / b) = sqrt(a) / sqrt(b)",
+      "rewrite": "sqrt(a / b) → sqrt(a) / sqrt(b)",
+      "lhs": "sqrt(a / b)",
+      "rhs": "sqrt(a) / sqrt(b)",
+      "conditions": [
+        "a ≥ 0",
+        "b > 0"
+      ]
+    },
+    {
+      "rule_id": "S005",
+      "family": "absolute",
+      "mode": "normalize",
+      "expression": "|−x| = |x|",
+      "rewrite": "|−x| → |x|",
+      "lhs": "|−x|",
+      "rhs": "|x|"
+    },
+    {
+      "rule_id": "S006",
+      "family": "absolute",
+      "mode": "normalize",
+      "expression": "||x|| = |x|",
+      "rewrite": "||x|| → |x|",
+      "lhs": "||x||",
+      "rhs": "|x|"
+    },
+    {
+      "rule_id": "S007",
+      "family": "absolute",
+      "mode": "normalize",
+      "expression": "|x| ^ 2 = x ^ 2",
+      "rewrite": "|x| ^ 2 → x ^ 2",
+      "lhs": "|x| ^ 2",
+      "rhs": "x ^ 2",
+      "conditions": [
+        "x ∈ R"
+      ]
+    },
+    {
+      "rule_id": "S008",
+      "family": "absolute",
+      "mode": "normalize",
+      "expression": "|a * b| = |a| * |b|",
+      "rewrite": "|a * b| → |a| * |b|",
+      "lhs": "|a * b|",
+      "rhs": "|a| * |b|",
+      "conditions": [
+        "a ∈ R",
+        "b ∈ R"
+      ]
+    },
+    {
+      "rule_id": "T001",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "expression": "sin(−x) = −sin(x)",
+      "rewrite": "sin(−x) → −sin(x)",
+      "lhs": "sin(−x)",
+      "rhs": "−sin(x)",
+      "conditions": [
+        "x ∈ R"
+      ]
+    },
+    {
+      "rule_id": "T002",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "expression": "cos(−x) = cos(x)",
+      "rewrite": "cos(−x) → cos(x)",
+      "lhs": "cos(−x)",
+      "rhs": "cos(x)",
+      "conditions": [
+        "x ∈ R"
+      ]
+    },
+    {
+      "rule_id": "T003",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "expression": "tan(x) = sin(x) / cos(x)",
+      "rewrite": "tan(x) → sin(x) / cos(x)",
+      "lhs": "tan(x)",
+      "rhs": "sin(x) / cos(x)",
+      "conditions": [
+        "cos(x) ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "T004",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "expression": "cot(x) = cos(x) / sin(x)",
+      "rewrite": "cot(x) → cos(x) / sin(x)",
+      "lhs": "cot(x)",
+      "rhs": "cos(x) / sin(x)",
+      "conditions": [
+        "sin(x) ≠ 0"
+      ]
+    },
+    {
+      "rule_id": "T005",
+      "family": "trigonometry",
+      "mode": "normalize",
+      "expression": "sin(x) ^ 2 + cos(x) ^ 2 = 1",
+      "rewrite": "sin(x) ^ 2 + cos(x) ^ 2 → 1",
+      "lhs": "sin(x) ^ 2 + cos(x) ^ 2",
+      "rhs": "1",
+      "conditions": [
+        "x ∈ R"
+      ]
+    },
+    {
+      "rule_id": "L001",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "ln(a * b) = ln(a) + ln(b)",
+      "rewrite": "ln(a * b) → ln(a) + ln(b)",
+      "lhs": "ln(a * b)",
+      "rhs": "ln(a) + ln(b)",
+      "conditions": [
+        "a > 0",
+        "b > 0"
+      ]
+    },
+    {
+      "rule_id": "L002",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "ln(a / b) = ln(a) − ln(b)",
+      "rewrite": "ln(a / b) → ln(a) − ln(b)",
+      "lhs": "ln(a / b)",
+      "rhs": "ln(a) − ln(b)",
+      "conditions": [
+        "a > 0",
+        "b > 0"
+      ]
+    },
+    {
+      "rule_id": "L003",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "ln(exp(x)) = x",
+      "rewrite": "ln(exp(x)) → x",
+      "lhs": "ln(exp(x))",
+      "rhs": "x",
+      "conditions": [
+        "x ∈ R"
+      ]
+    },
+    {
+      "rule_id": "L004",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "exp(ln(x)) = x",
+      "rewrite": "exp(ln(x)) → x",
+      "lhs": "exp(ln(x))",
+      "rhs": "x",
+      "conditions": [
+        "x > 0"
+      ]
+    },
+    {
+      "rule_id": "L005",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "ln(1) = 0",
+      "rewrite": "ln(1) → 0",
+      "lhs": "ln(1)",
+      "rhs": "0"
+    },
+    {
+      "rule_id": "L006",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "log_b(x) = ln(x) / ln(b)",
+      "rewrite": "log_b(x) → ln(x) / ln(b)",
+      "lhs": "log_b(x)",
+      "rhs": "ln(x) / ln(b)",
+      "conditions": [
+        "b > 0",
+        "b ≠ 1",
+        "x > 0"
+      ]
+    },
+    {
+      "rule_id": "L007",
+      "family": "logarithms",
+      "mode": "normalize",
+      "expression": "exp(a + b) = exp(a) * exp(b)",
+      "rewrite": "exp(a + b) → exp(a) * exp(b)",
+      "lhs": "exp(a + b)",
+      "rhs": "exp(a) * exp(b)",
+      "conditions": [
+        "a ∈ R",
+        "b ∈ R"
+      ]
+    },
+    {
+      "rule_id": "E001",
+      "family": "equations",
+      "mode": "manual_only",
+      "expression": "l = r → r = l",
+      "rewrite": "l = r → r = l",
+      "lhs": "l = r",
+      "rhs": "r = l",
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "E002",
+      "family": "equations",
+      "mode": "manual_only",
+      "expression": "l = r → l + t = r + t",
+      "rewrite": "l = r → l + t = r + t",
+      "lhs": "l = r",
+      "rhs": "l + t = r + t",
+      "conditions": [
+        "t определено"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "E003",
+      "family": "equations",
+      "mode": "manual_only",
+      "expression": "l = r → l * t = r * t",
+      "rewrite": "l = r → l * t = r * t",
+      "lhs": "l = r",
+      "rhs": "l * t = r * t",
+      "conditions": [
+        "t определено",
+        "t ≠ 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "E004",
+      "family": "equations",
+      "mode": "manual_only",
+      "expression": "l = r → l / t = r / t",
+      "rewrite": "l = r → l / t = r / t",
+      "lhs": "l = r",
+      "rhs": "l / t = r / t",
+      "conditions": [
+        "t определено",
+        "t ≠ 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "E005",
+      "family": "equations",
+      "mode": "manual_only",
+      "expression": "x + a = b → x = b − a",
+      "rewrite": "x + a = b → x = b − a",
+      "lhs": "x + a = b",
+      "rhs": "x = b − a",
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "E006",
+      "family": "equations",
+      "mode": "manual_only",
+      "expression": "a / b = c → a = b * c",
+      "rewrite": "a / b = c → a = b * c",
+      "lhs": "a / b = c",
+      "rhs": "a = b * c",
+      "conditions": [
+        "b ≠ 0"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "ILT01",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l < r → l + t < r + t",
+      "rewrite": "l < r → l + t < r + t",
+      "lhs": "l < r",
+      "rhs": "l + t < r + t",
+      "conditions": [
+        "t определено"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "ILT02",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l < r → l * t < r * t",
+      "rewrite": "l < r → l * t < r * t",
+      "lhs": "l < r",
+      "rhs": "l * t < r * t",
+      "conditions": [
+        "t > 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "ILT03",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l < r → l * t > r * t",
+      "rewrite": "l < r → l * t > r * t",
+      "lhs": "l < r",
+      "rhs": "l * t > r * t",
+      "conditions": [
+        "t < 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "ILE01",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l ≤ r → l + t ≤ r + t",
+      "rewrite": "l ≤ r → l + t ≤ r + t",
+      "lhs": "l ≤ r",
+      "rhs": "l + t ≤ r + t",
+      "conditions": [
+        "t определено"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "ILE02",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l ≤ r → l * t ≤ r * t",
+      "rewrite": "l ≤ r → l * t ≤ r * t",
+      "lhs": "l ≤ r",
+      "rhs": "l * t ≤ r * t",
+      "conditions": [
+        "t > 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "ILE03",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l ≤ r → l * t ≥ r * t",
+      "rewrite": "l ≤ r → l * t ≥ r * t",
+      "lhs": "l ≤ r",
+      "rhs": "l * t ≥ r * t",
+      "conditions": [
+        "t < 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "IGT01",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l > r → l + t > r + t",
+      "rewrite": "l > r → l + t > r + t",
+      "lhs": "l > r",
+      "rhs": "l + t > r + t",
+      "conditions": [
+        "t определено"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "IGT02",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l > r → l * t > r * t",
+      "rewrite": "l > r → l * t > r * t",
+      "lhs": "l > r",
+      "rhs": "l * t > r * t",
+      "conditions": [
+        "t > 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "IGT03",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l > r → l * t < r * t",
+      "rewrite": "l > r → l * t < r * t",
+      "lhs": "l > r",
+      "rhs": "l * t < r * t",
+      "conditions": [
+        "t < 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "IGE01",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l ≥ r → l + t ≥ r + t",
+      "rewrite": "l ≥ r → l + t ≥ r + t",
+      "lhs": "l ≥ r",
+      "rhs": "l + t ≥ r + t",
+      "conditions": [
+        "t определено"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "IGE02",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l ≥ r → l * t ≥ r * t",
+      "rewrite": "l ≥ r → l * t ≥ r * t",
+      "lhs": "l ≥ r",
+      "rhs": "l * t ≥ r * t",
+      "conditions": [
+        "t > 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    },
+    {
+      "rule_id": "IGE03",
+      "family": "inequalities",
+      "mode": "manual_only",
+      "expression": "l ≥ r → l * t ≤ r * t",
+      "rewrite": "l ≥ r → l * t ≤ r * t",
+      "lhs": "l ≥ r",
+      "rhs": "l * t ≤ r * t",
+      "conditions": [
+        "t < 0"
+      ],
+      "parameters": [
+        "t"
+      ],
+      "relation": "solution_set_equivalence"
+    }
+  ]
+}
