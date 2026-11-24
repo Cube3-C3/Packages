@@ -13,10 +13,10 @@
       "../Fis_data/math_ops.json"
     ],
     "notes": [
-      "aspect = именованный выход (volume, surface_area, …), не физическая Q* (связь с Q позже через E* params).",
       "shape — id конструктора geo_core (G3.sphere / G3.parallelepiped / G3.cylinder).",
       "bindings: { param: name конструктора } | { const: M009 } (2π) | { num: n } | { law: GA* }.",
-      "Единицы не храним: Length в м, результаты в СИ (m³, m², m)."
+      "Единицы не храним: Length в м, результаты в СИ (m³, m², m).",
+      "quantity_ref связывает выход аспекта с существующей физической величиной Q*: volume → Q028, area → Q042, линейные результаты → Q008."
     ]
   },
   "aspects": [
