@@ -10,6 +10,9 @@
       "slots": [
         "operator",
         "operand"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -19,6 +22,9 @@
       "slots": [
         "operand…",
         "operator…"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -27,6 +33,9 @@
       "family": "numeric",
       "slots": [
         "digits"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -36,6 +45,9 @@
       "slots": [
         "digits",
         "periodic?"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -46,6 +58,9 @@
         "open",
         "digits",
         "close"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -56,6 +71,9 @@
         "integer",
         "decimal?",
         "fractional?"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -64,6 +82,9 @@
       "family": "named",
       "slots": [
         "name"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -73,6 +94,9 @@
       "slots": [
         "base",
         "index_list?"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -81,6 +105,9 @@
       "family": "named",
       "slots": [
         "name"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -90,6 +117,9 @@
       "slots": [
         "name",
         "argument_list"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -98,6 +128,9 @@
       "family": "list",
       "slots": [
         "index…"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -108,6 +141,9 @@
         "open",
         "argument…",
         "close"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -117,6 +153,9 @@
       "slots": [
         "operand",
         "group?"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -127,6 +166,9 @@
         "expression",
         "comparison",
         "expression"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -136,6 +178,9 @@
       "slots": [
         "relation…",
         "logical…"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -145,6 +190,9 @@
       "slots": [
         "value",
         "dimension"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -154,6 +202,9 @@
       "slots": [
         "value",
         "name"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -163,6 +214,9 @@
       "slots": [
         "registered-unit",
         "integer-power?"
+      ],
+      "domains": [
+        "algebra"
       ]
     },
     {
@@ -171,6 +225,9 @@
       "family": "unit",
       "slots": [
         "unit_name"
+      ],
+      "domains": [
+        "algebra"
       ]
     }
   ]
