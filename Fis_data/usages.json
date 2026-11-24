@@ -216,7 +216,8 @@
           "длина"
         ],
         "domains": [
-          "general"
+          "general",
+          "geometry"
         ],
         "role": "length",
         "notes": "Длина"
@@ -234,7 +235,7 @@
         ],
         "role": "coordinate",
         "notes": "Координата"
-      },      
+      },
       {
         "name_id": "S009",
         "symbol": "s",
@@ -271,7 +272,8 @@
           "радиус"
         ],
         "domains": [
-          "general"
+          "general",
+          "geometry"
         ],
         "role": "radius",
         "notes": "Радиус"
@@ -285,7 +287,8 @@
         ],
         "domains": [
           "general",
-          "mechanics"
+          "mechanics",
+          "geometry"
         ],
         "role": "height",
         "notes": "Высота"
@@ -304,7 +307,7 @@
         ],
         "role": "distance",
         "notes": "Расстояние"
-      },     
+      },
       {
         "name_id": "S025",
         "symbol": "A",
@@ -810,7 +813,8 @@
         "domains": [
           "general",
           "continuum_mechanics",
-          "thermodynamics"
+          "thermodynamics",
+          "geometry"
         ],
         "role": "volume",
         "notes": "Объём"
@@ -1257,7 +1261,7 @@
         "role": "euler_mascheroni",
         "notes": "Постоянная Эйлера-Маскерони"
       }
-    ],   
+    ],
     "M009": [
       {
         "name_id": "S097",
