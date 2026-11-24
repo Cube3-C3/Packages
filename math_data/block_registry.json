@@ -1,0 +1,495 @@
+{
+  "schema_version": "1.0.0",
+  "id": "matchin_ast_block_registry",
+  "description": "Реестр блоков, используемых при сборке подтверждённого дерева выражения. components — отдельное самопредставление для интерфейса; не содержит ограничений и правил применимости.",
+  "blocks": {
+    "unod": {
+      "name": "УНОД",
+      "family": "operation",
+      "slots": [
+        "operator",
+        "operand"
+      ],
+      "prefix": [
+        "+",
+        "-",
+        "−",
+        "√",
+        "¬"
+      ],
+      "postfix": [
+        "!"
+      ],
+      "circumfix": [
+        "|",
+        "|"
+      ],
+      "priority": 30,
+      "domainRules": [
+        {
+          "id": "radicand",
+          "when": {
+            "operator": "√",
+            "position": "prefix"
+          },
+          "operand": 0,
+          "relation": "≥"
+        }
+      ]
+    },
+    "binod": {
+      "name": "БИНОД",
+      "family": "operation",
+      "slots": [
+        "operand…",
+        "operator…"
+      ],
+      "behaviors": [
+        "priority",
+        "chain"
+      ],
+      "domainRules": [
+        {
+          "id": "denominator",
+          "when": {
+            "operator": "/"
+          },
+          "operand": 1,
+          "relation": "≠"
+        }
+      ]
+    },
+    "integer": {
+      "name": "Целая часть",
+      "family": "numeric",
+      "slots": [
+        "digits"
+      ],
+      "alphabet": "digit",
+      "limit": "digits"
+    },
+    "fractional": {
+      "name": "Дробная часть",
+      "family": "numeric",
+      "slots": [
+        "digits",
+        "periodic?"
+      ],
+      "alphabet": "digit",
+      "limit": "digits"
+    },
+    "periodic": {
+      "name": "Периодическая часть",
+      "family": "numeric",
+      "slots": [
+        "open",
+        "digits",
+        "close"
+      ],
+      "alphabet": "digit",
+      "limit": "digits"
+    },
+    "number": {
+      "name": "Число",
+      "family": "operand",
+      "slots": [
+        "integer",
+        "decimal?",
+        "fractional?"
+      ]
+    },
+    "variable_base": {
+      "name": "Основа переменной",
+      "family": "named",
+      "slots": [
+        "name"
+      ],
+      "alphabet": "letter",
+      "limit": "name"
+    },
+    "variable": {
+      "name": "Переменная",
+      "family": "operand",
+      "slots": [
+        "base",
+        "index_list?"
+      ]
+    },
+    "function_name": {
+      "name": "Имя функции",
+      "family": "named",
+      "slots": [
+        "name"
+      ],
+      "alphabet": "letter",
+      "limit": "name"
+    },
+    "function": {
+      "name": "Функция",
+      "family": "operand",
+      "slots": [
+        "name",
+        "argument_list"
+      ],
+      "domainRules": [
+        {
+          "id": "sqrt-radicand",
+          "when": {
+            "name": "sqrt",
+            "arity": 1
+          },
+          "argument": 0,
+          "relation": "≥"
+        },
+        {
+          "id": "root-radicand",
+          "when": {
+            "name": "root",
+            "arity": 2
+          },
+          "argument": 0,
+          "degreeArgument": 1
+        },
+        {
+          "id": "root-degree",
+          "when": {
+            "name": "root",
+            "arity": 2
+          },
+          "argument": 1,
+          "relation": "≠"
+        }
+      ]
+    },
+    "index_list": {
+      "name": "Список индексов",
+      "family": "list",
+      "slots": [
+        "index…"
+      ],
+      "alphabet": "index",
+      "separator": ",",
+      "min": 1,
+      "behaviors": [
+        "chain"
+      ]
+    },
+    "argument_list": {
+      "name": "Список аргументов",
+      "family": "list",
+      "slots": [
+        "open",
+        "argument…",
+        "close"
+      ],
+      "separator": [
+        ",",
+        ";"
+      ],
+      "min": 1,
+      "behaviors": [
+        "chain"
+      ]
+    },
+    "expression": {
+      "name": "Выражение",
+      "family": "expression",
+      "slots": [
+        "operand",
+        "group?"
+      ]
+    },
+    "relation": {
+      "name": "Отношение",
+      "family": "relation",
+      "slots": [
+        "expression",
+        "comparison",
+        "expression"
+      ]
+    },
+    "collection": {
+      "name": "Коллекция",
+      "family": "collection",
+      "slots": [
+        "relation…",
+        "logical…"
+      ],
+      "min": 1,
+      "behaviors": [
+        "priority",
+        "chain"
+      ]
+    },
+    "quantity": {
+      "name": "Величина",
+      "family": "quantity",
+      "slots": [
+        "value",
+        "dimension"
+      ],
+      "behavior": "unary-binding"
+    },
+    "measurement_draft": {
+      "name": "Черновик величины",
+      "family": "quantity",
+      "slots": [
+        "value",
+        "name"
+      ],
+      "draft": true
+    },
+    "dimension": {
+      "name": "Размерность",
+      "family": "dimension",
+      "slots": [
+        "registered-unit",
+        "integer-power?"
+      ],
+      "baseKinds": [
+        "dimension_unit"
+      ],
+      "slotRules": {
+        "power": "dimension.power"
+      }
+    },
+    "dimension_unit": {
+      "name": "Единица СИ",
+      "family": "unit",
+      "slots": [
+        "unit_name"
+      ],
+      "alphabet": "registered-name",
+      "limit": "name"
+    }
+  },
+  "components": [
+    {
+      "id": "unod",
+      "name": "УНОД",
+      "family": "operation",
+      "slots": [
+        "operator",
+        "operand"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "binod",
+      "name": "БИНОД",
+      "family": "operation",
+      "slots": [
+        "operand…",
+        "operator…"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "integer",
+      "name": "Целая часть",
+      "family": "numeric",
+      "slots": [
+        "digits"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "fractional",
+      "name": "Дробная часть",
+      "family": "numeric",
+      "slots": [
+        "digits",
+        "periodic?"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "periodic",
+      "name": "Периодическая часть",
+      "family": "numeric",
+      "slots": [
+        "open",
+        "digits",
+        "close"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "number",
+      "name": "Число",
+      "family": "operand",
+      "slots": [
+        "integer",
+        "decimal?",
+        "fractional?"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "variable_base",
+      "name": "Основа переменной",
+      "family": "named",
+      "slots": [
+        "name"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "variable",
+      "name": "Переменная",
+      "family": "operand",
+      "slots": [
+        "base",
+        "index_list?"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "function_name",
+      "name": "Имя функции",
+      "family": "named",
+      "slots": [
+        "name"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "function",
+      "name": "Функция",
+      "family": "operand",
+      "slots": [
+        "name",
+        "argument_list"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "index_list",
+      "name": "Список индексов",
+      "family": "list",
+      "slots": [
+        "index…"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "argument_list",
+      "name": "Список аргументов",
+      "family": "list",
+      "slots": [
+        "open",
+        "argument…",
+        "close"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "expression",
+      "name": "Выражение",
+      "family": "expression",
+      "slots": [
+        "operand",
+        "group?"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "relation",
+      "name": "Отношение",
+      "family": "relation",
+      "slots": [
+        "expression",
+        "comparison",
+        "expression"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "collection",
+      "name": "Коллекция",
+      "family": "collection",
+      "slots": [
+        "relation…",
+        "logical…"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "quantity",
+      "name": "Величина",
+      "family": "quantity",
+      "slots": [
+        "value",
+        "dimension"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "measurement_draft",
+      "name": "Черновик величины",
+      "family": "quantity",
+      "slots": [
+        "value",
+        "name"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "dimension",
+      "name": "Размерность",
+      "family": "dimension",
+      "slots": [
+        "registered-unit",
+        "integer-power?"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    },
+    {
+      "id": "dimension_unit",
+      "name": "Единица СИ",
+      "family": "unit",
+      "slots": [
+        "unit_name"
+      ],
+      "domains": [
+        "algebra"
+      ]
+    }
+  ]
+}
