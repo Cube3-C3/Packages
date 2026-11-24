@@ -1,0 +1,177 @@
+{
+  "schema_version": "1.0.0",
+  "id": "matchin_block_components",
+  "description": "Самопредставление структурных компонентов Matchin. Не содержит ограничений, условий допустимости или исполняемых правил.",
+  "components": [
+    {
+      "id": "unod",
+      "name": "УНОД",
+      "family": "operation",
+      "slots": [
+        "operator",
+        "operand"
+      ]
+    },
+    {
+      "id": "binod",
+      "name": "БИНОД",
+      "family": "operation",
+      "slots": [
+        "operand…",
+        "operator…"
+      ]
+    },
+    {
+      "id": "integer",
+      "name": "Целая часть",
+      "family": "numeric",
+      "slots": [
+        "digits"
+      ]
+    },
+    {
+      "id": "fractional",
+      "name": "Дробная часть",
+      "family": "numeric",
+      "slots": [
+        "digits",
+        "periodic?"
+      ]
+    },
+    {
+      "id": "periodic",
+      "name": "Периодическая часть",
+      "family": "numeric",
+      "slots": [
+        "open",
+        "digits",
+        "close"
+      ]
+    },
+    {
+      "id": "number",
+      "name": "Число",
+      "family": "operand",
+      "slots": [
+        "integer",
+        "decimal?",
+        "fractional?"
+      ]
+    },
+    {
+      "id": "variable_base",
+      "name": "Основа переменной",
+      "family": "named",
+      "slots": [
+        "name"
+      ]
+    },
+    {
+      "id": "variable",
+      "name": "Переменная",
+      "family": "operand",
+      "slots": [
+        "base",
+        "index_list?"
+      ]
+    },
+    {
+      "id": "function_name",
+      "name": "Имя функции",
+      "family": "named",
+      "slots": [
+        "name"
+      ]
+    },
+    {
+      "id": "function",
+      "name": "Функция",
+      "family": "operand",
+      "slots": [
+        "name",
+        "argument_list"
+      ]
+    },
+    {
+      "id": "index_list",
+      "name": "Список индексов",
+      "family": "list",
+      "slots": [
+        "index…"
+      ]
+    },
+    {
+      "id": "argument_list",
+      "name": "Список аргументов",
+      "family": "list",
+      "slots": [
+        "open",
+        "argument…",
+        "close"
+      ]
+    },
+    {
+      "id": "expression",
+      "name": "Выражение",
+      "family": "expression",
+      "slots": [
+        "operand",
+        "group?"
+      ]
+    },
+    {
+      "id": "relation",
+      "name": "Отношение",
+      "family": "relation",
+      "slots": [
+        "expression",
+        "comparison",
+        "expression"
+      ]
+    },
+    {
+      "id": "collection",
+      "name": "Коллекция",
+      "family": "collection",
+      "slots": [
+        "relation…",
+        "logical…"
+      ]
+    },
+    {
+      "id": "quantity",
+      "name": "Величина",
+      "family": "quantity",
+      "slots": [
+        "value",
+        "dimension"
+      ]
+    },
+    {
+      "id": "measurement_draft",
+      "name": "Черновик величины",
+      "family": "quantity",
+      "slots": [
+        "value",
+        "name"
+      ]
+    },
+    {
+      "id": "dimension",
+      "name": "Размерность",
+      "family": "dimension",
+      "slots": [
+        "registered-unit",
+        "integer-power?"
+      ]
+    },
+    {
+      "id": "dimension_unit",
+      "name": "Единица СИ",
+      "family": "unit",
+      "slots": [
+        "unit_name"
+      ]
+    }
+  ]
+}
