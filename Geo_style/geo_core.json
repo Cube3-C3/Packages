@@ -28,7 +28,13 @@
     },
     "Length": {
       "dim": 1,
-      "dimension": "[L]"
+      "dimension": "[L]",
+      "quantity_ref": "Q008",
+      "usage_refs": [
+        "S007",
+        "S022",
+        "S021"
+      ]
     },
     "Angle": {
       "dim": 0,
@@ -169,7 +175,9 @@
         },
         {
           "name": "radius",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008",
+          "usage_ref": "S021"
         }
       ]
     },
@@ -183,11 +191,15 @@
         },
         {
           "name": "width",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008",
+          "usage_ref": "S007"
         },
         {
           "name": "height",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008",
+          "usage_ref": "S022"
         },
         {
           "name": "rotation",
@@ -206,11 +218,13 @@
         },
         {
           "name": "rx",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008"
         },
         {
           "name": "ry",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008"
         },
         {
           "name": "rotation",
@@ -229,7 +243,9 @@
         },
         {
           "name": "radius",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008",
+          "usage_ref": "S021"
         },
         {
           "name": "n",
@@ -295,7 +311,9 @@
         },
         {
           "name": "radius",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008",
+          "usage_ref": "S021"
         }
       ],
       "aspects": [
@@ -314,15 +332,18 @@
         },
         {
           "name": "a",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008"
         },
         {
           "name": "b",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008"
         },
         {
           "name": "c",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008"
         }
       ],
       "aspects": [
@@ -341,11 +362,15 @@
         },
         {
           "name": "radius",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008",
+          "usage_ref": "S021"
         },
         {
           "name": "height",
-          "sort": "Length"
+          "sort": "Length",
+          "quantity_ref": "Q008",
+          "usage_ref": "S022"
         }
       ],
       "aspects": [
